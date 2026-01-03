@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"schemift/internal/parser"
+	"schemift/parser"
 	"testing"
 
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"

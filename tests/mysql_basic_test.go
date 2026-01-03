@@ -1,10 +1,9 @@
 package tests
 
 import (
+	"schemift/core"
+	"schemift/parser"
 	"testing"
-
-	"schemift/internal/core"
-	"schemift/internal/parser"
 
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 	"github.com/stretchr/testify/assert"

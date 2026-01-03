@@ -3,9 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"schemift/parser"
 	"strings"
-
-	"schemift/internal/parser"
 
 	"github.com/spf13/cobra"
 )
