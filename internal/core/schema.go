@@ -11,12 +11,16 @@ type Database struct {
 }
 
 type Table struct {
-	Name        string
-	Columns     []*Column
-	Constraints []*Constraint
-	Indexes     []*Index
-	Comment     string
-	Options     string
+	Name          string
+	Columns       []*Column
+	Constraints   []*Constraint
+	Indexes       []*Index
+	Comment       string
+	Options       string
+	Charset       string
+	Collate       string
+	Engine        string
+	AutoIncrement uint64
 }
 
 type Column struct {
@@ -27,7 +31,14 @@ type Column struct {
 	PrimaryKey    bool
 	AutoIncrement bool
 	DefaultValue  *string
+	OnUpdate      *string
 	Comment       string
+	Collate       string
+	Charset       string
+
+	IsGenerated          bool
+	GenerationExpression string
+	GenerationStorage    string
 }
 
 type Constraint struct {
@@ -35,10 +46,10 @@ type Constraint struct {
 	Type    ConstraintType
 	Columns []string
 
-	ReferencedTable  string
-	ReferencedColumn string
-	OnDelete         string
-	OnUpdate         string
+	ReferencedTable   string
+	ReferencedColumns []string
+	OnDelete          string
+	OnUpdate          string
 
 	CheckExpression string
 }
