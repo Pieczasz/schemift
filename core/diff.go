@@ -439,9 +439,9 @@ func constraintFieldChanges(oldC, newC *Constraint) []*FieldChange {
 	}
 
 	add("type", string(oldC.Type), string(newC.Type))
-	add("columns", fmt.Sprintf("%v", oldC.Columns), fmt.Sprintf("%v", newC.Columns))
+	add("columns", formatNameList(oldC.Columns), formatNameList(newC.Columns))
 	add("referenced_table", oldC.ReferencedTable, newC.ReferencedTable)
-	add("referenced_columns", fmt.Sprintf("%v", oldC.ReferencedColumns), fmt.Sprintf("%v", newC.ReferencedColumns))
+	add("referenced_columns", formatNameList(oldC.ReferencedColumns), formatNameList(newC.ReferencedColumns))
 	add("on_delete", strings.TrimSpace(oldC.OnDelete), strings.TrimSpace(newC.OnDelete))
 	add("on_update", strings.TrimSpace(oldC.OnUpdate), strings.TrimSpace(newC.OnUpdate))
 	add("check_expression", strings.TrimSpace(oldC.CheckExpression), strings.TrimSpace(newC.CheckExpression))
@@ -460,7 +460,7 @@ func indexFieldChanges(oldI, newI *Index) []*FieldChange {
 
 	add("unique", strconv.FormatBool(oldI.Unique), strconv.FormatBool(newI.Unique))
 	add("type", strings.TrimSpace(oldI.Type), strings.TrimSpace(newI.Type))
-	add("columns", fmt.Sprintf("%v", oldI.Columns), fmt.Sprintf("%v", newI.Columns))
+	add("columns", formatNameList(oldI.Columns), formatNameList(newI.Columns))
 
 	return changes
 }
@@ -470,6 +470,10 @@ func optString(v *string) string {
 		return "<nil>"
 	}
 	return *v
+}
+
+func formatNameList(items []string) string {
+	return "(" + strings.Join(items, ", ") + ")"
 }
 
 func (d *SchemaDiff) String() string {
@@ -558,13 +562,13 @@ func (d *SchemaDiff) String() string {
 			if len(mt.AddedIndexes) > 0 {
 				sb.WriteString("    Added indexes:\n")
 				for _, idx := range mt.AddedIndexes {
-					sb.WriteString(fmt.Sprintf("      - %s (%v)\n", idx.Name, idx.Columns))
+					sb.WriteString(fmt.Sprintf("      - %s %s\n", idx.Name, formatNameList(idx.Columns)))
 				}
 			}
 			if len(mt.RemovedIndexes) > 0 {
 				sb.WriteString("    Removed indexes:\n")
 				for _, idx := range mt.RemovedIndexes {
-					sb.WriteString(fmt.Sprintf("      - %s (%v)\n", idx.Name, idx.Columns))
+					sb.WriteString(fmt.Sprintf("      - %s %s\n", idx.Name, formatNameList(idx.Columns)))
 				}
 			}
 			if len(mt.ModifiedIndexes) > 0 {

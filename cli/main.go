@@ -43,6 +43,7 @@ func main() {
 		},
 	}
 
+	var diffOutFile string
 	diffCmd := &cobra.Command{
 		Use:   "diff <old.sql> <new.sql>",
 		Short: "Compare two schemas",
@@ -68,10 +69,19 @@ func main() {
 			}
 
 			sd := core.Diff(oldDB, newDB)
-			fmt.Println(sd.String())
+			if diffOutFile == "" {
+				fmt.Print(sd.String())
+				return nil
+			}
+			if err := sd.SaveToFile(diffOutFile); err != nil {
+				return fmt.Errorf("failed to write output: %w", err)
+			}
+			fmt.Printf("Output saved to %s\n", diffOutFile)
 			return nil
 		},
 	}
+
+	diffCmd.Flags().StringVarP(&diffOutFile, "output", "o", "", "Output file for the diff")
 
 	var fromDialect string
 	var toDialect string
