@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"schemift/core"
 	"schemift/parser"
 	"strings"
 
@@ -66,9 +67,8 @@ func main() {
 				return fmt.Errorf("parse new schema error: %w", err)
 			}
 
-			// TODO: call core.Diff(oldDB, newDB)
-			fmt.Printf("Old DB: %d tables\n", len(oldDB.Tables))
-			fmt.Printf("New DB: %d tables\n", len(newDB.Tables))
+			sd := core.Diff(oldDB, newDB)
+			fmt.Println(sd.String())
 			return nil
 		},
 	}
