@@ -17,24 +17,20 @@ type Parser struct {
 }
 
 func NewParser() *Parser {
-	return &Parser{
-		p: parser.New(),
-	}
+	return &Parser{p: parser.New()}
 }
 
 func (p *Parser) Parse(sql string) (*core.Database, error) {
 	stmtNodes, _, err := p.p.Parse(sql, "", "")
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse MySQL dump: %v", err)
+		return nil, fmt.Errorf("parse error: %w", err)
 	}
 
-	db := &core.Database{
-		Tables: []*core.Table{},
-	}
+	db := &core.Database{Tables: []*core.Table{}}
 
-	for _, stmtNode := range stmtNodes {
-		if createStmt, ok := stmtNode.(*ast.CreateTableStmt); ok {
-			table, err := p.convertCreateTable(createStmt)
+	for _, stmt := range stmtNodes {
+		if create, ok := stmt.(*ast.CreateTableStmt); ok {
+			table, err := p.convertCreateTable(create)
 			if err != nil {
 				return nil, err
 			}
@@ -53,133 +49,123 @@ func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, err
 		Indexes:     []*core.Index{},
 	}
 
-	for _, opt := range stmt.Options {
+	p.parseTableOptions(stmt.Options, table)
+	p.parseColumns(stmt.Cols, table)
+	p.parseConstraints(stmt.Constraints, table)
+
+	return table, nil
+}
+
+func (p *Parser) parseTableOptions(opts []*ast.TableOption, table *core.Table) {
+	for _, opt := range opts {
 		switch opt.Tp {
 		case ast.TableOptionComment:
 			table.Comment = opt.StrValue
 		case ast.TableOptionCharset:
-			table.Charset = opt.StrValue
+			table.Options.Charset = opt.StrValue
 		case ast.TableOptionCollate:
-			table.Collate = opt.StrValue
+			table.Options.Collate = opt.StrValue
 		case ast.TableOptionEngine:
-			table.Engine = opt.StrValue
+			table.Options.Engine = opt.StrValue
 		case ast.TableOptionAutoIncrement:
-			table.AutoIncrement = opt.UintValue
+			table.Options.AutoIncrement = opt.UintValue
 		case ast.TableOptionAvgRowLength:
-			table.AvgRowLength = opt.UintValue
+			table.Options.AvgRowLength = opt.UintValue
 		case ast.TableOptionCheckSum:
-			table.Checksum = opt.UintValue
+			table.Options.Checksum = opt.UintValue
 		case ast.TableOptionCompression:
-			table.Compression = opt.StrValue
+			table.Options.Compression = opt.StrValue
 		case ast.TableOptionKeyBlockSize:
-			table.KeyBlockSize = opt.UintValue
+			table.Options.KeyBlockSize = opt.UintValue
 		case ast.TableOptionMaxRows:
-			table.MaxRows = opt.UintValue
+			table.Options.MaxRows = opt.UintValue
 		case ast.TableOptionMinRows:
-			table.MinRows = opt.UintValue
+			table.Options.MinRows = opt.UintValue
 		case ast.TableOptionDelayKeyWrite:
-			table.DelayKeyWrite = opt.UintValue
+			table.Options.DelayKeyWrite = opt.UintValue
 		case ast.TableOptionRowFormat:
-			switch opt.UintValue {
-			case ast.RowFormatFixed:
-				table.RowFormat = "FIXED"
-			case ast.RowFormatDynamic:
-				table.RowFormat = "DYNAMIC"
-			case ast.RowFormatCompressed:
-				table.RowFormat = "COMPRESSED"
-			case ast.RowFormatRedundant:
-				table.RowFormat = "REDUNDANT"
-			case ast.RowFormatCompact:
-				table.RowFormat = "COMPACT"
-			case ast.RowFormatDefault:
-				table.RowFormat = "DEFAULT"
-			case ast.TokuDBRowFormatDefault:
-				table.RowFormat = "TOKUDB_DEFAULT"
-			case ast.TokuDBRowFormatFast:
-				table.RowFormat = "TOKUDB_FAST"
-			case ast.TokuDBRowFormatSmall:
-				table.RowFormat = "TOKUDB_SMALL"
-			case ast.TokuDBRowFormatZlib:
-				table.RowFormat = "TOKUDB_ZLIB"
-			case ast.TokuDBRowFormatQuickLZ:
-				table.RowFormat = "TOKUDB_QUICKLZ"
-			case ast.TokuDBRowFormatLzma:
-				table.RowFormat = "TOKUDB_LZMA"
-			case ast.TokuDBRowFormatSnappy:
-				table.RowFormat = "TOKUDB_SNAPPY"
-			case ast.TokuDBRowFormatUncompressed:
-				table.RowFormat = "TOKUDB_UNCOMPRESSED"
-			case ast.TokuDBRowFormatZstd:
-				table.RowFormat = "TOKUDB_ZSTD"
-			}
+			table.Options.RowFormat = rowFormatToString(opt.UintValue)
 		case ast.TableOptionTablespace:
-			table.Tablespace = opt.StrValue
+			table.Options.Tablespace = opt.StrValue
 		case ast.TableOptionDataDirectory:
-			table.DataDirectory = opt.StrValue
+			table.Options.DataDirectory = opt.StrValue
 		case ast.TableOptionIndexDirectory:
-			table.IndexDirectory = opt.StrValue
+			table.Options.IndexDirectory = opt.StrValue
 		case ast.TableOptionEncryption:
-			table.Encryption = opt.StrValue
+			table.Options.Encryption = opt.StrValue
 		case ast.TableOptionPackKeys:
-			// Known TiDB parser limitation: The value for PACK_KEYS is parsed but not stored in the AST.
-			// It always returns Default=false and UintValue=0 regardless of the input (0, 1, or DEFAULT).
 			if opt.Default {
-				table.PackKeys = "DEFAULT"
+				table.Options.PackKeys = "DEFAULT"
 			} else if opt.UintValue == 1 {
-				table.PackKeys = "1"
+				table.Options.PackKeys = "1"
 			} else {
-				table.PackKeys = "0"
+				table.Options.PackKeys = "0"
 			}
 		case ast.TableOptionStatsPersistent:
-			// Known TiDB parser limitation: The value for STATS_PERSISTENT is parsed but not stored in the AST.
-			// It always returns Default=false and UintValue=0 regardless of the input (0, 1, or DEFAULT).
 			if opt.Default {
-				table.StatsPersistent = "DEFAULT"
+				table.Options.StatsPersistent = "DEFAULT"
 			} else {
-				table.StatsPersistent = strconv.FormatUint(opt.UintValue, 10)
+				table.Options.StatsPersistent = strconv.FormatUint(opt.UintValue, 10)
 			}
 		case ast.TableOptionStatsAutoRecalc:
 			if opt.Default {
-				table.StatsAutoRecalc = "DEFAULT"
+				table.Options.StatsAutoRecalc = "DEFAULT"
 			} else {
-				table.StatsAutoRecalc = strconv.FormatUint(opt.UintValue, 10)
+				table.Options.StatsAutoRecalc = strconv.FormatUint(opt.UintValue, 10)
 			}
 		case ast.TableOptionStatsSamplePages:
 			if opt.Default {
-				table.StatsSamplePages = "DEFAULT"
+				table.Options.StatsSamplePages = "DEFAULT"
 			} else {
-				table.StatsSamplePages = strconv.FormatUint(opt.UintValue, 10)
+				table.Options.StatsSamplePages = strconv.FormatUint(opt.UintValue, 10)
 			}
 		case ast.TableOptionStorageMedia:
-			table.StorageMedia = opt.StrValue
+			table.Options.StorageMedia = opt.StrValue
 		case ast.TableOptionInsertMethod:
-			table.InsertMethod = opt.StrValue
-		case ast.TableOptionNone:
-		case ast.TableOptionAutoIdCache:
-			table.AutoIdCache = opt.UintValue
-		case ast.TableOptionAutoRandomBase:
-			table.AutoRandomBase = opt.UintValue
+			table.Options.InsertMethod = opt.StrValue
 		case ast.TableOptionConnection:
-			table.Connection = opt.StrValue
+			table.Options.Connection = opt.StrValue
 		case ast.TableOptionPassword:
-			table.Password = opt.StrValue
-		case ast.TableOptionShardRowID:
-			table.ShardRowID = opt.UintValue
-		case ast.TableOptionPreSplitRegion:
-			table.PreSplitRegion = opt.UintValue
-		case ast.TableOptionNodegroup:
-			table.Nodegroup = opt.UintValue
+			table.Options.Password = opt.StrValue
+		case ast.TableOptionAutoextendSize:
+			table.Options.AutoextendSize = opt.StrValue
+		case ast.TableOptionPageChecksum:
+			table.Options.PageChecksum = opt.UintValue
+		case ast.TableOptionTransactional:
+			table.Options.Transactional = opt.UintValue
+
 		case ast.TableOptionSecondaryEngine:
-			table.SecondaryEngine = opt.StrValue
+			table.Options.MySQL.SecondaryEngine = opt.StrValue
 		case ast.TableOptionSecondaryEngineNull:
-			table.SecondaryEngine = "NULL"
+			table.Options.MySQL.SecondaryEngine = "NULL"
 		case ast.TableOptionTableCheckSum:
-			table.TableChecksum = opt.UintValue
+			table.Options.MySQL.TableChecksum = opt.UintValue
 		case ast.TableOptionUnion:
-			table.Union = make([]string, 0, len(opt.TableNames))
+			table.Options.MySQL.Union = make([]string, 0, len(opt.TableNames))
 			for _, tn := range opt.TableNames {
-				table.Union = append(table.Union, tn.Name.O)
+				table.Options.MySQL.Union = append(table.Options.MySQL.Union, tn.Name.O)
 			}
+		case ast.TableOptionEngineAttribute:
+			table.Options.MySQL.EngineAttribute = opt.StrValue
+		case ast.TableOptionSecondaryEngineAttribute:
+			table.Options.MySQL.SecondaryEngineAttribute = opt.StrValue
+		case ast.TableOptionPageCompressed:
+			table.Options.MySQL.PageCompressed = opt.BoolValue || strings.EqualFold(opt.StrValue, "ON") || opt.StrValue == "1"
+		case ast.TableOptionPageCompressionLevel:
+			table.Options.MySQL.PageCompressionLevel = opt.UintValue
+		case ast.TableOptionIetfQuotes:
+			table.Options.MySQL.IetfQuotes = opt.BoolValue || strings.EqualFold(opt.StrValue, "ON") || opt.StrValue == "1"
+		case ast.TableOptionNodegroup:
+			table.Options.MySQL.Nodegroup = opt.UintValue
+
+		case ast.TableOptionAutoIdCache:
+			table.Options.TiDB.AutoIdCache = opt.UintValue
+		case ast.TableOptionAutoRandomBase:
+			table.Options.TiDB.AutoRandomBase = opt.UintValue
+		case ast.TableOptionShardRowID:
+			table.Options.TiDB.ShardRowID = opt.UintValue
+		case ast.TableOptionPreSplitRegion:
+			table.Options.TiDB.PreSplitRegion = opt.UintValue
 		case ast.TableOptionTTL:
 			if opt.ColumnName != nil && opt.TimeUnitValue != nil {
 				val := ""
@@ -188,64 +174,45 @@ func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, err
 						val = *s
 					}
 				}
-				table.TTL = fmt.Sprintf("`%s` + INTERVAL %s %s", opt.ColumnName.Name.O, val, opt.TimeUnitValue.Unit.String())
+				table.Options.TiDB.TTL = fmt.Sprintf("`%s` + INTERVAL %s %s", opt.ColumnName.Name.O, val, opt.TimeUnitValue.Unit.String())
 			}
 		case ast.TableOptionTTLEnable:
-			table.TTLEnable = opt.BoolValue
-			if !table.TTLEnable && (strings.EqualFold(opt.StrValue, "ON") || strings.EqualFold(opt.StrValue, "1")) {
-				table.TTLEnable = true
-			}
+			table.Options.TiDB.TTLEnable = opt.BoolValue || strings.EqualFold(opt.StrValue, "ON") || opt.StrValue == "1"
 		case ast.TableOptionTTLJobInterval:
-			table.TTLJobInterval = opt.StrValue
-		case ast.TableOptionEngineAttribute:
-			table.EngineAttribute = opt.StrValue
-		case ast.TableOptionSecondaryEngineAttribute:
-			table.SecondaryEngineAttribute = opt.StrValue
-		case ast.TableOptionAutoextendSize:
-			table.AutoextendSize = opt.StrValue
-		case ast.TableOptionPageChecksum:
-			table.PageChecksum = opt.UintValue
-		case ast.TableOptionPageCompressed:
-			table.PageCompressed = opt.BoolValue
-		case ast.TableOptionPageCompressionLevel:
-			table.PageCompressionLevel = opt.UintValue
-		case ast.TableOptionTransactional:
-			table.Transactional = opt.UintValue
-		case ast.TableOptionIetfQuotes:
-			table.IetfQuotes = opt.BoolValue
-			if !table.IetfQuotes && (strings.EqualFold(opt.StrValue, "ON") || strings.EqualFold(opt.StrValue, "1")) {
-				table.IetfQuotes = true
-			}
+			table.Options.TiDB.TTLJobInterval = opt.StrValue
 		case ast.TableOptionSequence:
-			table.Sequence = opt.BoolValue
+			table.Options.TiDB.Sequence = opt.BoolValue
 		case ast.TableOptionAffinity:
-			table.Affinity = opt.StrValue
+			table.Options.TiDB.Affinity = opt.StrValue
 		case ast.TableOptionPlacementPolicy:
-			table.PlacementPolicy = opt.StrValue
+			table.Options.TiDB.PlacementPolicy = opt.StrValue
 		case ast.TableOptionStatsBuckets:
-			table.StatsBuckets = opt.UintValue
+			table.Options.TiDB.StatsBuckets = opt.UintValue
 		case ast.TableOptionStatsTopN:
-			table.StatsTopN = opt.UintValue
+			table.Options.TiDB.StatsTopN = opt.UintValue
 		case ast.TableOptionStatsColsChoice:
-			table.StatsColsChoice = opt.StrValue
+			table.Options.TiDB.StatsColsChoice = opt.StrValue
 		case ast.TableOptionStatsColList:
-			table.StatsColList = opt.StrValue
+			table.Options.TiDB.StatsColList = opt.StrValue
 		case ast.TableOptionStatsSampleRate:
 			if opt.Value != nil {
 				if s := p.exprToString(opt.Value); s != nil {
 					if f, err := strconv.ParseFloat(*s, 64); err == nil {
-						table.StatsSampleRate = f
+						table.Options.TiDB.StatsSampleRate = f
 					}
 				}
 			}
+		case ast.TableOptionNone:
 		}
 	}
+}
 
-	for _, colDef := range stmt.Cols {
+func (p *Parser) parseColumns(cols []*ast.ColumnDef, table *core.Table) {
+	for _, colDef := range cols {
 		col := &core.Column{
 			Name:     colDef.Name.Name.O,
 			TypeRaw:  colDef.Tp.String(),
-			Type:     normalizeType(colDef.Tp.String()),
+			Type:     core.NormalizeDataType(colDef.Tp.String()),
 			Nullable: true,
 			Collate:  colDef.Tp.GetCollate(),
 			Charset:  colDef.Tp.GetCharset(),
@@ -267,7 +234,7 @@ func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, err
 				col.OnUpdate = p.exprToString(opt.Expr)
 			case ast.ColumnOptionUniqKey:
 				table.Constraints = append(table.Constraints, &core.Constraint{
-					Type:    core.Unique,
+					Type:    core.ConstraintUnique,
 					Columns: []string{col.Name},
 				})
 			case ast.ColumnOptionComment:
@@ -277,41 +244,39 @@ func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, err
 			case ast.ColumnOptionCollate:
 				if s := p.exprToString(opt.Expr); s != nil {
 					col.Collate = *s
-				} else {
+				} else if opt.StrValue != "" {
 					col.Collate = opt.StrValue
 				}
 			case ast.ColumnOptionFulltext:
 				table.Indexes = append(table.Indexes, &core.Index{
-					Columns: []string{col.Name},
+					Columns: []core.IndexColumn{{Name: col.Name}},
 					Unique:  false,
-					Type:    "FULLTEXT",
+					Type:    core.IndexTypeFullText,
 				})
 			case ast.ColumnOptionCheck:
 				if s := p.exprToString(opt.Expr); s != nil {
 					table.Constraints = append(table.Constraints, &core.Constraint{
-						Type:            core.Check,
+						Type:            core.ConstraintCheck,
 						Columns:         []string{col.Name},
 						CheckExpression: *s,
 					})
 				}
 			case ast.ColumnOptionReference:
 				c := &core.Constraint{
-					Type:            core.ForeignKey,
+					Type:            core.ConstraintForeignKey,
 					Columns:         []string{col.Name},
 					ReferencedTable: opt.Refer.Table.Name.O,
 				}
-				refCols := make([]string, 0, len(opt.Refer.IndexPartSpecifications))
 				for _, spec := range opt.Refer.IndexPartSpecifications {
 					if spec.Column != nil {
-						refCols = append(refCols, spec.Column.Name.O)
+						c.ReferencedColumns = append(c.ReferencedColumns, spec.Column.Name.O)
 					}
 				}
-				c.ReferencedColumns = refCols
 				if opt.Refer.OnDelete != nil {
-					c.OnDelete = opt.Refer.OnDelete.ReferOpt.String()
+					c.OnDelete = core.ReferentialAction(opt.Refer.OnDelete.ReferOpt.String())
 				}
 				if opt.Refer.OnUpdate != nil {
-					c.OnUpdate = opt.Refer.OnUpdate.ReferOpt.String()
+					c.OnUpdate = core.ReferentialAction(opt.Refer.OnUpdate.ReferOpt.String())
 				}
 				table.Constraints = append(table.Constraints, c)
 			case ast.ColumnOptionGenerated:
@@ -322,9 +287,9 @@ func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, err
 					}
 				}
 				if opt.Stored {
-					col.GenerationStorage = "STORED"
+					col.GenerationStorage = core.GenerationStored
 				} else {
-					col.GenerationStorage = "VIRTUAL"
+					col.GenerationStorage = core.GenerationVirtual
 				}
 			case ast.ColumnOptionColumnFormat:
 				col.ColumnFormat = opt.StrValue
@@ -339,23 +304,27 @@ func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, err
 		}
 		table.Columns = append(table.Columns, col)
 	}
+}
 
-	for _, constraint := range stmt.Constraints {
-		c := &core.Constraint{
-			Name: constraint.Name,
-		}
-
+func (p *Parser) parseConstraints(constraints []*ast.Constraint, table *core.Table) {
+	for _, constraint := range constraints {
 		columns := make([]string, 0, len(constraint.Keys))
+		indexCols := make([]core.IndexColumn, 0, len(constraint.Keys))
 		for _, key := range constraint.Keys {
 			columns = append(columns, key.Column.Name.O)
+			indexCols = append(indexCols, core.IndexColumn{
+				Name:   key.Column.Name.O,
+				Length: key.Length,
+			})
 		}
-		c.Columns = columns
 
 		switch constraint.Tp {
 		case ast.ConstraintPrimaryKey:
-			c.Type = core.PrimaryKey
-			c.Name = "PRIMARY"
-
+			c := &core.Constraint{
+				Name:    "PRIMARY",
+				Type:    core.ConstraintPrimaryKey,
+				Columns: columns,
+			}
 			for _, colName := range columns {
 				if col := table.FindColumn(colName); col != nil {
 					col.PrimaryKey = true
@@ -364,62 +333,71 @@ func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, err
 			table.Constraints = append(table.Constraints, c)
 
 		case ast.ConstraintUniq, ast.ConstraintUniqKey, ast.ConstraintUniqIndex:
-			c.Type = core.Unique
-			table.Constraints = append(table.Constraints, c)
+			table.Constraints = append(table.Constraints, &core.Constraint{
+				Name:    constraint.Name,
+				Type:    core.ConstraintUnique,
+				Columns: columns,
+			})
 
 		case ast.ConstraintForeignKey:
-			c.Type = core.ForeignKey
-			c.ReferencedTable = constraint.Refer.Table.Name.O
-			refCols := make([]string, 0, len(constraint.Refer.IndexPartSpecifications))
+			c := &core.Constraint{
+				Name:            constraint.Name,
+				Type:            core.ConstraintForeignKey,
+				Columns:         columns,
+				ReferencedTable: constraint.Refer.Table.Name.O,
+			}
 			for _, spec := range constraint.Refer.IndexPartSpecifications {
 				if spec.Column != nil {
-					refCols = append(refCols, spec.Column.Name.O)
+					c.ReferencedColumns = append(c.ReferencedColumns, spec.Column.Name.O)
 				}
 			}
-			c.ReferencedColumns = refCols
 			if constraint.Refer.OnDelete != nil {
-				c.OnDelete = constraint.Refer.OnDelete.ReferOpt.String()
+				c.OnDelete = core.ReferentialAction(constraint.Refer.OnDelete.ReferOpt.String())
 			}
 			if constraint.Refer.OnUpdate != nil {
-				c.OnUpdate = constraint.Refer.OnUpdate.ReferOpt.String()
+				c.OnUpdate = core.ReferentialAction(constraint.Refer.OnUpdate.ReferOpt.String())
 			}
 			table.Constraints = append(table.Constraints, c)
 
 		case ast.ConstraintIndex, ast.ConstraintKey:
 			table.Indexes = append(table.Indexes, &core.Index{
 				Name:    constraint.Name,
-				Columns: columns,
+				Columns: indexCols,
 				Unique:  false,
-				Type:    "BTREE",
+				Type:    core.IndexTypeBTree,
 			})
+
 		case ast.ConstraintFulltext:
 			table.Indexes = append(table.Indexes, &core.Index{
 				Name:    constraint.Name,
-				Columns: columns,
+				Columns: indexCols,
 				Unique:  false,
-				Type:    "FULLTEXT",
+				Type:    core.IndexTypeFullText,
 			})
+
 		case ast.ConstraintCheck:
-			c.Type = core.Check
+			c := &core.Constraint{
+				Name:    constraint.Name,
+				Type:    core.ConstraintCheck,
+				Columns: columns,
+			}
 			if constraint.Expr != nil {
 				if s := p.exprToString(constraint.Expr); s != nil {
 					c.CheckExpression = *s
 				}
 			}
 			table.Constraints = append(table.Constraints, c)
+
 		case ast.ConstraintVector, ast.ConstraintColumnar:
 			table.Indexes = append(table.Indexes, &core.Index{
 				Name:    constraint.Name,
-				Columns: columns,
+				Columns: indexCols,
 				Unique:  false,
-				Type:    "INDEX",
+				Type:    core.IndexTypeBTree,
 			})
 		case ast.ConstraintNoConstraint:
-
 		}
 	}
-
-	return table, nil
 }
 
 func (p *Parser) exprToString(expr ast.ExprNode) *string {
@@ -444,36 +422,39 @@ func (p *Parser) exprToString(expr ast.ExprNode) *string {
 	return &s
 }
 
-func normalizeType(rawType string) string {
-	rawType = strings.ToLower(strings.TrimSpace(rawType))
-
-	if strings.Contains(rawType, "char") || strings.Contains(rawType, "text") || strings.Contains(rawType, "string") || strings.Contains(rawType, "enum") || strings.Contains(rawType, "set") {
-		return "string"
+func rowFormatToString(v uint64) string {
+	switch v {
+	case ast.RowFormatFixed:
+		return "FIXED"
+	case ast.RowFormatDynamic:
+		return "DYNAMIC"
+	case ast.RowFormatCompressed:
+		return "COMPRESSED"
+	case ast.RowFormatRedundant:
+		return "REDUNDANT"
+	case ast.RowFormatCompact:
+		return "COMPACT"
+	case ast.RowFormatDefault:
+		return "DEFAULT"
+	case ast.TokuDBRowFormatDefault:
+		return "TOKUDB_DEFAULT"
+	case ast.TokuDBRowFormatFast:
+		return "TOKUDB_FAST"
+	case ast.TokuDBRowFormatSmall:
+		return "TOKUDB_SMALL"
+	case ast.TokuDBRowFormatZlib:
+		return "TOKUDB_ZLIB"
+	case ast.TokuDBRowFormatQuickLZ:
+		return "TOKUDB_QUICKLZ"
+	case ast.TokuDBRowFormatLzma:
+		return "TOKUDB_LZMA"
+	case ast.TokuDBRowFormatSnappy:
+		return "TOKUDB_SNAPPY"
+	case ast.TokuDBRowFormatUncompressed:
+		return "TOKUDB_UNCOMPRESSED"
+	case ast.TokuDBRowFormatZstd:
+		return "TOKUDB_ZSTD"
+	default:
+		return ""
 	}
-
-	if strings.Contains(rawType, "int") {
-		return "int"
-	}
-
-	if strings.Contains(rawType, "float") || strings.Contains(rawType, "double") || strings.Contains(rawType, "decimal") || strings.Contains(rawType, "numeric") {
-		return "float"
-	}
-
-	if strings.Contains(rawType, "bool") || rawType == "tinyint(1)" {
-		return "boolean"
-	}
-
-	if strings.Contains(rawType, "date") || strings.Contains(rawType, "time") || strings.Contains(rawType, "timestamp") {
-		return "datetime"
-	}
-
-	if strings.Contains(rawType, "json") {
-		return "json"
-	}
-
-	if strings.Contains(rawType, "uuid") {
-		return "uuid"
-	}
-
-	return rawType
 }

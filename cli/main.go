@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"schemift/core"
+	"schemift/dialect"
 	"schemift/parser"
 	"strings"
 
@@ -105,7 +106,8 @@ You can specify the source and target database dialects using the --from and --t
 			fmt.Printf("Detected changes between schemas (old: %d tables, new: %d tables)\n",
 				len(oldDB.Tables), len(newDB.Tables))
 
-			migration := core.Migrate(schemaDiff)
+			d := dialect.NewMySQLDialect()
+			migration := d.Generator().GenerateMigration(schemaDiff)
 
 			if migrationOutFile == "" {
 				fmt.Print(schemaDiff.String())
