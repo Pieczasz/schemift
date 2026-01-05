@@ -1,10 +1,9 @@
 package tests
 
 import (
+	"schemift/core"
+	"schemift/parser"
 	"testing"
-
-	"schemift/internal/core"
-	"schemift/internal/parser"
 
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 	"github.com/stretchr/testify/assert"
@@ -57,7 +56,7 @@ CREATE TABLE related_features (
 
 	var pkConstraint *core.Constraint
 	for _, c := range mcpk.Constraints {
-		if c.Type == core.PrimaryKey {
+		if c.Type == core.ConstraintPrimaryKey {
 			pkConstraint = c
 			break
 		}
@@ -68,9 +67,9 @@ CREATE TABLE related_features (
 	af := db.FindTable("all_features")
 	require.NotNil(t, af)
 	assert.Equal(t, "Comprehensive table", af.Comment)
-	assert.Equal(t, "utf8mb4", af.Charset)
-	assert.Equal(t, "utf8mb4_unicode_ci", af.Collate)
-	assert.Equal(t, "InnoDB", af.Engine)
+	assert.Equal(t, "utf8mb4", af.Options.Charset)
+	assert.Equal(t, "utf8mb4_unicode_ci", af.Options.Collate)
+	assert.Equal(t, "InnoDB", af.Options.Engine)
 
 	idCol := af.FindColumn("id")
 	require.NotNil(t, idCol)
@@ -95,19 +94,19 @@ CREATE TABLE related_features (
 	gCol := af.FindColumn("g_col")
 	require.NotNil(t, gCol)
 	assert.True(t, gCol.IsGenerated)
-	assert.Equal(t, "VIRTUAL", gCol.GenerationStorage)
+	assert.Equal(t, core.GenerationVirtual, gCol.GenerationStorage)
 	assert.Contains(t, gCol.GenerationExpression, "id")
 
 	gColStored := af.FindColumn("g_col_stored")
 	require.NotNil(t, gColStored)
 	assert.True(t, gColStored.IsGenerated)
-	assert.Equal(t, "STORED", gColStored.GenerationStorage)
+	assert.Equal(t, core.GenerationStored, gColStored.GenerationStorage)
 
 	assert.Len(t, af.Constraints, 3)
 
 	var checkFound bool
 	for _, c := range af.Constraints {
-		if c.Type == core.Check {
+		if c.Type == core.ConstraintCheck {
 			checkFound = true
 			assert.Contains(t, c.CheckExpression, "id")
 		}
@@ -120,12 +119,12 @@ CREATE TABLE related_features (
 	require.NotNil(t, rf)
 	var fkFound bool
 	for _, c := range rf.Constraints {
-		if c.Type == core.ForeignKey {
+		if c.Type == core.ConstraintForeignKey {
 			fkFound = true
 			assert.Equal(t, "all_features", c.ReferencedTable)
 			assert.Equal(t, []string{"id"}, c.ReferencedColumns)
-			assert.Equal(t, "CASCADE", c.OnDelete)
-			assert.Equal(t, "RESTRICT", c.OnUpdate)
+			assert.Equal(t, core.RefActionCascade, c.OnDelete)
+			assert.Equal(t, core.RefActionRestrict, c.OnUpdate)
 		}
 	}
 	assert.True(t, fkFound)

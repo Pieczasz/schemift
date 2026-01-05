@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"schemift/internal/parser"
+	"schemift/parser"
 	"testing"
 
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
@@ -44,24 +44,24 @@ PACK_KEYS = 1;
 	tbl := db.FindTable("std_options")
 	require.NotNil(t, tbl)
 
-	assert.Equal(t, "InnoDB", tbl.Engine)
-	assert.Equal(t, uint64(10), tbl.AutoIncrement)
-	assert.Equal(t, uint64(100), tbl.AvgRowLength)
-	assert.Equal(t, uint64(1), tbl.Checksum)
-	assert.Equal(t, "ZLIB", tbl.Compression)
-	assert.Equal(t, uint64(8), tbl.KeyBlockSize)
-	assert.Equal(t, uint64(1000), tbl.MaxRows)
-	assert.Equal(t, uint64(100), tbl.MinRows)
-	assert.Equal(t, uint64(1), tbl.DelayKeyWrite)
-	assert.Equal(t, "DYNAMIC", tbl.RowFormat)
-	assert.Equal(t, "ts1", tbl.Tablespace)
-	assert.Equal(t, "/tmp/data", tbl.DataDirectory)
-	assert.Equal(t, "/tmp/idx", tbl.IndexDirectory)
-	assert.Equal(t, "Y", tbl.Encryption)
-	// assert.Equal(t, "1", tbl.StatsPersistent) // TiDB parser limitation: always returns "0"
-	assert.Equal(t, "DEFAULT", tbl.StatsAutoRecalc)
-	assert.Equal(t, "DEFAULT", tbl.StatsSamplePages)
-	assert.Equal(t, "FIRST", tbl.InsertMethod)
+	assert.Equal(t, "InnoDB", tbl.Options.Engine)
+	assert.Equal(t, uint64(10), tbl.Options.AutoIncrement)
+	assert.Equal(t, uint64(100), tbl.Options.AvgRowLength)
+	assert.Equal(t, uint64(1), tbl.Options.Checksum)
+	assert.Equal(t, "ZLIB", tbl.Options.Compression)
+	assert.Equal(t, uint64(8), tbl.Options.KeyBlockSize)
+	assert.Equal(t, uint64(1000), tbl.Options.MaxRows)
+	assert.Equal(t, uint64(100), tbl.Options.MinRows)
+	assert.Equal(t, uint64(1), tbl.Options.DelayKeyWrite)
+	assert.Equal(t, "DYNAMIC", tbl.Options.RowFormat)
+	assert.Equal(t, "ts1", tbl.Options.Tablespace)
+	assert.Equal(t, "/tmp/data", tbl.Options.DataDirectory)
+	assert.Equal(t, "/tmp/idx", tbl.Options.IndexDirectory)
+	assert.Equal(t, "Y", tbl.Options.Encryption)
+	// assert.Equal(t, "1", tbl.Options.StatsPersistent) // TiDB parser limitation: always returns "0"
+	assert.Equal(t, "DEFAULT", tbl.Options.StatsAutoRecalc)
+	assert.Equal(t, "DEFAULT", tbl.Options.StatsSamplePages)
+	assert.Equal(t, "FIRST", tbl.Options.InsertMethod)
 	// assert.Equal(t, "1", tbl.PackKeys) // TiDB parser limitation: always returns "0"
 
 	sql = `
@@ -76,8 +76,8 @@ STATS_SAMPLE_PAGES = 100;
 	require.NoError(t, err)
 	tbl = db.FindTable("std_options_numeric")
 	require.NotNil(t, tbl)
-	assert.Equal(t, "1", tbl.StatsAutoRecalc)
-	assert.Equal(t, "100", tbl.StatsSamplePages)
+	assert.Equal(t, "1", tbl.Options.StatsAutoRecalc)
+	assert.Equal(t, "100", tbl.Options.StatsSamplePages)
 }
 
 func TestMySQLParserAdditionalOptions(t *testing.T) {
@@ -101,9 +101,9 @@ TRANSACTIONAL = 1;
 	tbl := db.FindTable("add_options")
 	require.NotNil(t, tbl)
 
-	assert.Equal(t, "mysql://user@host/db", tbl.Connection)
-	assert.Equal(t, "secret_password", tbl.Password)
-	assert.Equal(t, "64M", tbl.AutoextendSize)
-	assert.Equal(t, uint64(1), tbl.PageChecksum)
-	assert.Equal(t, uint64(1), tbl.Transactional)
+	assert.Equal(t, "mysql://user@host/db", tbl.Options.Connection)
+	assert.Equal(t, "secret_password", tbl.Options.Password)
+	assert.Equal(t, "64M", tbl.Options.AutoextendSize)
+	assert.Equal(t, uint64(1), tbl.Options.PageChecksum)
+	assert.Equal(t, uint64(1), tbl.Options.Transactional)
 }

@@ -1,7 +1,7 @@
 package tests
 
 import (
-	"schemift/internal/parser"
+	"schemift/parser"
 	"testing"
 
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
@@ -36,16 +36,16 @@ STATS_SAMPLE_RATE = 0.5;
 	tbl := db.FindTable("tidb_options")
 	require.NotNil(t, tbl)
 
-	assert.Equal(t, uint64(100), tbl.AutoIdCache)
-	assert.Equal(t, uint64(50), tbl.AutoRandomBase)
-	assert.Equal(t, uint64(4), tbl.ShardRowID)
-	assert.Equal(t, uint64(2), tbl.PreSplitRegion)
-	assert.Equal(t, "TiFlash", tbl.SecondaryEngine)
-	assert.Contains(t, tbl.TTL, "id")
-	assert.Contains(t, tbl.TTL, "INTERVAL 1 DAY")
-	assert.True(t, tbl.TTLEnable)
-	assert.Equal(t, "1h", tbl.TTLJobInterval)
-	assert.True(t, tbl.IetfQuotes)
-	assert.Equal(t, "ALL", tbl.StatsColsChoice)
-	assert.Equal(t, 0.5, tbl.StatsSampleRate)
+	assert.Equal(t, uint64(100), tbl.Options.TiDB.AutoIdCache)
+	assert.Equal(t, uint64(50), tbl.Options.TiDB.AutoRandomBase)
+	assert.Equal(t, uint64(4), tbl.Options.TiDB.ShardRowID)
+	assert.Equal(t, uint64(2), tbl.Options.TiDB.PreSplitRegion)
+	assert.Equal(t, "TiFlash", tbl.Options.MySQL.SecondaryEngine)
+	assert.Contains(t, tbl.Options.TiDB.TTL, "id")
+	assert.Contains(t, tbl.Options.TiDB.TTL, "INTERVAL 1 DAY")
+	assert.True(t, tbl.Options.TiDB.TTLEnable)
+	assert.Equal(t, "1h", tbl.Options.TiDB.TTLJobInterval)
+	assert.True(t, tbl.Options.MySQL.IetfQuotes)
+	assert.Equal(t, "ALL", tbl.Options.TiDB.StatsColsChoice)
+	assert.Equal(t, 0.5, tbl.Options.TiDB.StatsSampleRate)
 }
