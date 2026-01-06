@@ -40,6 +40,12 @@ func NewMySQLGenerator() *MySQLGenerator {
 }
 
 func (g *MySQLGenerator) GenerateMigration(diff *core.SchemaDiff) *core.Migration {
+	opts := core.DefaultMigrationOptions(core.DialectMySQL)
+	opts.IncludeUnsafe = true
+	return g.GenerateMigrationWithOptions(diff, opts)
+}
+
+func (g *MySQLGenerator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opts core.MigrationOptions) *core.Migration {
 	m := &core.Migration{}
 	if diff == nil {
 		m.Notes = append(m.Notes, "No diff provided; nothing to migrate.")
@@ -60,14 +66,19 @@ func (g *MySQLGenerator) GenerateMigration(diff *core.SchemaDiff) *core.Migratio
 		m.Notes = append(m.Notes, migrationRecommendations(bc)...)
 	}
 
+	if !opts.IncludeUnsafe {
+		m.Notes = append(m.Notes, "Safe mode: destructive drops are avoided (tables/columns are renamed to __schemift_backup_* instead of dropped) to enable a reliable rollback.")
+	}
+
 	var pendingFKs []string
+	var pendingFKRollback []string
 
 	for _, t := range diff.AddedTables {
 		if t == nil {
 			continue
 		}
 		create, fks := g.GenerateCreateTable(t)
-		m.Statements = append(m.Statements, create)
+		m.AddStatementWithRollback(create, g.GenerateDropTable(t))
 		pendingFKs = append(pendingFKs, fks...)
 	}
 
@@ -75,33 +86,43 @@ func (g *MySQLGenerator) GenerateMigration(diff *core.SchemaDiff) *core.Migratio
 		if td == nil {
 			continue
 		}
-		stmts, fkAdds := g.generateAlterTable(td)
-		m.Statements = append(m.Statements, stmts...)
+		stmts, rollback, fkAdds, fkRollback := g.generateAlterTableWithOptions(td, opts)
+		for i := range stmts {
+			m.AddStatement(stmts[i])
+		}
+		for i := range rollback {
+			m.AddRollbackStatement(rollback[i])
+		}
 		pendingFKs = append(pendingFKs, fkAdds...)
+		pendingFKRollback = append(pendingFKRollback, fkRollback...)
 	}
 
 	if len(pendingFKs) > 0 {
 		m.Notes = append(m.Notes, "Foreign keys added after table creation to avoid dependency issues.")
-		m.Statements = append(m.Statements, pendingFKs...)
+		for _, stmt := range pendingFKs {
+			m.AddStatement(stmt)
+		}
+		for _, rb := range pendingFKRollback {
+			m.AddRollbackStatement(rb)
+		}
 	}
 
 	for _, t := range diff.RemovedTables {
 		if t == nil {
 			continue
 		}
-		m.Statements = append(m.Statements, g.GenerateDropTable(t))
+		if opts.IncludeUnsafe {
+			m.AddStatementWithRollback(g.GenerateDropTable(t), fmt.Sprintf("-- cannot auto-restore dropped table %s; restore from backup", g.QuoteIdentifier(t.Name)))
+			continue
+		}
+		backup := g.safeBackupTableName(t.Name)
+		up := fmt.Sprintf("RENAME TABLE %s TO %s;", g.QuoteIdentifier(t.Name), g.QuoteIdentifier(backup))
+		down := fmt.Sprintf("RENAME TABLE %s TO %s;", g.QuoteIdentifier(backup), g.QuoteIdentifier(t.Name))
+		m.AddStatementWithRollback(up, down)
 	}
 
 	if hasPotentiallyLockingStatements(m.Statements) {
 		m.Notes = append(m.Notes, "Lock-time warning: ALTER TABLE / index changes may lock or rebuild tables; for large tables consider online schema change tools and off-peak execution.")
-	}
-
-	rollback := g.rollbackSuggestions(diff)
-	if len(rollback) > 0 {
-		m.Notes = append(m.Notes, "Suggested rollback (best-effort; review carefully):")
-		for _, stmt := range rollback {
-			m.Notes = append(m.Notes, "ROLLBACK: "+stmt)
-		}
 	}
 
 	m.Notes = dedupeStable(m.Notes)
@@ -121,7 +142,6 @@ func hasPotentiallyLockingStatements(stmts []string) bool {
 }
 
 func migrationRecommendations(bc core.BreakingChange) []string {
-	// Keep these short: they end up as "-- - ..." comments.
 	msg := strings.ToLower(bc.Description)
 	var out []string
 
@@ -181,7 +201,7 @@ func (g *MySQLGenerator) rollbackSuggestions(diff *core.SchemaDiff) []string {
 			if rc == nil {
 				continue
 			}
-			out = append(out, fmt.Sprintf("-- data not restored; best-effort column re-add\nALTER TABLE %s ADD COLUMN %s;", table, g.columnDefinition(rc)))
+			out = append(out, fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s;", table, g.columnDefinition(rc)))
 		}
 		for _, mc := range td.ModifiedColumns {
 			if mc == nil || mc.Old == nil {
@@ -238,7 +258,6 @@ func (g *MySQLGenerator) rollbackSuggestions(diff *core.SchemaDiff) []string {
 			if mo == nil {
 				continue
 			}
-			// Reverse the change.
 			if stmt := g.alterOption(table, &core.TableOptionChange{Name: mo.Name, New: mo.Old}); stmt != "" {
 				out = append(out, stmt)
 			}
@@ -311,6 +330,186 @@ func (g *MySQLGenerator) GenerateDropTable(t *core.Table) string {
 func (g *MySQLGenerator) GenerateAlterTable(td *core.TableDiff) []string {
 	stmts, fkAdds := g.generateAlterTable(td)
 	return append(stmts, fkAdds...)
+}
+
+func (g *MySQLGenerator) generateAlterTableWithOptions(td *core.TableDiff, opts core.MigrationOptions) ([]string, []string, []string, []string) {
+	table := g.QuoteIdentifier(td.Name)
+	var stmts []string
+	var rollback []string
+	var fkAdds []string
+	var fkRollback []string
+
+	add := func(up, down string) {
+		stmts = append(stmts, up)
+		if strings.TrimSpace(down) != "" {
+			rollback = append(rollback, down)
+		}
+	}
+	addFK := func(up, down string) {
+		fkAdds = append(fkAdds, up)
+		if strings.TrimSpace(down) != "" {
+			fkRollback = append(fkRollback, down)
+		}
+	}
+
+	for _, ch := range td.ModifiedConstraints {
+		if ch == nil || ch.Old == nil {
+			continue
+		}
+		if drop := g.dropConstraint(table, ch.Old); drop != "" {
+			add(drop, g.addConstraint(table, ch.Old))
+		}
+	}
+	for _, rc := range td.RemovedConstraints {
+		if rc == nil {
+			continue
+		}
+		if drop := g.dropConstraint(table, rc); drop != "" {
+			add(drop, g.addConstraint(table, rc))
+		}
+	}
+
+	for _, mi := range td.ModifiedIndexes {
+		if mi == nil || mi.Old == nil || strings.TrimSpace(mi.Old.Name) == "" {
+			continue
+		}
+		up := fmt.Sprintf("DROP INDEX %s ON %s;", g.QuoteIdentifier(mi.Old.Name), table)
+		down := g.createIndex(table, mi.Old)
+		add(up, down)
+	}
+	for _, ri := range td.RemovedIndexes {
+		if ri == nil || strings.TrimSpace(ri.Name) == "" {
+			continue
+		}
+		up := fmt.Sprintf("DROP INDEX %s ON %s;", g.QuoteIdentifier(ri.Name), table)
+		down := g.createIndex(table, ri)
+		add(up, down)
+	}
+
+	for _, r := range td.RenamedColumns {
+		if r == nil || r.Old == nil || r.New == nil {
+			continue
+		}
+		up := fmt.Sprintf("ALTER TABLE %s CHANGE COLUMN %s %s;", table, g.QuoteIdentifier(r.Old.Name), g.columnDefinition(r.New))
+		down := fmt.Sprintf("ALTER TABLE %s CHANGE COLUMN %s %s;", table, g.QuoteIdentifier(r.New.Name), g.columnDefinition(r.Old))
+		add(up, down)
+	}
+
+	for _, c := range td.AddedColumns {
+		if c == nil {
+			continue
+		}
+		up := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s;", table, g.columnDefinition(c))
+		down := fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s;", table, g.QuoteIdentifier(c.Name))
+		add(up, down)
+	}
+	for _, ch := range td.ModifiedColumns {
+		if ch == nil || ch.New == nil || ch.Old == nil {
+			continue
+		}
+		up := fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s;", table, g.columnDefinition(ch.New))
+		down := fmt.Sprintf("ALTER TABLE %s MODIFY COLUMN %s;", table, g.columnDefinition(ch.Old))
+		add(up, down)
+	}
+	for _, c := range td.RemovedColumns {
+		if c == nil {
+			continue
+		}
+		if opts.IncludeUnsafe {
+			up := fmt.Sprintf("ALTER TABLE %s DROP COLUMN %s;", table, g.QuoteIdentifier(c.Name))
+			down := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s;", table, g.columnDefinition(c))
+			add(up, down)
+			continue
+		}
+		backupName := g.safeBackupColumnName(c.Name)
+		backupCol := *c
+		backupCol.Name = backupName
+		up := fmt.Sprintf("ALTER TABLE %s CHANGE COLUMN %s %s;", table, g.QuoteIdentifier(c.Name), g.columnDefinition(&backupCol))
+		down := fmt.Sprintf("ALTER TABLE %s CHANGE COLUMN %s %s;", table, g.QuoteIdentifier(backupName), g.columnDefinition(c))
+		add(up, down)
+	}
+
+	for _, mo := range td.ModifiedOptions {
+		if mo == nil {
+			continue
+		}
+		up := g.alterOption(table, mo)
+		if up == "" {
+			continue
+		}
+		down := g.alterOption(table, &core.TableOptionChange{Name: mo.Name, Old: mo.New, New: mo.Old})
+		add(up, down)
+	}
+
+	for _, mi := range td.ModifiedIndexes {
+		if mi == nil || mi.New == nil {
+			continue
+		}
+		up := g.createIndex(table, mi.New)
+		down := ""
+		if mi.New != nil && strings.TrimSpace(mi.New.Name) != "" {
+			down = fmt.Sprintf("DROP INDEX %s ON %s;", g.QuoteIdentifier(mi.New.Name), table)
+		}
+		add(up, down)
+	}
+	for _, ai := range td.AddedIndexes {
+		if ai == nil {
+			continue
+		}
+		up := g.createIndex(table, ai)
+		down := ""
+		if strings.TrimSpace(ai.Name) != "" {
+			down = fmt.Sprintf("DROP INDEX %s ON %s;", g.QuoteIdentifier(ai.Name), table)
+		}
+		add(up, down)
+	}
+
+	for _, ch := range td.ModifiedConstraints {
+		if ch == nil || ch.New == nil {
+			continue
+		}
+		if ch.New.Type == core.ConstraintForeignKey {
+			if addStmt := g.addConstraint(table, ch.New); addStmt != "" {
+				addFK(addStmt, g.dropConstraint(table, ch.New))
+			}
+			continue
+		}
+		if addStmt := g.addConstraint(table, ch.New); addStmt != "" {
+			add(addStmt, g.dropConstraint(table, ch.New))
+		}
+	}
+	for _, ac := range td.AddedConstraints {
+		if ac == nil {
+			continue
+		}
+		if ac.Type == core.ConstraintForeignKey {
+			if addStmt := g.addConstraint(table, ac); addStmt != "" {
+				addFK(addStmt, g.dropConstraint(table, ac))
+			}
+			continue
+		}
+		if addStmt := g.addConstraint(table, ac); addStmt != "" {
+			add(addStmt, g.dropConstraint(table, ac))
+		}
+	}
+
+	return stmts, rollback, fkAdds, fkRollback
+}
+
+func (g *MySQLGenerator) safeBackupTableName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "__schemift_backup"
+	}
+	return name + "__schemift_backup"
+}
+
+func (g *MySQLGenerator) safeBackupColumnName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return "__schemift_backup"
+	}
+	return name + "__schemift_backup"
 }
 
 func (g *MySQLGenerator) generateAlterTable(td *core.TableDiff) ([]string, []string) {
@@ -520,9 +719,9 @@ func sanitizeMySQLTypeRaw(typeRaw string) string {
 	base := strings.ToLower(strings.TrimSpace(m[1]))
 
 	if base == "varbinary" || base == "binary" {
-		toks := strings.Fields(tr)
-		if len(toks) >= 2 && strings.EqualFold(toks[len(toks)-1], "BINARY") {
-			return strings.Join(toks[:len(toks)-1], " ")
+		tokens := strings.Fields(tr)
+		if len(tokens) >= 2 && strings.EqualFold(tokens[len(tokens)-1], "BINARY") {
+			return strings.Join(tokens[:len(tokens)-1], " ")
 		}
 	}
 
