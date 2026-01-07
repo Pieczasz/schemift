@@ -8,6 +8,18 @@ import (
 	"strings"
 )
 
+const (
+	// renameDetectionScoreThreshold is the minimum similarity score required to detect a column rename.
+	// The maximum possible score is 16 (when all column attributes match).
+	// A threshold of 9 means that roughly half or more of the column attributes must match.
+	renameDetectionScoreThreshold = 9
+
+	// renameSharedTokenMinLen is the minimum length of a token to be considered when checking for
+	// shared name tokens between old and new column names. Tokens shorter than this are ignored
+	// to avoid false positives from common short words like "id", "at", etc.
+	renameSharedTokenMinLen = 3
+)
+
 type SchemaDiff struct {
 	AddedTables    []*Table
 	RemovedTables  []*Table
@@ -255,8 +267,7 @@ func (td *TableDiff) detectColumnRenames() {
 				bestIdx = j
 			}
 		}
-		// TODO: explain magic numbers
-		if bestIdx >= 0 && bestScore >= 9 {
+		if bestIdx >= 0 && bestScore >= renameDetectionScoreThreshold {
 			newC := td.AddedColumns[bestIdx]
 			if !renameEvidence(oldC, newC) {
 				continue
@@ -381,8 +392,6 @@ func hasSharedNameToken(a, b string) bool {
 	if a == "" || b == "" {
 		return false
 	}
-
-	const renameSharedTokenMinLen = 3
 
 	split := func(s string) []string {
 		f := func(r rune) bool {
