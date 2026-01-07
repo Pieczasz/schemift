@@ -530,9 +530,10 @@ const backupSuffixPrefix = "__schemift_backup_"
 
 func safeBackupName(name string) string {
 	base := strings.TrimSpace(name)
-	h := fnv.New32a()
+	// Use FNV-1a 64-bit hash to reduce collision probability for backup names.
+	h := fnv.New64a()
 	_, _ = h.Write([]byte(base))
-	suffix := fmt.Sprintf("%s%08x", backupSuffixPrefix, h.Sum32())
+	suffix := fmt.Sprintf("%s%016x", backupSuffixPrefix, h.Sum64())
 
 	const mysqlMaxIdentLen = 64
 	if len(base)+len(suffix) > mysqlMaxIdentLen {
@@ -546,7 +547,10 @@ func safeBackupName(name string) string {
 	}
 
 	if base == "" {
-		return backupSuffixPrefix + "_" + suffix
+		// Base can be empty if the original name is whitespace-only or fully truncated to
+		// satisfy MySQL's identifier length limit. In that case, just return the suffix
+		// (which already starts with backupSuffixPrefix) to avoid confusing double prefixes.
+		return suffix
 	}
 	return base + suffix
 }
