@@ -9,14 +9,7 @@ import (
 )
 
 const (
-	// renameDetectionScoreThreshold is the minimum similarity score required to detect a column rename.
-	// The maximum possible score is 16 (when all column attributes match).
-	// A threshold of 9 means that roughly half or more of the column attributes must match.
 	renameDetectionScoreThreshold = 9
-
-	// renameSharedTokenMinLen is the minimum length of a token to be considered when checking for
-	// shared name tokens between old and new column names. Tokens shorter than this are ignored
-	// to avoid false positives from common short words like "id", "at", etc.
 	renameSharedTokenMinLen = 3
 )
 
@@ -177,7 +170,6 @@ func markConstraintsForRebuild(oldItems, newItems []*Constraint, td *TableDiff) 
 		if _, ok := already[key]; ok {
 			continue
 		}
-		// Only rebuild constraints whose definition didn't change.
 		if !equalConstraint(oldC, newC) {
 			continue
 		}
