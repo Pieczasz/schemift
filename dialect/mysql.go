@@ -2,6 +2,7 @@ package dialect
 
 import (
 	"fmt"
+	"hash/fnv"
 	"regexp"
 	"schemift/core"
 	"schemift/parser/mysql"
@@ -48,7 +49,7 @@ func (g *MySQLGenerator) GenerateMigration(diff *core.SchemaDiff) *core.Migratio
 func (g *MySQLGenerator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opts core.MigrationOptions) *core.Migration {
 	m := &core.Migration{}
 	if diff == nil {
-		m.Notes = append(m.Notes, "No diff provided; nothing to migrate.")
+		m.AddNote("No diff provided; nothing to migrate.")
 		return m
 	}
 
@@ -57,17 +58,19 @@ func (g *MySQLGenerator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opt
 	for _, bc := range breakingChanges {
 		switch bc.Severity {
 		case core.SeverityCritical, core.SeverityBreaking:
-			m.Breaking = append(m.Breaking, fmt.Sprintf("[%s] %s.%s: %s", bc.Severity, bc.Table, bc.Object, bc.Description))
+			m.AddBreaking(fmt.Sprintf("[%s] %s.%s: %s", bc.Severity, bc.Table, bc.Object, bc.Description))
 		case core.SeverityWarning:
-			m.Notes = append(m.Notes, fmt.Sprintf("[WARNING] %s.%s: %s", bc.Table, bc.Object, bc.Description))
+			m.AddNote(fmt.Sprintf("[WARNING] %s.%s: %s", bc.Table, bc.Object, bc.Description))
 		case core.SeverityInfo:
 		}
 
-		m.Notes = append(m.Notes, migrationRecommendations(bc)...)
+		for _, rec := range migrationRecommendations(bc) {
+			m.AddNote(rec)
+		}
 	}
 
 	if !opts.IncludeUnsafe {
-		m.Notes = append(m.Notes, "Safe mode: destructive drops are avoided (tables/columns are renamed to __schemift_backup_* instead of dropped) to enable a reliable rollback.")
+		m.AddNote("Safe mode: destructive drops are avoided (tables/columns are renamed to __schemift_backup_* instead of dropped) to enable a reliable rollback.")
 	}
 
 	var pendingFKs []string
@@ -80,6 +83,19 @@ func (g *MySQLGenerator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opt
 		create, fks := g.GenerateCreateTable(t)
 		m.AddStatementWithRollback(create, g.GenerateDropTable(t))
 		pendingFKs = append(pendingFKs, fks...)
+
+		// Ensure rollback symmetry for FK statements added after CREATE TABLE.
+		// Even though DROP TABLE would remove them, we keep explicit rollback steps for consistency.
+		table := g.QuoteIdentifier(t.Name)
+		for _, c := range t.Constraints {
+			if c == nil || c.Type != core.ConstraintForeignKey {
+				continue
+			}
+			rb := g.dropConstraint(table, c)
+			if strings.TrimSpace(rb) != "" {
+				pendingFKRollback = append(pendingFKRollback, rb)
+			}
+		}
 	}
 
 	for _, td := range diff.ModifiedTables {
@@ -98,7 +114,7 @@ func (g *MySQLGenerator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opt
 	}
 
 	if len(pendingFKs) > 0 {
-		m.Notes = append(m.Notes, "Foreign keys added after table creation to avoid dependency issues.")
+		m.AddNote("Foreign keys added after table creation to avoid dependency issues.")
 		for _, stmt := range pendingFKs {
 			m.AddStatement(stmt)
 		}
@@ -121,18 +137,24 @@ func (g *MySQLGenerator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opt
 		m.AddStatementWithRollback(up, down)
 	}
 
-	if hasPotentiallyLockingStatements(m.Statements) {
-		m.Notes = append(m.Notes, "Lock-time warning: ALTER TABLE / index changes may lock or rebuild tables; for large tables consider online schema change tools and off-peak execution.")
+	if hasPotentiallyLockingStatements(m.Plan()) {
+		m.AddNote("Lock-time warning: ALTER TABLE / index changes may lock or rebuild tables; for large tables consider online schema change tools and off-peak execution.")
 	}
 
-	m.Notes = dedupeStable(m.Notes)
-	m.Breaking = dedupeStable(m.Breaking)
+	m.Dedupe()
 
 	return m
 }
 
-func hasPotentiallyLockingStatements(stmts []string) bool {
-	for _, s := range stmts {
+func hasPotentiallyLockingStatements(plan []core.Operation) bool {
+	for _, op := range plan {
+		if op.Kind != core.OperationSQL {
+			continue
+		}
+		s := strings.TrimSpace(op.SQL)
+		if s == "" {
+			continue
+		}
 		u := strings.ToUpper(strings.TrimSpace(s))
 		if strings.HasPrefix(u, "ALTER TABLE") || strings.HasPrefix(u, "CREATE INDEX") || strings.HasPrefix(u, "DROP INDEX") {
 			return true
@@ -497,19 +519,36 @@ func (g *MySQLGenerator) generateAlterTableWithOptions(td *core.TableDiff, opts 
 }
 
 func (g *MySQLGenerator) safeBackupTableName(name string) string {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return "__schemift_backup"
-	}
-	return name + "__schemift_backup"
+	return safeBackupName(name)
 }
 
 func (g *MySQLGenerator) safeBackupColumnName(name string) string {
-	name = strings.TrimSpace(name)
-	if name == "" {
-		return "__schemift_backup"
+	return safeBackupName(name)
+}
+
+const backupSuffixPrefix = "__schemift_backup_"
+
+func safeBackupName(name string) string {
+	base := strings.TrimSpace(name)
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(base))
+	suffix := fmt.Sprintf("%s%08x", backupSuffixPrefix, h.Sum32())
+
+	const mysqlMaxIdentLen = 64
+	if len(base)+len(suffix) > mysqlMaxIdentLen {
+		maxBase := mysqlMaxIdentLen - len(suffix)
+		if maxBase < 0 {
+			maxBase = 0
+		}
+		if len(base) > maxBase {
+			base = base[:maxBase]
+		}
 	}
-	return name + "__schemift_backup"
+
+	if base == "" {
+		return backupSuffixPrefix + "_" + suffix
+	}
+	return base + suffix
 }
 
 func (g *MySQLGenerator) generateAlterTable(td *core.TableDiff) ([]string, []string) {

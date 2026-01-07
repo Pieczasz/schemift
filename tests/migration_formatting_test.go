@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"os"
 	"testing"
 
 	"schemift/core"
@@ -24,4 +25,24 @@ func TestMigrationString_MultiLineNotesAreCommented(t *testing.T) {
 	rb := m.RollbackString()
 	assert.Contains(t, rb, "-- schemift rollback")
 	assert.Contains(t, rb, "ALTER TABLE t ADD COLUMN c INT;")
+}
+
+func TestMigrationSaveRollbackToFile_WritesRollbackSQL(t *testing.T) {
+	m := &core.Migration{}
+	m.AddRollbackStatement("ALTER TABLE t ADD COLUMN c INT")
+
+	f, err := os.CreateTemp("", "schemift-rollback-*.sql")
+	if err != nil {
+		t.Fatalf("CreateTemp: %v", err)
+	}
+	name := f.Name()
+	_ = f.Close()
+	defer func() { _ = os.Remove(name) }()
+
+	assert.NoError(t, m.SaveRollbackToFile(name))
+	b, err := os.ReadFile(name)
+	assert.NoError(t, err)
+	out := string(b)
+	assert.Contains(t, out, "-- schemift rollback")
+	assert.Contains(t, out, "ALTER TABLE t ADD COLUMN c INT;")
 }

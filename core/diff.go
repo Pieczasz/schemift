@@ -255,6 +255,7 @@ func (td *TableDiff) detectColumnRenames() {
 				bestIdx = j
 			}
 		}
+		// TODO: explain magic numbers
 		if bestIdx >= 0 && bestScore >= 9 {
 			newC := td.AddedColumns[bestIdx]
 			if !renameEvidence(oldC, newC) {
@@ -381,6 +382,8 @@ func hasSharedNameToken(a, b string) bool {
 		return false
 	}
 
+	const renameSharedTokenMinLen = 3
+
 	split := func(s string) []string {
 		f := func(r rune) bool {
 			return !(r >= 'a' && r <= 'z') && !(r >= '0' && r <= '9')
@@ -389,7 +392,7 @@ func hasSharedNameToken(a, b string) bool {
 		var out []string
 		for _, p := range parts {
 			p = strings.TrimSpace(p)
-			if len(p) < 3 {
+			if len(p) < renameSharedTokenMinLen {
 				continue
 			}
 			out = append(out, p)

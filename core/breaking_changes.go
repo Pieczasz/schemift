@@ -99,7 +99,7 @@ func (a *BreakingChangeAnalyzer) analyzeRenamedColumns(table string, renames []*
 		}
 		a.add(BreakingChange{
 			Severity:    SeverityBreaking,
-			Description: fmt.Sprintf("Column rename detected: %s -> %s (currently appears as DROP+ADD; use CHANGE/RENAME COLUMN to preserve data)", r.Old.Name, r.New.Name),
+			Description: fmt.Sprintf("Column rename detected: %s -> %s (handled as CHANGE COLUMN to preserve data; review type/attrs carefully)", r.Old.Name, r.New.Name),
 			Table:       table,
 			Object:      fmt.Sprintf("%s->%s", r.Old.Name, r.New.Name),
 			ObjectType:  "COLUMN_RENAME",

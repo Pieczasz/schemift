@@ -120,13 +120,13 @@ You can specify the source and target database dialects using the --from and --t
 			if err := migration.SaveToFile(migrationOutFile); err != nil {
 				return fmt.Errorf("failed to write output: %w", err)
 			}
+			fmt.Printf("Output saved to %s\n", migrationOutFile)
 			if rollbackOutFile != "" {
 				if err := migration.SaveRollbackToFile(rollbackOutFile); err != nil {
 					return fmt.Errorf("failed to write rollback output: %w", err)
 				}
 				fmt.Printf("Rollback saved to %s\n", rollbackOutFile)
 			}
-			fmt.Printf("Output saved to %s\n", migrationOutFile)
 			return nil
 		},
 	}

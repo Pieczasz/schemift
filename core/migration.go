@@ -6,11 +6,104 @@ import (
 )
 
 type Migration struct {
-	Statements []string
-	Rollback   []string
-	Breaking   []string
-	Notes      []string
-	Unresolved []string
+	Operations []Operation
+}
+
+func (m *Migration) Plan() []Operation {
+	if m == nil {
+		return nil
+	}
+	return m.Operations
+}
+
+func (m *Migration) sqlStatements() []string {
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, op := range m.Operations {
+		if op.Kind != OperationSQL {
+			continue
+		}
+		stmt := strings.TrimSpace(op.SQL)
+		if stmt == "" {
+			continue
+		}
+		out = append(out, stmt)
+	}
+	return out
+}
+
+func (m *Migration) rollbackStatements() []string {
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, op := range m.Operations {
+		if op.Kind != OperationSQL {
+			continue
+		}
+		stmt := strings.TrimSpace(op.RollbackSQL)
+		if stmt == "" {
+			continue
+		}
+		out = append(out, stmt)
+	}
+	return out
+}
+
+func (m *Migration) breakingNotes() []string {
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, op := range m.Operations {
+		if op.Kind != OperationBreaking {
+			continue
+		}
+		msg := strings.TrimSpace(op.SQL)
+		if msg == "" {
+			continue
+		}
+		out = append(out, msg)
+	}
+	return out
+}
+
+func (m *Migration) unresolvedNotes() []string {
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, op := range m.Operations {
+		if op.Kind != OperationUnresolved {
+			continue
+		}
+		msg := strings.TrimSpace(op.UnresolvedReason)
+		if msg == "" {
+			continue
+		}
+		out = append(out, msg)
+	}
+	return out
+}
+
+func (m *Migration) infoNotes() []string {
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, op := range m.Operations {
+		if op.Kind != OperationNote {
+			continue
+		}
+		msg := strings.TrimSpace(op.SQL)
+		if msg == "" {
+			continue
+		}
+		out = append(out, msg)
+	}
+	return out
 }
 
 func (m *Migration) String() string {
@@ -33,22 +126,24 @@ func (m *Migration) String() string {
 		}
 	}
 
-	writeCommentSection("BREAKING CHANGES (manual review required)", m.Breaking)
-	writeCommentSection("UNRESOLVED (cannot auto-generate safely)", m.Unresolved)
-	writeCommentSection("NOTES", m.Notes)
+	writeCommentSection("BREAKING CHANGES (manual review required)", m.breakingNotes())
+	writeCommentSection("UNRESOLVED (cannot auto-generate safely)", m.unresolvedNotes())
+	writeCommentSection("NOTES", m.infoNotes())
 
-	if len(m.Statements) == 0 {
+	sql := m.sqlStatements()
+	rb := m.rollbackStatements()
+
+	if len(sql) == 0 {
 		sb.WriteString("\n-- No SQL statements generated.\n")
-		if len(m.Rollback) > 0 {
+		if len(rb) > 0 {
 			sb.WriteString("\n-- ROLLBACK SQL (run separately)\n")
-			writeRollbackAsComments(&sb, m.Rollback)
+			writeRollbackAsComments(&sb, rb)
 		}
 		return sb.String()
 	}
 
 	sb.WriteString("\n-- SQL\n")
-	for _, stmt := range m.Statements {
-		stmt = strings.TrimSpace(stmt)
+	for _, stmt := range sql {
 		if stmt == "" {
 			continue
 		}
@@ -59,9 +154,9 @@ func (m *Migration) String() string {
 		sb.WriteString("\n")
 	}
 
-	if len(m.Rollback) > 0 {
+	if len(rb) > 0 {
 		sb.WriteString("\n-- ROLLBACK SQL (run separately)\n")
-		writeRollbackAsComments(&sb, m.Rollback)
+		writeRollbackAsComments(&sb, rb)
 	}
 
 	return sb.String()
@@ -72,14 +167,15 @@ func (m *Migration) RollbackString() string {
 	sb.WriteString("-- schemift rollback\n")
 	sb.WriteString("-- Run to revert the migration (review carefully).\n")
 
-	if len(m.Rollback) == 0 {
+	rb := m.rollbackStatements()
+	if len(rb) == 0 {
 		sb.WriteString("\n-- No rollback statements generated.\n")
 		return sb.String()
 	}
 
 	sb.WriteString("\n-- SQL\n")
-	for i := len(m.Rollback) - 1; i >= 0; i-- {
-		stmt := strings.TrimSpace(m.Rollback[i])
+	for i := len(rb) - 1; i >= 0; i-- {
+		stmt := strings.TrimSpace(rb[i])
 		if stmt == "" {
 			continue
 		}
@@ -112,45 +208,131 @@ func (m *Migration) SaveRollbackToFile(path string) error {
 }
 
 func (m *Migration) AddStatement(stmt string) {
-	if stmt = strings.TrimSpace(stmt); stmt != "" {
-		m.Statements = append(m.Statements, stmt)
+	if m == nil {
+		return
 	}
+	if stmt = strings.TrimSpace(stmt); stmt == "" {
+		return
+	}
+	m.Operations = append(m.Operations, Operation{Kind: OperationSQL, SQL: stmt})
 }
 
 func (m *Migration) AddRollbackStatement(stmt string) {
-	if stmt = strings.TrimSpace(stmt); stmt != "" {
-		m.Rollback = append(m.Rollback, stmt)
+	if m == nil {
+		return
 	}
+	if stmt = strings.TrimSpace(stmt); stmt == "" {
+		return
+	}
+	m.Operations = append(m.Operations, Operation{Kind: OperationSQL, RollbackSQL: stmt})
 }
 
 func (m *Migration) AddStatementWithRollback(up, down string) {
-	m.AddStatement(up)
-	m.AddRollbackStatement(down)
+	if m == nil {
+		return
+	}
+	up = strings.TrimSpace(up)
+	down = strings.TrimSpace(down)
+	if up == "" && down == "" {
+		return
+	}
+	m.Operations = append(m.Operations, Operation{Kind: OperationSQL, SQL: up, RollbackSQL: down})
 }
 
 func (m *Migration) AddBreaking(msg string) {
-	if msg = strings.TrimSpace(msg); msg != "" {
-		m.Breaking = append(m.Breaking, msg)
+	if m == nil {
+		return
 	}
+	if msg = strings.TrimSpace(msg); msg == "" {
+		return
+	}
+	m.Operations = append(m.Operations, Operation{Kind: OperationBreaking, SQL: msg, Risk: RiskBreaking})
 }
 
 func (m *Migration) AddNote(msg string) {
-	if msg = strings.TrimSpace(msg); msg != "" {
-		m.Notes = append(m.Notes, msg)
+	if m == nil {
+		return
 	}
+	if msg = strings.TrimSpace(msg); msg == "" {
+		return
+	}
+	m.Operations = append(m.Operations, Operation{Kind: OperationNote, SQL: msg, Risk: RiskInfo})
 }
 
 func (m *Migration) AddUnresolved(msg string) {
-	if msg = strings.TrimSpace(msg); msg != "" {
-		m.Unresolved = append(m.Unresolved, msg)
+	if m == nil {
+		return
 	}
+	if msg = strings.TrimSpace(msg); msg == "" {
+		return
+	}
+	m.Operations = append(m.Operations, Operation{Kind: OperationUnresolved, UnresolvedReason: msg})
 }
 
 func (m *Migration) Dedupe() {
-	m.Breaking = dedupeStrings(m.Breaking)
-	m.Notes = dedupeStrings(m.Notes)
-	m.Unresolved = dedupeStrings(m.Unresolved)
-	m.Rollback = dedupeStrings(m.Rollback)
+	if m == nil {
+		return
+	}
+	seenNote := make(map[string]struct{})
+	seenBreaking := make(map[string]struct{})
+	seenUnresolved := make(map[string]struct{})
+	seenRollback := make(map[string]struct{})
+	var out []Operation
+	for _, op := range m.Operations {
+		op.SQL = strings.TrimSpace(op.SQL)
+		op.RollbackSQL = strings.TrimSpace(op.RollbackSQL)
+		op.UnresolvedReason = strings.TrimSpace(op.UnresolvedReason)
+
+		switch op.Kind {
+		case OperationSQL:
+			if op.SQL == "" && op.RollbackSQL == "" {
+				continue
+			}
+			if op.RollbackSQL != "" {
+				if _, ok := seenRollback[op.RollbackSQL]; ok {
+					op.RollbackSQL = ""
+				} else {
+					seenRollback[op.RollbackSQL] = struct{}{}
+				}
+			}
+			if op.SQL == "" {
+				if op.RollbackSQL == "" {
+					continue
+				}
+			}
+			out = append(out, op)
+		case OperationNote:
+			if op.SQL == "" {
+				continue
+			}
+			if _, ok := seenNote[op.SQL]; ok {
+				continue
+			}
+			seenNote[op.SQL] = struct{}{}
+			out = append(out, op)
+		case OperationBreaking:
+			if op.SQL == "" {
+				continue
+			}
+			if _, ok := seenBreaking[op.SQL]; ok {
+				continue
+			}
+			seenBreaking[op.SQL] = struct{}{}
+			out = append(out, op)
+		case OperationUnresolved:
+			if op.UnresolvedReason == "" {
+				continue
+			}
+			if _, ok := seenUnresolved[op.UnresolvedReason]; ok {
+				continue
+			}
+			seenUnresolved[op.UnresolvedReason] = struct{}{}
+			out = append(out, op)
+		default:
+			out = append(out, op)
+		}
+	}
+	m.Operations = out
 }
 
 func writeRollbackAsComments(sb *strings.Builder, rollback []string) {
@@ -169,19 +351,4 @@ func writeRollbackAsComments(sb *strings.Builder, rollback []string) {
 	}
 }
 
-func dedupeStrings(items []string) []string {
-	seen := make(map[string]struct{}, len(items))
-	var out []string
-	for _, item := range items {
-		item = strings.TrimSpace(item)
-		if item == "" {
-			continue
-		}
-		if _, ok := seen[item]; ok {
-			continue
-		}
-		seen[item] = struct{}{}
-		out = append(out, item)
-	}
-	return out
-}
+// NOTE: legacy string-dedupe helper removed in favor of Operation-based Dedupe.
