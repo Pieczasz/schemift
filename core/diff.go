@@ -8,6 +8,11 @@ import (
 	"strings"
 )
 
+const (
+	renameDetectionScoreThreshold = 9
+	renameSharedTokenMinLen = 3
+)
+
 type SchemaDiff struct {
 	AddedTables    []*Table
 	RemovedTables  []*Table
@@ -165,7 +170,6 @@ func markConstraintsForRebuild(oldItems, newItems []*Constraint, td *TableDiff) 
 		if _, ok := already[key]; ok {
 			continue
 		}
-		// Only rebuild constraints whose definition didn't change.
 		if !equalConstraint(oldC, newC) {
 			continue
 		}
@@ -255,8 +259,7 @@ func (td *TableDiff) detectColumnRenames() {
 				bestIdx = j
 			}
 		}
-		// TODO: explain magic numbers
-		if bestIdx >= 0 && bestScore >= 9 {
+		if bestIdx >= 0 && bestScore >= renameDetectionScoreThreshold {
 			newC := td.AddedColumns[bestIdx]
 			if !renameEvidence(oldC, newC) {
 				continue
@@ -381,8 +384,6 @@ func hasSharedNameToken(a, b string) bool {
 	if a == "" || b == "" {
 		return false
 	}
-
-	const renameSharedTokenMinLen = 3
 
 	split := func(s string) []string {
 		f := func(r rune) bool {

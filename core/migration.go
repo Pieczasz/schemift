@@ -295,11 +295,6 @@ func (m *Migration) Dedupe() {
 					seenRollback[op.RollbackSQL] = struct{}{}
 				}
 			}
-			if op.SQL == "" {
-				if op.RollbackSQL == "" {
-					continue
-				}
-			}
 			out = append(out, op)
 		case OperationNote:
 			if op.SQL == "" {
@@ -350,5 +345,3 @@ func writeRollbackAsComments(sb *strings.Builder, rollback []string) {
 		}
 	}
 }
-
-// NOTE: legacy string-dedupe helper removed in favor of Operation-based Dedupe.

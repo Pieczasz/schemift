@@ -84,8 +84,6 @@ func (g *MySQLGenerator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opt
 		m.AddStatementWithRollback(create, g.GenerateDropTable(t))
 		pendingFKs = append(pendingFKs, fks...)
 
-		// Ensure rollback symmetry for FK statements added after CREATE TABLE.
-		// Even though DROP TABLE would remove them, we keep explicit rollback steps for consistency.
 		table := g.QuoteIdentifier(t.Name)
 		for _, c := range t.Constraints {
 			if c == nil || c.Type != core.ConstraintForeignKey {
@@ -103,23 +101,46 @@ func (g *MySQLGenerator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opt
 			continue
 		}
 		stmts, rollback, fkAdds, fkRollback := g.generateAlterTableWithOptions(td, opts)
-		for i := range stmts {
+		
+		pairCount := len(stmts)
+		if len(rollback) < pairCount {
+			pairCount = len(rollback)
+		}
+		for i := 0; i < pairCount; i++ {
+			m.AddStatementWithRollback(stmts[i], rollback[i])
+		}
+		
+		for i := pairCount; i < len(stmts); i++ {
 			m.AddStatement(stmts[i])
 		}
-		for i := range rollback {
+		
+		for i := pairCount; i < len(rollback); i++ {
 			m.AddRollbackStatement(rollback[i])
 		}
+		
 		pendingFKs = append(pendingFKs, fkAdds...)
 		pendingFKRollback = append(pendingFKRollback, fkRollback...)
 	}
 
 	if len(pendingFKs) > 0 {
 		m.AddNote("Foreign keys added after table creation to avoid dependency issues.")
-		for _, stmt := range pendingFKs {
+		
+		for i, stmt := range pendingFKs {
+			if i < len(pendingFKRollback) {
+				rb := pendingFKRollback[i]
+				if strings.TrimSpace(rb) != "" {
+					m.AddStatementWithRollback(stmt, rb)
+					continue
+				}
+			}
 			m.AddStatement(stmt)
 		}
-		for _, rb := range pendingFKRollback {
-			m.AddRollbackStatement(rb)
+		
+		for i := len(pendingFKs); i < len(pendingFKRollback); i++ {
+			rb := pendingFKRollback[i]
+			if strings.TrimSpace(rb) != "" {
+				m.AddRollbackStatement(rb)
+			}
 		}
 	}
 
@@ -530,9 +551,9 @@ const backupSuffixPrefix = "__schemift_backup_"
 
 func safeBackupName(name string) string {
 	base := strings.TrimSpace(name)
-	h := fnv.New32a()
+	h := fnv.New64a()
 	_, _ = h.Write([]byte(base))
-	suffix := fmt.Sprintf("%s%08x", backupSuffixPrefix, h.Sum32())
+	suffix := fmt.Sprintf("%s%016x", backupSuffixPrefix, h.Sum64())
 
 	const mysqlMaxIdentLen = 64
 	if len(base)+len(suffix) > mysqlMaxIdentLen {
@@ -546,7 +567,7 @@ func safeBackupName(name string) string {
 	}
 
 	if base == "" {
-		return backupSuffixPrefix + "_" + suffix
+		return suffix
 	}
 	return base + suffix
 }
