@@ -164,8 +164,7 @@ func TestMigrationGeneration_SafetyNotesAndRollback(t *testing.T) {
 	assert.Contains(t, out, "-- SQL")
 	assert.Contains(t, out, "ALTER TABLE")
 	assert.Contains(t, out, "Lock-time warning")
-	assert.Contains(t, out, "Suggested rollback")
-	assert.Contains(t, out, "ROLLBACK:")
+	assert.Contains(t, out, "ROLLBACK SQL")
 }
 
 func hasBC(changes []core.BreakingChange, sev core.ChangeSeverity, table, object, descSubstr string) bool {
