@@ -8,7 +8,6 @@ import (
 	"schemift/core"
 	"schemift/parser"
 
-	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

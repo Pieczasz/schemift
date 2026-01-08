@@ -141,20 +141,20 @@ func (p *Parser) parseTableOptions(opts []*ast.TableOption, table *core.Table) {
 		case ast.TableOptionTableCheckSum:
 			table.Options.MySQL.TableChecksum = opt.UintValue
 		case ast.TableOptionUnion:
-			table.Options.MySQL.Union = make([]string, 0, len(opt.TableNames))
-			for _, tn := range opt.TableNames {
-				table.Options.MySQL.Union = append(table.Options.MySQL.Union, tn.Name.O)
+			table.Options.MySQL.Union = make([]string, len(opt.TableNames))
+			for idx, tn := range opt.TableNames {
+				table.Options.MySQL.Union[idx] = tn.Name.O
 			}
 		case ast.TableOptionEngineAttribute:
 			table.Options.MySQL.EngineAttribute = opt.StrValue
 		case ast.TableOptionSecondaryEngineAttribute:
 			table.Options.MySQL.SecondaryEngineAttribute = opt.StrValue
 		case ast.TableOptionPageCompressed:
-			table.Options.MySQL.PageCompressed = opt.BoolValue || strings.EqualFold(opt.StrValue, "ON") || opt.StrValue == "1"
+			table.Options.MySQL.PageCompressed = optionTruthy(opt.BoolValue, opt.StrValue)
 		case ast.TableOptionPageCompressionLevel:
 			table.Options.MySQL.PageCompressionLevel = opt.UintValue
 		case ast.TableOptionIetfQuotes:
-			table.Options.MySQL.IetfQuotes = opt.BoolValue || strings.EqualFold(opt.StrValue, "ON") || opt.StrValue == "1"
+			table.Options.MySQL.IetfQuotes = optionTruthy(opt.BoolValue, opt.StrValue)
 		case ast.TableOptionNodegroup:
 			table.Options.MySQL.Nodegroup = opt.UintValue
 
@@ -177,7 +177,7 @@ func (p *Parser) parseTableOptions(opts []*ast.TableOption, table *core.Table) {
 				table.Options.TiDB.TTL = fmt.Sprintf("`%s` + INTERVAL %s %s", opt.ColumnName.Name.O, val, opt.TimeUnitValue.Unit.String())
 			}
 		case ast.TableOptionTTLEnable:
-			table.Options.TiDB.TTLEnable = opt.BoolValue || strings.EqualFold(opt.StrValue, "ON") || opt.StrValue == "1"
+			table.Options.TiDB.TTLEnable = optionTruthy(opt.BoolValue, opt.StrValue)
 		case ast.TableOptionTTLJobInterval:
 			table.Options.TiDB.TTLJobInterval = opt.StrValue
 		case ast.TableOptionSequence:
@@ -409,17 +409,66 @@ func (p *Parser) exprToString(expr ast.ExprNode) *string {
 	if err := expr.Restore(restoreCtx); err != nil {
 		return nil
 	}
-	s := sb.String()
+	s := strings.TrimSpace(sb.String())
 
-	if strings.Contains(s, "'") {
-		start := strings.Index(s, "'")
-		end := strings.LastIndex(s, "'")
-		if start != -1 && end != -1 && start < end {
-			s = s[start+1 : end]
-		}
+	if unquoted, ok := tryUnquoteSQLStringLiteral(s); ok {
+		return &unquoted
 	}
 
 	return &s
+}
+
+func tryUnquoteSQLStringLiteral(s string) (string, bool) {
+	s = strings.TrimSpace(s)
+	if len(s) < 2 || s[len(s)-1] != '\'' {
+		return "", false
+	}
+
+	if s[0] == '\'' {
+		return strings.ReplaceAll(s[1:len(s)-1], "''", "'"), true
+	}
+
+	q := strings.IndexByte(s, '\'')
+	if q <= 0 {
+		return "", false
+	}
+	prefix := strings.TrimSpace(s[:q])
+	if !isSQLStringIntroducer(prefix) {
+		return "", false
+	}
+	inner := s[q+1 : len(s)-1]
+	return strings.ReplaceAll(inner, "''", "'"), true
+}
+
+func isSQLStringIntroducer(prefix string) bool {
+	if prefix == "" {
+		return false
+	}
+	if strings.EqualFold(prefix, "N") {
+		return true
+	}
+	if !strings.HasPrefix(prefix, "_") || len(prefix) == 1 {
+		return false
+	}
+	for _, r := range prefix[1:] {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '_':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
+func optionTruthy(boolValue bool, strValue string) bool {
+	if boolValue {
+		return true
+	}
+	s := strings.TrimSpace(strValue)
+	return strings.EqualFold(s, "ON") || s == "1" || strings.EqualFold(s, "TRUE")
 }
 
 func rowFormatToString(v uint64) string {
