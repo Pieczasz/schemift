@@ -24,11 +24,18 @@ type Dialect interface {
 	Parser() Parser
 }
 
+var registry = map[core.Dialect]func() Dialect{}
+
+func RegisterDialect(d core.Dialect, ctor func() Dialect) {
+	registry[d] = ctor
+}
+
 func GetDialect(d core.Dialect) Dialect {
-	switch d {
-	case core.DialectMySQL:
-		return NewMySQLDialect()
-	default:
-		return NewMySQLDialect()
+	if ctor, ok := registry[d]; ok {
+		return ctor()
 	}
+	if ctor, ok := registry[core.DialectMySQL]; ok {
+		return ctor()
+	}
+	return nil
 }

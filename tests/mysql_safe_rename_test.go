@@ -1,10 +1,10 @@
 package tests
 
 import (
+	"schemift/dialect/mysql"
 	"testing"
 
 	"schemift/core"
-	"schemift/dialect"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -24,7 +24,7 @@ func TestMySQLSafeMode_UsesChangeColumnForRename(t *testing.T) {
 	d := core.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
-	gen := dialect.NewMySQLDialect().Generator()
+	gen := mysql.NewMySQLDialect().Generator()
 	opts := core.DefaultMigrationOptions(core.DialectMySQL)
 	opts.IncludeUnsafe = false
 
