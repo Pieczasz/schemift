@@ -2,10 +2,10 @@ package tests
 
 import (
 	"os"
+	"schemift/dialect/mysql"
 	"testing"
 
 	"schemift/core"
-	"schemift/dialect"
 	"schemift/parser"
 
 	"github.com/stretchr/testify/assert"
@@ -41,7 +41,7 @@ func TestBasicMigration(t *testing.T) {
 	d := core.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
-	mysqlDialect := dialect.NewMySQLDialect()
+	mysqlDialect := mysql.NewMySQLDialect()
 	mig := mysqlDialect.Generator().GenerateMigration(d)
 	require.NotNil(t, mig)
 

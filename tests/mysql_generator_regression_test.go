@@ -1,11 +1,11 @@
 package tests
 
 import (
+	"schemift/dialect/mysql"
 	"strings"
 	"testing"
 
 	"schemift/core"
-	"schemift/dialect"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -31,7 +31,7 @@ func TestMySQLGenerator_DoesNotEmitCharsetCollateForJSONAndBinary(t *testing.T) 
 	d := core.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
-	mig := dialect.NewMySQLDialect().Generator().GenerateMigration(d)
+	mig := mysql.NewMySQLDialect().Generator().GenerateMigration(d)
 	out := mig.String()
 
 	assert.Contains(t, out, "ALTER TABLE `t` ADD COLUMN `payload` json")
@@ -61,7 +61,7 @@ func TestMySQLGenerator_DoesNotEmitBinaryAttributeForVarbinary(t *testing.T) {
 	d := core.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
-	mig := dialect.NewMySQLDialect().Generator().GenerateMigration(d)
+	mig := mysql.NewMySQLDialect().Generator().GenerateMigration(d)
 	out := mig.String()
 
 	assert.Contains(t, out, "ALTER TABLE `t` ADD COLUMN `v` varbinary(72) NOT NULL")
@@ -110,7 +110,7 @@ func TestMySQLGenerator_DefersFKAddsUntilEnd(t *testing.T) {
 	d := core.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
-	mig := dialect.NewMySQLDialect().Generator().GenerateMigration(d)
+	mig := mysql.NewMySQLDialect().Generator().GenerateMigration(d)
 	out := mig.String()
 	sqlStart := strings.Index(out, "-- SQL\n")
 	require.Greater(t, sqlStart, -1)
@@ -178,7 +178,7 @@ func TestMySQLGenerator_RebuildsUnchangedFKWhenColumnModified_WithoutConstraintM
 	d := core.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
-	mig := dialect.NewMySQLDialect().Generator().GenerateMigration(d)
+	mig := mysql.NewMySQLDialect().Generator().GenerateMigration(d)
 	out := mig.String()
 	sqlStart := strings.Index(out, "-- SQL\n")
 	require.Greater(t, sqlStart, -1)

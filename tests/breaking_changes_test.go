@@ -1,16 +1,16 @@
 package tests
 
 import (
+	"schemift/dialect/mysql"
 	"testing"
 
 	"schemift/core"
-	"schemift/dialect"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestBreakingChangeAnalyzer_ComprehensiveCoverage(t *testing.T) {
+func TestBreakingChangeAnalyzer(t *testing.T) {
 	t.Run("all severities and types", func(t *testing.T) {
 		oldDB := &core.Database{Tables: []*core.Table{
 			{
@@ -157,7 +157,7 @@ func TestMigrationGeneration_SafetyNotesAndRollback(t *testing.T) {
 	d := core.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
-	mig := dialect.NewMySQLDialect().Generator().GenerateMigration(d)
+	mig := mysql.NewMySQLDialect().Generator().GenerateMigration(d)
 	require.NotNil(t, mig)
 
 	out := mig.String()

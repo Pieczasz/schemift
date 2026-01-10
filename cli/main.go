@@ -5,6 +5,7 @@ import (
 	"os"
 	"schemift/core"
 	"schemift/dialect"
+	"schemift/dialect/mysql"
 	"schemift/parser"
 	"strings"
 
@@ -108,8 +109,8 @@ You can specify the source and target database dialects using the --from and --t
 			fmt.Printf("Detected changes between schemas (old: %d tables, new: %d tables)\n",
 				len(oldDB.Tables), len(newDB.Tables))
 
-			d := dialect.NewMySQLDialect()
-			opts := core.DefaultMigrationOptions(core.DialectMySQL)
+			d := mysql.NewMySQLDialect()
+			opts := dialect.DefaultMigrationOptions(dialect.MySQL)
 			opts.IncludeUnsafe = unsafe
 			migration := d.Generator().GenerateMigrationWithOptions(schemaDiff, opts)
 
@@ -134,7 +135,7 @@ You can specify the source and target database dialects using the --from and --t
 	migrateCmd.Flags().StringVarP(&fromDialect, "from", "f", "mysql", "Source database dialect (e.g., mysql)")
 	migrateCmd.Flags().StringVarP(&toDialect, "to", "t", "mysql", "Target database dialect (e.g., mysql)")
 	migrateCmd.Flags().StringVarP(&migrationOutFile, "output", "o", "", "Output file for the generated migration SQL")
-	migrateCmd.Flags().StringVar(&rollbackOutFile, "rollback-output", "", "Output file for generated rollback SQL (run separately)")
+	migrateCmd.Flags().StringVarP(&rollbackOutFile, "rollback-output", "ro", "", "Output file for generated rollback SQL (run separately)")
 	migrateCmd.Flags().BoolVarP(&unsafe, "unsafe", "u", false, "Generate unsafe migration (may drop/overwrite data); safe mode by default")
 
 	//_ = migrateCmd.MarkFlagRequired("from")
