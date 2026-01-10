@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMigrationString_MultiLineNotesAreCommented(t *testing.T) {
+func TestMigrationStringMultiLineNotesAreCommented(t *testing.T) {
 	m := &core.Migration{}
 	m.AddNote("line1\nline2")
 	m.AddRollbackStatement("ALTER TABLE t ADD COLUMN c INT")
@@ -27,7 +27,7 @@ func TestMigrationString_MultiLineNotesAreCommented(t *testing.T) {
 	assert.Contains(t, rb, "ALTER TABLE t ADD COLUMN c INT;")
 }
 
-func TestMigrationSaveRollbackToFile_WritesRollbackSQL(t *testing.T) {
+func TestMigrationSaveRollbackToFileWritesRollbackSQL(t *testing.T) {
 	m := &core.Migration{}
 	m.AddRollbackStatement("ALTER TABLE t ADD COLUMN c INT")
 

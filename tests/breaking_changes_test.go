@@ -2,6 +2,7 @@ package tests
 
 import (
 	"schemift/dialect/mysql"
+	"schemift/diff"
 	"testing"
 
 	"schemift/core"
@@ -78,30 +79,30 @@ func TestBreakingChangeAnalyzer(t *testing.T) {
 		require.NotNil(t, oldUsers)
 		oldUsers.Columns = append(oldUsers.Columns, &core.Column{Name: "old_col", TypeRaw: "INT", Type: core.NormalizeDataType("INT"), Nullable: true, Comment: "same"})
 
-		d := core.Diff(oldDB, newDB)
+		d := diff.Diff(oldDB, newDB)
 		require.NotNil(t, d)
 
-		an := core.NewBreakingChangeAnalyzer()
+		an := diff.NewBreakingChangeAnalyzer()
 		changes := an.Analyze(d)
 		require.NotEmpty(t, changes)
 
-		assert.True(t, hasBC(changes, core.SeverityInfo, "users", "id", "type changes"))
-		assert.True(t, hasBC(changes, core.SeverityBreaking, "users", "name", "becomes NOT NULL"))
-		assert.True(t, hasBC(changes, core.SeverityBreaking, "users", "name", "length shrinks"))
-		assert.True(t, hasBC(changes, core.SeverityWarning, "users", "name", "Default value changes"))
-		assert.True(t, hasBC(changes, core.SeverityInfo, "users", "name", "comment"))
-		assert.True(t, hasBC(changes, core.SeverityCritical, "users", "bio", "Column will be dropped"))
-		assert.True(t, hasBC(changes, core.SeverityBreaking, "users", "gen", "Generated column expression changed"))
-		assert.True(t, hasBC(changes, core.SeverityBreaking, "users", "email", "Adding NOT NULL column"))
-		assert.True(t, hasBC(changes, core.SeverityBreaking, "users", "old_col->renamed_col", "Column rename detected"))
-		assert.True(t, hasBC(changes, core.SeverityWarning, "users", "idx_name", "Index modified"))
-		assert.True(t, hasBC(changes, core.SeverityBreaking, "users", "uidx_email", "Unique index added"))
+		assert.True(t, hasBC(changes, diff.SeverityInfo, "users", "id", "type changes"))
+		assert.True(t, hasBC(changes, diff.SeverityBreaking, "users", "name", "becomes NOT NULL"))
+		assert.True(t, hasBC(changes, diff.SeverityBreaking, "users", "name", "length shrinks"))
+		assert.True(t, hasBC(changes, diff.SeverityWarning, "users", "name", "Default value changes"))
+		assert.True(t, hasBC(changes, diff.SeverityInfo, "users", "name", "comment"))
+		assert.True(t, hasBC(changes, diff.SeverityCritical, "users", "bio", "Column will be dropped"))
+		assert.True(t, hasBC(changes, diff.SeverityBreaking, "users", "gen", "Generated column expression changed"))
+		assert.True(t, hasBC(changes, diff.SeverityBreaking, "users", "email", "Adding NOT NULL column"))
+		assert.True(t, hasBC(changes, diff.SeverityBreaking, "users", "old_col->renamed_col", "Column rename detected"))
+		assert.True(t, hasBC(changes, diff.SeverityWarning, "users", "idx_name", "Index modified"))
+		assert.True(t, hasBC(changes, diff.SeverityBreaking, "users", "uidx_email", "Unique index added"))
 
-		assert.True(t, hasBC(changes, core.SeverityBreaking, "users", "ENGINE", "Storage engine changes"))
-		assert.True(t, hasBC(changes, core.SeverityWarning, "users", "CHARSET", "Character set changes"))
-		assert.True(t, hasBC(changes, core.SeverityWarning, "users", "COLLATE", "Collation changes"))
+		assert.True(t, hasBC(changes, diff.SeverityBreaking, "users", "ENGINE", "Storage engine changes"))
+		assert.True(t, hasBC(changes, diff.SeverityWarning, "users", "CHARSET", "Character set changes"))
+		assert.True(t, hasBC(changes, diff.SeverityWarning, "users", "COLLATE", "Collation changes"))
 
-		assert.True(t, hasBC(changes, core.SeverityCritical, "to_drop", "to_drop", "Table will be dropped"))
+		assert.True(t, hasBC(changes, diff.SeverityCritical, "to_drop", "to_drop", "Table will be dropped"))
 	})
 
 	t.Run("type conversion safety", func(t *testing.T) {
@@ -122,17 +123,17 @@ func TestBreakingChangeAnalyzer(t *testing.T) {
 			},
 		}}}
 
-		d := core.Diff(oldDB, newDB)
-		an := core.NewBreakingChangeAnalyzer()
+		d := diff.Diff(oldDB, newDB)
+		an := diff.NewBreakingChangeAnalyzer()
 		changes := an.Analyze(d)
 
-		assert.True(t, hasBC(changes, core.SeverityInfo, "t", "widen", "type changes"))
-		assert.True(t, hasBC(changes, core.SeverityCritical, "t", "narrow", "type changes"))
-		assert.True(t, hasBC(changes, core.SeverityCritical, "t", "incompat", "type changes"))
+		assert.True(t, hasBC(changes, diff.SeverityInfo, "t", "widen", "type changes"))
+		assert.True(t, hasBC(changes, diff.SeverityCritical, "t", "narrow", "type changes"))
+		assert.True(t, hasBC(changes, diff.SeverityCritical, "t", "incompat", "type changes"))
 	})
 }
 
-func TestMigrationGeneration_SafetyNotesAndRollback(t *testing.T) {
+func TestMigrationGenerationSafetyNotesAndRollback(t *testing.T) {
 	oldDB := &core.Database{Tables: []*core.Table{{
 		Name:        "t",
 		Columns:     []*core.Column{{Name: "id", TypeRaw: "INT", Type: core.NormalizeDataType("INT"), Nullable: false, PrimaryKey: true}},
@@ -154,7 +155,7 @@ func TestMigrationGeneration_SafetyNotesAndRollback(t *testing.T) {
 		Options: core.TableOptions{Engine: "MyISAM", Charset: "latin1", Collate: "latin1_swedish_ci"},
 	}}}
 
-	d := core.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
 	mig := mysql.NewMySQLDialect().Generator().GenerateMigration(d)
@@ -167,7 +168,7 @@ func TestMigrationGeneration_SafetyNotesAndRollback(t *testing.T) {
 	assert.Contains(t, out, "ROLLBACK SQL")
 }
 
-func hasBC(changes []core.BreakingChange, sev core.ChangeSeverity, table, object, descSubstr string) bool {
+func hasBC(changes []diff.BreakingChange, sev diff.ChangeSeverity, table, object, descSubstr string) bool {
 	for _, c := range changes {
 		if c.Severity != sev {
 			continue

@@ -1,8 +1,9 @@
-package core
+package diff
 
 import (
 	"fmt"
 	"regexp"
+	"schemift/core"
 	"strconv"
 	"strings"
 )
@@ -58,7 +59,7 @@ func (a *BreakingChangeAnalyzer) Analyze(diff *SchemaDiff) []BreakingChange {
 	return a.Changes
 }
 
-func (a *BreakingChangeAnalyzer) analyzeRemovedTables(tables []*Table) {
+func (a *BreakingChangeAnalyzer) analyzeRemovedTables(tables []*core.Table) {
 	for _, t := range tables {
 		if t == nil {
 			continue
@@ -107,7 +108,7 @@ func (a *BreakingChangeAnalyzer) analyzeRenamedColumns(table string, renames []*
 	}
 }
 
-func ptrEqString(a, b *string) bool {
+func PtrEqString(a, b *string) bool {
 	if a == nil && b == nil {
 		return true
 	}
@@ -117,7 +118,7 @@ func ptrEqString(a, b *string) bool {
 	return *a == *b
 }
 
-func (a *BreakingChangeAnalyzer) analyzeRemovedColumns(table string, columns []*Column) {
+func (a *BreakingChangeAnalyzer) analyzeRemovedColumns(table string, columns []*core.Column) {
 	for _, c := range columns {
 		if c == nil {
 			continue
@@ -410,7 +411,7 @@ func (a *BreakingChangeAnalyzer) analyzeCommentChange(table string, ch *ColumnCh
 	})
 }
 
-func (a *BreakingChangeAnalyzer) analyzeAddedColumns(table string, columns []*Column) {
+func (a *BreakingChangeAnalyzer) analyzeAddedColumns(table string, columns []*core.Column) {
 	for _, c := range columns {
 		if c == nil {
 			continue
@@ -427,14 +428,14 @@ func (a *BreakingChangeAnalyzer) analyzeAddedColumns(table string, columns []*Co
 	}
 }
 
-func (a *BreakingChangeAnalyzer) analyzeRemovedConstraints(table string, constraints []*Constraint) {
+func (a *BreakingChangeAnalyzer) analyzeRemovedConstraints(table string, constraints []*core.Constraint) {
 	for _, c := range constraints {
 		if c == nil {
 			continue
 		}
 
 		switch c.Type {
-		case ConstraintPrimaryKey:
+		case core.ConstraintPrimaryKey:
 			a.add(BreakingChange{
 				Severity:    SeverityCritical,
 				Description: "Primary key will be dropped - this affects table identity",
@@ -442,7 +443,7 @@ func (a *BreakingChangeAnalyzer) analyzeRemovedConstraints(table string, constra
 				Object:      c.Name,
 				ObjectType:  "CONSTRAINT",
 			})
-		case ConstraintForeignKey:
+		case core.ConstraintForeignKey:
 			a.add(BreakingChange{
 				Severity:    SeverityWarning,
 				Description: "Foreign key will be dropped - referential integrity no longer enforced",
@@ -450,7 +451,7 @@ func (a *BreakingChangeAnalyzer) analyzeRemovedConstraints(table string, constra
 				Object:      c.Name,
 				ObjectType:  "CONSTRAINT",
 			})
-		case ConstraintUnique:
+		case core.ConstraintUnique:
 			a.add(BreakingChange{
 				Severity:    SeverityWarning,
 				Description: "Unique constraint will be dropped - duplicates will be allowed",
@@ -458,7 +459,7 @@ func (a *BreakingChangeAnalyzer) analyzeRemovedConstraints(table string, constra
 				Object:      c.Name,
 				ObjectType:  "CONSTRAINT",
 			})
-		case ConstraintCheck:
+		case core.ConstraintCheck:
 			a.add(BreakingChange{
 				Severity:    SeverityInfo,
 				Description: "Check constraint will be dropped - validation no longer enforced",
@@ -492,14 +493,14 @@ func (a *BreakingChangeAnalyzer) analyzeModifiedConstraints(table string, change
 	}
 }
 
-func (a *BreakingChangeAnalyzer) analyzeAddedConstraints(table string, constraints []*Constraint) {
+func (a *BreakingChangeAnalyzer) analyzeAddedConstraints(table string, constraints []*core.Constraint) {
 	for _, c := range constraints {
 		if c == nil {
 			continue
 		}
 
 		switch c.Type {
-		case ConstraintPrimaryKey:
+		case core.ConstraintPrimaryKey:
 			a.add(BreakingChange{
 				Severity:    SeverityBreaking,
 				Description: "Primary key added - will fail if duplicates or NULLs exist in key columns",
@@ -507,7 +508,7 @@ func (a *BreakingChangeAnalyzer) analyzeAddedConstraints(table string, constrain
 				Object:      c.Name,
 				ObjectType:  "CONSTRAINT",
 			})
-		case ConstraintForeignKey:
+		case core.ConstraintForeignKey:
 			a.add(BreakingChange{
 				Severity:    SeverityBreaking,
 				Description: "Foreign key added - will fail if orphan rows exist",
@@ -515,7 +516,7 @@ func (a *BreakingChangeAnalyzer) analyzeAddedConstraints(table string, constrain
 				Object:      c.Name,
 				ObjectType:  "CONSTRAINT",
 			})
-		case ConstraintUnique:
+		case core.ConstraintUnique:
 			a.add(BreakingChange{
 				Severity:    SeverityBreaking,
 				Description: "Unique constraint added - will fail if duplicates exist",
@@ -523,7 +524,7 @@ func (a *BreakingChangeAnalyzer) analyzeAddedConstraints(table string, constrain
 				Object:      c.Name,
 				ObjectType:  "CONSTRAINT",
 			})
-		case ConstraintCheck:
+		case core.ConstraintCheck:
 			a.add(BreakingChange{
 				Severity:    SeverityBreaking,
 				Description: "Check constraint added - will fail if existing rows violate the check",
@@ -535,7 +536,7 @@ func (a *BreakingChangeAnalyzer) analyzeAddedConstraints(table string, constrain
 	}
 }
 
-func (a *BreakingChangeAnalyzer) analyzeRemovedIndexes(table string, indexes []*Index) {
+func (a *BreakingChangeAnalyzer) analyzeRemovedIndexes(table string, indexes []*core.Index) {
 	for _, idx := range indexes {
 		if idx == nil {
 			continue
@@ -550,7 +551,7 @@ func (a *BreakingChangeAnalyzer) analyzeRemovedIndexes(table string, indexes []*
 	}
 }
 
-func (a *BreakingChangeAnalyzer) analyzeAddedIndexes(table string, indexes []*Index) {
+func (a *BreakingChangeAnalyzer) analyzeAddedIndexes(table string, indexes []*core.Index) {
 	for _, idx := range indexes {
 		if idx == nil {
 			continue

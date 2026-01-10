@@ -2,6 +2,7 @@ package tests
 
 import (
 	"schemift/dialect/mysql"
+	"schemift/diff"
 	"strings"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMySQLGenerator_DoesNotEmitCharsetCollateForJSONAndBinary(t *testing.T) {
+func TestMySQLGeneratorDoesNotEmitCharsetCollateForJSONAndBinary(t *testing.T) {
 	oldDB := &core.Database{Tables: []*core.Table{{
 		Name:        "t",
 		Columns:     []*core.Column{{Name: "id", TypeRaw: "INT", Type: core.NormalizeDataType("INT"), Nullable: false, PrimaryKey: true, AutoIncrement: true}},
@@ -28,7 +29,7 @@ func TestMySQLGenerator_DoesNotEmitCharsetCollateForJSONAndBinary(t *testing.T) 
 		Constraints: []*core.Constraint{{Name: "PRIMARY", Type: core.ConstraintPrimaryKey, Columns: []string{"id"}}},
 	}}}
 
-	d := core.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
 	mig := mysql.NewMySQLDialect().Generator().GenerateMigration(d)
@@ -42,7 +43,7 @@ func TestMySQLGenerator_DoesNotEmitCharsetCollateForJSONAndBinary(t *testing.T) 
 	assert.NotContains(t, out, "`uuid` binary(16) NOT NULL COLLATE")
 }
 
-func TestMySQLGenerator_DoesNotEmitBinaryAttributeForVarbinary(t *testing.T) {
+func TestMySQLGeneratorDoesNotEmitBinaryAttributeForVarbinary(t *testing.T) {
 	oldDB := &core.Database{Tables: []*core.Table{{
 		Name:        "t",
 		Columns:     []*core.Column{{Name: "id", TypeRaw: "INT", Type: core.NormalizeDataType("INT"), Nullable: false, PrimaryKey: true, AutoIncrement: true}},
@@ -58,7 +59,7 @@ func TestMySQLGenerator_DoesNotEmitBinaryAttributeForVarbinary(t *testing.T) {
 		Constraints: []*core.Constraint{{Name: "PRIMARY", Type: core.ConstraintPrimaryKey, Columns: []string{"id"}}},
 	}}}
 
-	d := core.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
 	mig := mysql.NewMySQLDialect().Generator().GenerateMigration(d)
@@ -68,7 +69,7 @@ func TestMySQLGenerator_DoesNotEmitBinaryAttributeForVarbinary(t *testing.T) {
 	assert.NotContains(t, out, "varbinary(72) BINARY")
 }
 
-func TestMySQLGenerator_DefersFKAddsUntilEnd(t *testing.T) {
+func TestMySQLGeneratorDefersFKAddsUntilEnd(t *testing.T) {
 	oldDB := &core.Database{Tables: []*core.Table{
 		{
 			Name:        "users",
@@ -107,7 +108,7 @@ func TestMySQLGenerator_DefersFKAddsUntilEnd(t *testing.T) {
 		},
 	}}
 
-	d := core.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
 	mig := mysql.NewMySQLDialect().Generator().GenerateMigration(d)
@@ -136,7 +137,7 @@ func TestMySQLGenerator_DefersFKAddsUntilEnd(t *testing.T) {
 	assert.Less(t, idxModUsers, idxAdd)
 }
 
-func TestMySQLGenerator_RebuildsUnchangedFKWhenColumnModified_WithoutConstraintModifiedWarning(t *testing.T) {
+func TestMySQLGeneratorRebuildsUnchangedFKWhenColumnModifiedWithoutConstraintModifiedWarning(t *testing.T) {
 	oldDB := &core.Database{Tables: []*core.Table{
 		{
 			Name:        "users",
@@ -175,7 +176,7 @@ func TestMySQLGenerator_RebuildsUnchangedFKWhenColumnModified_WithoutConstraintM
 		},
 	}}
 
-	d := core.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
 	mig := mysql.NewMySQLDialect().Generator().GenerateMigration(d)
@@ -190,7 +191,7 @@ func TestMySQLGenerator_RebuildsUnchangedFKWhenColumnModified_WithoutConstraintM
 	assert.NotContains(t, out, "Constraint modified")
 }
 
-func TestBreakingChanges_VarcharLengthChangeDoesNotAlsoReportTypeChange(t *testing.T) {
+func TestBreakingChangesVarcharLengthChangeDoesNotAlsoReportTypeChange(t *testing.T) {
 	oldDB := &core.Database{Tables: []*core.Table{{
 		Name:    "t",
 		Columns: []*core.Column{{Name: "s", TypeRaw: "VARCHAR(32)", Type: core.NormalizeDataType("VARCHAR(32)"), Nullable: false}},
@@ -200,10 +201,10 @@ func TestBreakingChanges_VarcharLengthChangeDoesNotAlsoReportTypeChange(t *testi
 		Columns: []*core.Column{{Name: "s", TypeRaw: "VARCHAR(40)", Type: core.NormalizeDataType("VARCHAR(40)"), Nullable: false}},
 	}}}
 
-	d := core.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
-	changes := core.NewBreakingChangeAnalyzer().Analyze(d)
-	assert.False(t, hasBC(changes, core.SeverityInfo, "t", "s", "type changes"))
-	assert.True(t, hasBC(changes, core.SeverityInfo, "t", "s", "length"))
+	changes := diff.NewBreakingChangeAnalyzer().Analyze(d)
+	assert.False(t, hasBC(changes, diff.SeverityInfo, "t", "s", "type changes"))
+	assert.True(t, hasBC(changes, diff.SeverityInfo, "t", "s", "length"))
 }

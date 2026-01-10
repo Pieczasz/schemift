@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"schemift/core"
+	"schemift/diff"
 	"strconv"
 	"strings"
 )
@@ -288,7 +289,7 @@ func (g *Generator) dropConstraint(table string, c *core.Constraint) string {
 }
 
 // Alter Table
-func (g *Generator) alterOption(table string, opt *core.TableOptionChange) string {
+func (g *Generator) alterOption(table string, opt *diff.TableOptionChange) string {
 	name := strings.ToUpper(strings.TrimSpace(opt.Name))
 	value := strings.TrimSpace(opt.New)
 

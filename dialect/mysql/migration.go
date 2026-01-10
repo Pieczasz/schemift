@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"schemift/core"
 	"schemift/dialect"
+	"schemift/diff"
 	"strings"
 )
 
-func migrationRecommendations(bc core.BreakingChange) []string {
+func migrationRecommendations(bc diff.BreakingChange) []string {
 	msg := strings.ToLower(bc.Description)
 	var out []string
 
@@ -31,7 +32,7 @@ func migrationRecommendations(bc core.BreakingChange) []string {
 	return out
 }
 
-func (g *Generator) generateAlterTableWithOptions(td *core.TableDiff, opts dialect.MigrationOptions) ([]string, []string, []string, []string) {
+func (g *Generator) generateAlterTableWithOptions(td *diff.TableDiff, opts dialect.MigrationOptions) ([]string, []string, []string, []string) {
 	table := g.QuoteIdentifier(td.Name)
 	var stmts []string
 	var rollback []string
@@ -136,7 +137,7 @@ func (g *Generator) generateAlterTableWithOptions(td *core.TableDiff, opts diale
 		if up == "" {
 			continue
 		}
-		down := g.alterOption(table, &core.TableOptionChange{Name: mo.Name, Old: mo.New, New: mo.Old})
+		down := g.alterOption(table, &diff.TableOptionChange{Name: mo.Name, Old: mo.New, New: mo.Old})
 		add(up, down)
 	}
 
@@ -195,7 +196,7 @@ func (g *Generator) generateAlterTableWithOptions(td *core.TableDiff, opts diale
 	return stmts, rollback, fkAdds, fkRollback
 }
 
-func (g *Generator) generateAlterTable(td *core.TableDiff) ([]string, []string) {
+func (g *Generator) generateAlterTable(td *diff.TableDiff) ([]string, []string) {
 	table := g.QuoteIdentifier(td.Name)
 	var stmts []string
 	var fkAdds []string

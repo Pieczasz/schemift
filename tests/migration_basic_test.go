@@ -3,9 +3,9 @@ package tests
 import (
 	"os"
 	"schemift/dialect/mysql"
+	"schemift/diff"
 	"testing"
 
-	"schemift/core"
 	"schemift/parser"
 
 	"github.com/stretchr/testify/assert"
@@ -38,7 +38,7 @@ func TestBasicMigration(t *testing.T) {
 	newDB, err := p.ParseSchema(newSQL)
 	require.NoError(t, err)
 
-	d := core.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
 	mysqlDialect := mysql.NewMySQLDialect()

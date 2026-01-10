@@ -1,8 +1,9 @@
-package core
+package diff
 
 import (
 	"fmt"
 	"os"
+	"schemift/core"
 	"sort"
 	"strconv"
 	"strings"
@@ -14,43 +15,43 @@ const (
 )
 
 type SchemaDiff struct {
-	AddedTables    []*Table
-	RemovedTables  []*Table
+	AddedTables    []*core.Table
+	RemovedTables  []*core.Table
 	ModifiedTables []*TableDiff
 }
 
 type TableDiff struct {
 	Name                string
-	AddedColumns        []*Column
-	RemovedColumns      []*Column
+	AddedColumns        []*core.Column
+	RemovedColumns      []*core.Column
 	RenamedColumns      []*ColumnRename
 	ModifiedColumns     []*ColumnChange
-	AddedConstraints    []*Constraint
-	RemovedConstraints  []*Constraint
+	AddedConstraints    []*core.Constraint
+	RemovedConstraints  []*core.Constraint
 	ModifiedConstraints []*ConstraintChange
-	AddedIndexes        []*Index
-	RemovedIndexes      []*Index
+	AddedIndexes        []*core.Index
+	RemovedIndexes      []*core.Index
 	ModifiedIndexes     []*IndexChange
 	ModifiedOptions     []*TableOptionChange
 }
 
 type ColumnChange struct {
 	Name    string
-	Old     *Column
-	New     *Column
+	Old     *core.Column
+	New     *core.Column
 	Changes []*FieldChange
 }
 
 type ColumnRename struct {
-	Old   *Column
-	New   *Column
+	Old   *core.Column
+	New   *core.Column
 	Score int
 }
 
 type ConstraintChange struct {
 	Name          string
-	Old           *Constraint
-	New           *Constraint
+	Old           *core.Constraint
+	New           *core.Constraint
 	Changes       []*FieldChange
 	RebuildOnly   bool
 	RebuildReason string
@@ -58,8 +59,8 @@ type ConstraintChange struct {
 
 type IndexChange struct {
 	Name    string
-	Old     *Index
-	New     *Index
+	Old     *core.Index
+	New     *core.Index
 	Changes []*FieldChange
 }
 
@@ -75,11 +76,11 @@ type TableOptionChange struct {
 	New  string
 }
 
-func Diff(oldDB, newDB *Database) *SchemaDiff {
+func Diff(oldDB, newDB *core.Database) *SchemaDiff {
 	d := &SchemaDiff{}
 
-	oldTables := mapByLowerName(oldDB.Tables, func(t *Table) string { return t.Name })
-	newTables := mapByLowerName(newDB.Tables, func(t *Table) string { return t.Name })
+	oldTables := mapByLowerName(oldDB.Tables, func(t *core.Table) string { return t.Name })
+	newTables := mapByLowerName(newDB.Tables, func(t *core.Table) string { return t.Name })
 
 	for name, nt := range newTables {
 		ot, ok := oldTables[name]
@@ -100,14 +101,14 @@ func Diff(oldDB, newDB *Database) *SchemaDiff {
 		}
 	}
 
-	sortByNameCI(d.AddedTables, func(t *Table) string { return t.Name })
-	sortByNameCI(d.RemovedTables, func(t *Table) string { return t.Name })
+	sortByNameCI(d.AddedTables, func(t *core.Table) string { return t.Name })
+	sortByNameCI(d.RemovedTables, func(t *core.Table) string { return t.Name })
 	sortByNameCI(d.ModifiedTables, func(td *TableDiff) string { return td.Name })
 
 	return d
 }
 
-func compareTable(oldT, newT *Table) *TableDiff {
+func compareTable(oldT, newT *core.Table) *TableDiff {
 	td := &TableDiff{Name: newT.Name}
 
 	compareColumns(oldT.Columns, newT.Columns, td)
@@ -124,7 +125,7 @@ func compareTable(oldT, newT *Table) *TableDiff {
 	return td
 }
 
-func markConstraintsForRebuild(oldItems, newItems []*Constraint, td *TableDiff) {
+func markConstraintsForRebuild(oldItems, newItems []*core.Constraint, td *TableDiff) {
 	if td == nil {
 		return
 	}
@@ -187,7 +188,7 @@ func markConstraintsForRebuild(oldItems, newItems []*Constraint, td *TableDiff) 
 	}
 }
 
-func constraintTouchesColumns(c *Constraint, cols map[string]struct{}) bool {
+func constraintTouchesColumns(c *core.Constraint, cols map[string]struct{}) bool {
 	if c == nil || len(cols) == 0 {
 		return false
 	}
@@ -203,9 +204,9 @@ func constraintTouchesColumns(c *Constraint, cols map[string]struct{}) bool {
 	return false
 }
 
-func compareColumns(oldItems, newItems []*Column, td *TableDiff) {
-	oldMap := mapByLowerName(oldItems, func(c *Column) string { return c.Name })
-	newMap := mapByLowerName(newItems, func(c *Column) string { return c.Name })
+func compareColumns(oldItems, newItems []*core.Column, td *TableDiff) {
+	oldMap := mapByLowerName(oldItems, func(c *core.Column) string { return c.Name })
+	newMap := mapByLowerName(newItems, func(c *core.Column) string { return c.Name })
 
 	for name, newItem := range newMap {
 		oldItem, exists := oldMap[name]
@@ -273,8 +274,8 @@ func (td *TableDiff) detectColumnRenames() {
 		return
 	}
 
-	removeOld := make(map[*Column]struct{}, len(renames))
-	removeNew := make(map[*Column]struct{}, len(renames))
+	removeOld := make(map[*core.Column]struct{}, len(renames))
+	removeNew := make(map[*core.Column]struct{}, len(renames))
 	for _, r := range renames {
 		if r == nil {
 			continue
@@ -283,7 +284,7 @@ func (td *TableDiff) detectColumnRenames() {
 		removeNew[r.New] = struct{}{}
 	}
 
-	var keptRemoved []*Column
+	var keptRemoved []*core.Column
 	for _, c := range td.RemovedColumns {
 		if c == nil {
 			continue
@@ -294,7 +295,7 @@ func (td *TableDiff) detectColumnRenames() {
 		keptRemoved = append(keptRemoved, c)
 	}
 
-	var keptAdded []*Column
+	var keptAdded []*core.Column
 	for _, c := range td.AddedColumns {
 		if c == nil {
 			continue
@@ -310,7 +311,7 @@ func (td *TableDiff) detectColumnRenames() {
 	td.RenamedColumns = append(td.RenamedColumns, renames...)
 }
 
-func renameSimilarityScore(oldC, newC *Column) int {
+func renameSimilarityScore(oldC, newC *core.Column) int {
 	if oldC == nil || newC == nil {
 		return 0
 	}
@@ -333,7 +334,7 @@ func renameSimilarityScore(oldC, newC *Column) int {
 	if oldC.PrimaryKey == newC.PrimaryKey {
 		score += 1
 	}
-	if ptrEqString(oldC.DefaultValue, newC.DefaultValue) {
+	if PtrEqString(oldC.DefaultValue, newC.DefaultValue) {
 		score += 1
 	}
 	if strings.EqualFold(strings.TrimSpace(oldC.Charset), strings.TrimSpace(newC.Charset)) {
@@ -358,7 +359,7 @@ func renameSimilarityScore(oldC, newC *Column) int {
 	return score
 }
 
-func renameEvidence(oldC, newC *Column) bool {
+func renameEvidence(oldC, newC *core.Column) bool {
 	if oldC == nil || newC == nil {
 		return false
 	}
@@ -418,7 +419,7 @@ func hasSharedNameToken(a, b string) bool {
 	return false
 }
 
-func compareConstraints(oldItems, newItems []*Constraint, td *TableDiff) {
+func compareConstraints(oldItems, newItems []*core.Constraint, td *TableDiff) {
 	oldMap := mapByKey(oldItems, constraintKey)
 	newMap := mapByKey(newItems, constraintKey)
 
@@ -445,7 +446,7 @@ func compareConstraints(oldItems, newItems []*Constraint, td *TableDiff) {
 	}
 }
 
-func compareIndexes(oldItems, newItems []*Index, td *TableDiff) {
+func compareIndexes(oldItems, newItems []*core.Index, td *TableDiff) {
 	oldMap := mapByKey(oldItems, indexKey)
 	newMap := mapByKey(newItems, indexKey)
 
@@ -472,7 +473,7 @@ func compareIndexes(oldItems, newItems []*Index, td *TableDiff) {
 	}
 }
 
-func compareOptions(oldT, newT *Table, td *TableDiff) {
+func compareOptions(oldT, newT *core.Table, td *TableDiff) {
 	oldOpt := tableOptionMap(oldT)
 	newOpt := tableOptionMap(newT)
 	for _, k := range unionKeys(oldOpt, newOpt) {
@@ -499,8 +500,8 @@ func (td *TableDiff) isEmpty() bool {
 }
 
 func (td *TableDiff) sort() {
-	sortByNameCI(td.AddedColumns, func(c *Column) string { return c.Name })
-	sortByNameCI(td.RemovedColumns, func(c *Column) string { return c.Name })
+	sortByNameCI(td.AddedColumns, func(c *core.Column) string { return c.Name })
+	sortByNameCI(td.RemovedColumns, func(c *core.Column) string { return c.Name })
 	sortByNameCI(td.RenamedColumns, func(r *ColumnRename) string {
 		if r == nil || r.New == nil {
 			return ""
@@ -508,16 +509,16 @@ func (td *TableDiff) sort() {
 		return r.New.Name
 	})
 	sortByNameCI(td.ModifiedColumns, func(ch *ColumnChange) string { return ch.Name })
-	sortByNameCI(td.AddedConstraints, func(c *Constraint) string { return c.Name })
-	sortByNameCI(td.RemovedConstraints, func(c *Constraint) string { return c.Name })
+	sortByNameCI(td.AddedConstraints, func(c *core.Constraint) string { return c.Name })
+	sortByNameCI(td.RemovedConstraints, func(c *core.Constraint) string { return c.Name })
 	sortByNameCI(td.ModifiedConstraints, func(ch *ConstraintChange) string { return ch.Name })
-	sortByNameCI(td.AddedIndexes, func(i *Index) string { return i.Name })
-	sortByNameCI(td.RemovedIndexes, func(i *Index) string { return i.Name })
+	sortByNameCI(td.AddedIndexes, func(i *core.Index) string { return i.Name })
+	sortByNameCI(td.RemovedIndexes, func(i *core.Index) string { return i.Name })
 	sortByNameCI(td.ModifiedIndexes, func(ch *IndexChange) string { return ch.Name })
 	sortByNameCI(td.ModifiedOptions, func(o *TableOptionChange) string { return o.Name })
 }
 
-func equalColumn(a, b *Column) bool {
+func equalColumn(a, b *core.Column) bool {
 	if !strings.EqualFold(a.TypeRaw, b.TypeRaw) {
 		return false
 	}
@@ -566,7 +567,7 @@ func equalColumn(a, b *Column) bool {
 	return true
 }
 
-func equalConstraint(a, b *Constraint) bool {
+func equalConstraint(a, b *core.Constraint) bool {
 	if a.Type != b.Type {
 		return false
 	}
@@ -591,7 +592,7 @@ func equalConstraint(a, b *Constraint) bool {
 	return true
 }
 
-func equalIndex(a, b *Index) bool {
+func equalIndex(a, b *core.Index) bool {
 	if a.Unique != b.Unique {
 		return false
 	}
@@ -610,7 +611,7 @@ func equalIndex(a, b *Index) bool {
 	return true
 }
 
-func equalIndexColumns(a, b []IndexColumn) bool {
+func equalIndexColumns(a, b []core.IndexColumn) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -640,7 +641,7 @@ func equalStringSliceCI(a, b []string) bool {
 	return true
 }
 
-func constraintKey(c *Constraint) string {
+func constraintKey(c *core.Constraint) string {
 	name := strings.ToLower(strings.TrimSpace(c.Name))
 	if name != "" {
 		return name
@@ -648,7 +649,7 @@ func constraintKey(c *Constraint) string {
 	return strings.ToLower(string(c.Type)) + ":" + strings.ToLower(strings.Join(c.Columns, ","))
 }
 
-func indexKey(i *Index) string {
+func indexKey(i *core.Index) string {
 	name := strings.ToLower(strings.TrimSpace(i.Name))
 	if name != "" {
 		return name
@@ -664,7 +665,7 @@ func indexKey(i *Index) string {
 	return "idx:" + uniq + ":" + strings.ToLower(string(i.Type)) + ":" + strings.Join(cols, ",")
 }
 
-func tableOptionMap(t *Table) map[string]string {
+func tableOptionMap(t *core.Table) map[string]string {
 	o := t.Options
 	m := map[string]string{
 		"AUTOEXTEND_SIZE":    strings.TrimSpace(o.AutoextendSize),
@@ -775,7 +776,7 @@ func u64(v uint64) string {
 	return strconv.FormatUint(v, 10)
 }
 
-func columnFieldChanges(oldC, newC *Column) []*FieldChange {
+func columnFieldChanges(oldC, newC *core.Column) []*FieldChange {
 	c := &fieldChangeCollector{}
 
 	if !strings.EqualFold(oldC.TypeRaw, newC.TypeRaw) {
@@ -799,7 +800,7 @@ func columnFieldChanges(oldC, newC *Column) []*FieldChange {
 	return c.Changes
 }
 
-func constraintFieldChanges(oldC, newC *Constraint) []*FieldChange {
+func constraintFieldChanges(oldC, newC *core.Constraint) []*FieldChange {
 	c := &fieldChangeCollector{}
 
 	c.Add("type", string(oldC.Type), string(newC.Type))
@@ -813,7 +814,7 @@ func constraintFieldChanges(oldC, newC *Constraint) []*FieldChange {
 	return c.Changes
 }
 
-func indexFieldChanges(oldI, newI *Index) []*FieldChange {
+func indexFieldChanges(oldI, newI *core.Index) []*FieldChange {
 	c := &fieldChangeCollector{}
 
 	c.Add("unique", strconv.FormatBool(oldI.Unique), strconv.FormatBool(newI.Unique))
@@ -825,7 +826,7 @@ func indexFieldChanges(oldI, newI *Index) []*FieldChange {
 	return c.Changes
 }
 
-func formatIndexColumns(cols []IndexColumn) string {
+func formatIndexColumns(cols []core.IndexColumn) string {
 	names := make([]string, len(cols))
 	for i, c := range cols {
 		names[i] = c.Name

@@ -3,9 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
-	"schemift/core"
 	"schemift/dialect"
 	"schemift/dialect/mysql"
+	"schemift/diff"
 	"schemift/parser"
 	"strings"
 
@@ -43,7 +43,7 @@ func main() {
 				return fmt.Errorf("parse new schema error: %w", err)
 			}
 
-			schemaDiff := core.Diff(oldDB, newDB)
+			schemaDiff := diff.Diff(oldDB, newDB)
 			if diffOutFile == "" {
 				fmt.Print(schemaDiff.String())
 				return nil
@@ -105,7 +105,7 @@ You can specify the source and target database dialects using the --from and --t
 				return fmt.Errorf("failed to parse new schema: %w", err)
 			}
 
-			schemaDiff := core.Diff(oldDB, newDB)
+			schemaDiff := diff.Diff(oldDB, newDB)
 			fmt.Printf("Detected changes between schemas (old: %d tables, new: %d tables)\n",
 				len(oldDB.Tables), len(newDB.Tables))
 

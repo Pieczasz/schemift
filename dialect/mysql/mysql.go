@@ -5,6 +5,7 @@ import (
 	"hash/fnv"
 	"schemift/core"
 	"schemift/dialect"
+	"schemift/diff"
 	"schemift/parser/mysql"
 	"strings"
 )
@@ -47,28 +48,28 @@ func NewMySQLGenerator() *Generator {
 	return &Generator{}
 }
 
-func (g *Generator) GenerateMigration(diff *core.SchemaDiff) *core.Migration {
+func (g *Generator) GenerateMigration(schemaDiff *diff.SchemaDiff) *core.Migration {
 	opts := dialect.DefaultMigrationOptions(dialect.MySQL)
 	opts.IncludeUnsafe = true
-	return g.GenerateMigrationWithOptions(diff, opts)
+	return g.GenerateMigrationWithOptions(schemaDiff, opts)
 }
 
-func (g *Generator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opts dialect.MigrationOptions) *core.Migration {
+func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff.SchemaDiff, opts dialect.MigrationOptions) *core.Migration {
 	m := &core.Migration{}
-	if diff == nil {
+	if schemaDiff == nil {
 		m.AddNote("No diff provided; nothing to migrate.")
 		return m
 	}
 
-	analyzer := core.NewBreakingChangeAnalyzer()
-	breakingChanges := analyzer.Analyze(diff)
+	analyzer := diff.NewBreakingChangeAnalyzer()
+	breakingChanges := analyzer.Analyze(schemaDiff)
 	for _, bc := range breakingChanges {
 		switch bc.Severity {
-		case core.SeverityCritical, core.SeverityBreaking:
+		case diff.SeverityCritical, diff.SeverityBreaking:
 			m.AddBreaking(fmt.Sprintf("[%s] %s.%s: %s", bc.Severity, bc.Table, bc.Object, bc.Description))
-		case core.SeverityWarning:
+		case diff.SeverityWarning:
 			m.AddNote(fmt.Sprintf("[WARNING] %s.%s: %s", bc.Table, bc.Object, bc.Description))
-		case core.SeverityInfo:
+		case diff.SeverityInfo:
 		}
 
 		for _, rec := range migrationRecommendations(bc) {
@@ -83,7 +84,7 @@ func (g *Generator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opts dia
 	var pendingFKs []string
 	var pendingFKRollback []string
 
-	for _, t := range diff.AddedTables {
+	for _, t := range schemaDiff.AddedTables {
 		if t == nil {
 			continue
 		}
@@ -103,7 +104,7 @@ func (g *Generator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opts dia
 		}
 	}
 
-	for _, td := range diff.ModifiedTables {
+	for _, td := range schemaDiff.ModifiedTables {
 		if td == nil {
 			continue
 		}
@@ -151,7 +152,7 @@ func (g *Generator) GenerateMigrationWithOptions(diff *core.SchemaDiff, opts dia
 		}
 	}
 
-	for _, t := range diff.RemovedTables {
+	for _, t := range schemaDiff.RemovedTables {
 		if t == nil {
 			continue
 		}
@@ -226,7 +227,7 @@ func (g *Generator) GenerateDropTable(t *core.Table) string {
 	return fmt.Sprintf("DROP TABLE %s;", g.QuoteIdentifier(t.Name))
 }
 
-func (g *Generator) GenerateAlterTable(td *core.TableDiff) []string {
+func (g *Generator) GenerateAlterTable(td *diff.TableDiff) []string {
 	stmts, fkAdds := g.generateAlterTable(td)
 	return append(stmts, fkAdds...)
 }
