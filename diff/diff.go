@@ -446,33 +446,6 @@ func compareConstraints(oldItems, newItems []*core.Constraint, td *TableDiff) {
 	}
 }
 
-func compareIndexes(oldItems, newItems []*core.Index, td *TableDiff) {
-	oldMap := mapByKey(oldItems, indexKey)
-	newMap := mapByKey(newItems, indexKey)
-
-	for name, newItem := range newMap {
-		oldItem, exists := oldMap[name]
-		if !exists {
-			td.AddedIndexes = append(td.AddedIndexes, newItem)
-			continue
-		}
-		if !equalIndex(oldItem, newItem) {
-			td.ModifiedIndexes = append(td.ModifiedIndexes, &IndexChange{
-				Name:    newItem.Name,
-				Old:     oldItem,
-				New:     newItem,
-				Changes: indexFieldChanges(oldItem, newItem),
-			})
-		}
-	}
-
-	for name, oldItem := range oldMap {
-		if _, exists := newMap[name]; !exists {
-			td.RemovedIndexes = append(td.RemovedIndexes, oldItem)
-		}
-	}
-}
-
 func compareOptions(oldT, newT *core.Table, td *TableDiff) {
 	oldOpt := tableOptionMap(oldT)
 	newOpt := tableOptionMap(newT)
@@ -592,43 +565,6 @@ func equalConstraint(a, b *core.Constraint) bool {
 	return true
 }
 
-func equalIndex(a, b *core.Index) bool {
-	if a.Unique != b.Unique {
-		return false
-	}
-	if a.Type != b.Type {
-		return false
-	}
-	if !equalIndexColumns(a.Columns, b.Columns) {
-		return false
-	}
-	if a.Comment != b.Comment {
-		return false
-	}
-	if a.Visibility != b.Visibility {
-		return false
-	}
-	return true
-}
-
-func equalIndexColumns(a, b []core.IndexColumn) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !strings.EqualFold(a[i].Name, b[i].Name) {
-			return false
-		}
-		if a[i].Length != b[i].Length {
-			return false
-		}
-		if a[i].Order != b[i].Order {
-			return false
-		}
-	}
-	return true
-}
-
 func equalStringSliceCI(a, b []string) bool {
 	if len(a) != len(b) {
 		return false
@@ -647,22 +583,6 @@ func constraintKey(c *core.Constraint) string {
 		return name
 	}
 	return strings.ToLower(string(c.Type)) + ":" + strings.ToLower(strings.Join(c.Columns, ","))
-}
-
-func indexKey(i *core.Index) string {
-	name := strings.ToLower(strings.TrimSpace(i.Name))
-	if name != "" {
-		return name
-	}
-	uniq := "0"
-	if i.Unique {
-		uniq = "1"
-	}
-	cols := make([]string, len(i.Columns))
-	for idx, c := range i.Columns {
-		cols[idx] = strings.ToLower(c.Name)
-	}
-	return "idx:" + uniq + ":" + strings.ToLower(string(i.Type)) + ":" + strings.Join(cols, ",")
 }
 
 func tableOptionMap(t *core.Table) map[string]string {
@@ -812,26 +732,6 @@ func constraintFieldChanges(oldC, newC *core.Constraint) []*FieldChange {
 	c.Add("check_expression", strings.TrimSpace(oldC.CheckExpression), strings.TrimSpace(newC.CheckExpression))
 
 	return c.Changes
-}
-
-func indexFieldChanges(oldI, newI *core.Index) []*FieldChange {
-	c := &fieldChangeCollector{}
-
-	c.Add("unique", strconv.FormatBool(oldI.Unique), strconv.FormatBool(newI.Unique))
-	c.Add("type", string(oldI.Type), string(newI.Type))
-	c.Add("columns", formatIndexColumns(oldI.Columns), formatIndexColumns(newI.Columns))
-	c.Add("comment", oldI.Comment, newI.Comment)
-	c.Add("visibility", string(oldI.Visibility), string(newI.Visibility))
-
-	return c.Changes
-}
-
-func formatIndexColumns(cols []core.IndexColumn) string {
-	names := make([]string, len(cols))
-	for i, c := range cols {
-		names[i] = c.Name
-	}
-	return "(" + strings.Join(names, ", ") + ")"
 }
 
 type fieldChangeCollector struct {
