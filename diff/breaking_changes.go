@@ -61,9 +61,6 @@ func (a *BreakingChangeAnalyzer) Analyze(diff *SchemaDiff) []BreakingChange {
 
 func (a *BreakingChangeAnalyzer) analyzeRemovedTables(tables []*core.Table) {
 	for _, t := range tables {
-		if t == nil {
-			continue
-		}
 		a.add(BreakingChange{
 			Severity:    SeverityCritical,
 			Description: "Table will be dropped - all data will be lost",
@@ -76,9 +73,6 @@ func (a *BreakingChangeAnalyzer) analyzeRemovedTables(tables []*core.Table) {
 
 func (a *BreakingChangeAnalyzer) analyzeModifiedTables(tables []*TableDiff) {
 	for _, td := range tables {
-		if td == nil {
-			continue
-		}
 		a.analyzeRenamedColumns(td.Name, td.RenamedColumns)
 		a.analyzeRemovedColumns(td.Name, td.RemovedColumns)
 		a.analyzeModifiedColumns(td.Name, td.ModifiedColumns)
@@ -95,9 +89,6 @@ func (a *BreakingChangeAnalyzer) analyzeModifiedTables(tables []*TableDiff) {
 
 func (a *BreakingChangeAnalyzer) analyzeRenamedColumns(table string, renames []*ColumnRename) {
 	for _, r := range renames {
-		if r == nil || r.Old == nil || r.New == nil {
-			continue
-		}
 		a.add(BreakingChange{
 			Severity:    SeverityBreaking,
 			Description: fmt.Sprintf("Column rename detected: %s -> %s (handled as CHANGE COLUMN to preserve data; review type/attrs carefully)", r.Old.Name, r.New.Name),
@@ -108,21 +99,8 @@ func (a *BreakingChangeAnalyzer) analyzeRenamedColumns(table string, renames []*
 	}
 }
 
-func PtrEqString(a, b *string) bool {
-	if a == nil && b == nil {
-		return true
-	}
-	if a == nil || b == nil {
-		return false
-	}
-	return *a == *b
-}
-
 func (a *BreakingChangeAnalyzer) analyzeRemovedColumns(table string, columns []*core.Column) {
 	for _, c := range columns {
-		if c == nil {
-			continue
-		}
 		a.add(BreakingChange{
 			Severity:    SeverityCritical,
 			Description: "Column will be dropped - data will be lost",
@@ -135,10 +113,6 @@ func (a *BreakingChangeAnalyzer) analyzeRemovedColumns(table string, columns []*
 
 func (a *BreakingChangeAnalyzer) analyzeModifiedColumns(table string, changes []*ColumnChange) {
 	for _, ch := range changes {
-		if ch == nil || ch.Old == nil || ch.New == nil {
-			continue
-		}
-
 		a.analyzeTypeChange(table, ch)
 		a.analyzeColumnLengthChange(table, ch)
 		a.analyzeNullabilityChange(table, ch)
@@ -413,9 +387,6 @@ func (a *BreakingChangeAnalyzer) analyzeCommentChange(table string, ch *ColumnCh
 
 func (a *BreakingChangeAnalyzer) analyzeAddedColumns(table string, columns []*core.Column) {
 	for _, c := range columns {
-		if c == nil {
-			continue
-		}
 		if !c.Nullable && c.DefaultValue == nil && !c.IsGenerated {
 			a.add(BreakingChange{
 				Severity:    SeverityBreaking,
@@ -430,10 +401,6 @@ func (a *BreakingChangeAnalyzer) analyzeAddedColumns(table string, columns []*co
 
 func (a *BreakingChangeAnalyzer) analyzeRemovedConstraints(table string, constraints []*core.Constraint) {
 	for _, c := range constraints {
-		if c == nil {
-			continue
-		}
-
 		switch c.Type {
 		case core.ConstraintPrimaryKey:
 			a.add(BreakingChange{
@@ -473,9 +440,6 @@ func (a *BreakingChangeAnalyzer) analyzeRemovedConstraints(table string, constra
 
 func (a *BreakingChangeAnalyzer) analyzeModifiedConstraints(table string, changes []*ConstraintChange) {
 	for _, ch := range changes {
-		if ch == nil {
-			continue
-		}
 		if ch.RebuildOnly {
 			continue
 		}
@@ -495,10 +459,6 @@ func (a *BreakingChangeAnalyzer) analyzeModifiedConstraints(table string, change
 
 func (a *BreakingChangeAnalyzer) analyzeAddedConstraints(table string, constraints []*core.Constraint) {
 	for _, c := range constraints {
-		if c == nil {
-			continue
-		}
-
 		switch c.Type {
 		case core.ConstraintPrimaryKey:
 			a.add(BreakingChange{
@@ -538,9 +498,6 @@ func (a *BreakingChangeAnalyzer) analyzeAddedConstraints(table string, constrain
 
 func (a *BreakingChangeAnalyzer) analyzeRemovedIndexes(table string, indexes []*core.Index) {
 	for _, idx := range indexes {
-		if idx == nil {
-			continue
-		}
 		a.add(BreakingChange{
 			Severity:    SeverityInfo,
 			Description: "Index will be dropped - queries may become slower",
@@ -553,9 +510,6 @@ func (a *BreakingChangeAnalyzer) analyzeRemovedIndexes(table string, indexes []*
 
 func (a *BreakingChangeAnalyzer) analyzeAddedIndexes(table string, indexes []*core.Index) {
 	for _, idx := range indexes {
-		if idx == nil {
-			continue
-		}
 		if idx.Unique {
 			a.add(BreakingChange{
 				Severity:    SeverityBreaking,
@@ -578,9 +532,6 @@ func (a *BreakingChangeAnalyzer) analyzeAddedIndexes(table string, indexes []*co
 
 func (a *BreakingChangeAnalyzer) analyzeModifiedIndexes(table string, changes []*IndexChange) {
 	for _, ch := range changes {
-		if ch == nil || ch.Old == nil || ch.New == nil {
-			continue
-		}
 		severity := SeverityWarning
 		// If index becomes unique, existing duplicates will break.
 		if !ch.Old.Unique && ch.New.Unique {
@@ -598,10 +549,6 @@ func (a *BreakingChangeAnalyzer) analyzeModifiedIndexes(table string, changes []
 
 func (a *BreakingChangeAnalyzer) analyzeModifiedOptions(table string, options []*TableOptionChange) {
 	for _, opt := range options {
-		if opt == nil {
-			continue
-		}
-
 		switch strings.ToUpper(opt.Name) {
 		case "ENGINE":
 			a.add(BreakingChange{

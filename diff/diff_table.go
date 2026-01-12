@@ -1,9 +1,7 @@
 package diff
 
 import (
-	"fmt"
 	"schemift/core"
-	"sort"
 	"strconv"
 	"strings"
 )
@@ -55,52 +53,7 @@ func compareColumns(oldItems, newItems []*core.Column, td *TableDiff) {
 }
 
 func equalColumn(a, b *core.Column) bool {
-	if !strings.EqualFold(a.TypeRaw, b.TypeRaw) {
-		return false
-	}
-	if a.Nullable != b.Nullable {
-		return false
-	}
-	if a.PrimaryKey != b.PrimaryKey {
-		return false
-	}
-	if a.AutoIncrement != b.AutoIncrement {
-		return false
-	}
-	if !strings.EqualFold(a.Charset, b.Charset) {
-		return false
-	}
-	if !strings.EqualFold(a.Collate, b.Collate) {
-		return false
-	}
-	if a.Comment != b.Comment {
-		return false
-	}
-	if ptrStr(a.DefaultValue) != ptrStr(b.DefaultValue) {
-		return false
-	}
-	if ptrStr(a.OnUpdate) != ptrStr(b.OnUpdate) {
-		return false
-	}
-	if a.IsGenerated != b.IsGenerated {
-		return false
-	}
-	if strings.TrimSpace(a.GenerationExpression) != strings.TrimSpace(b.GenerationExpression) {
-		return false
-	}
-	if !strings.EqualFold(string(a.GenerationStorage), string(b.GenerationStorage)) {
-		return false
-	}
-	if !strings.EqualFold(a.ColumnFormat, b.ColumnFormat) {
-		return false
-	}
-	if !strings.EqualFold(a.Storage, b.Storage) {
-		return false
-	}
-	if a.AutoRandom != b.AutoRandom {
-		return false
-	}
-	return true
+	return compareColumnAttrs(a, b).AllMatch()
 }
 
 func columnFieldChanges(oldC, newC *core.Column) []*FieldChange {
@@ -139,192 +92,77 @@ func compareOptions(oldT, newT *core.Table, td *TableDiff) {
 	}
 }
 
-func (d *SchemaDiff) writeTableDiff(sb *strings.Builder, mt *TableDiff) {
-	sb.WriteString(fmt.Sprintf("\n  - %s\n", mt.Name))
-
-	if len(mt.ModifiedOptions) > 0 {
-		sb.WriteString("    Options changed:\n")
-		for _, oc := range mt.ModifiedOptions {
-			sb.WriteString(fmt.Sprintf("      - %s: %q -> %q\n", oc.Name, oc.Old, oc.New))
-		}
-	}
-
-	if len(mt.AddedColumns) > 0 {
-		sb.WriteString("    Added columns:\n")
-		for _, c := range mt.AddedColumns {
-			sb.WriteString(fmt.Sprintf("      - %s: %s\n", c.Name, c.TypeRaw))
-		}
-	}
-
-	if len(mt.RemovedColumns) > 0 {
-		sb.WriteString("    Removed columns:\n")
-		for _, c := range mt.RemovedColumns {
-			sb.WriteString(fmt.Sprintf("      - %s: %s\n", c.Name, c.TypeRaw))
-		}
-	}
-
-	if len(mt.ModifiedColumns) > 0 {
-		sb.WriteString("    Modified columns:\n")
-		for _, ch := range mt.ModifiedColumns {
-			sb.WriteString(fmt.Sprintf("      - %s:\n", ch.Name))
-			for _, fc := range ch.Changes {
-				sb.WriteString(fmt.Sprintf("        - %s: %q -> %q\n", fc.Field, fc.Old, fc.New))
-			}
-		}
-	}
-
-	if len(mt.AddedConstraints) > 0 {
-		sb.WriteString("    Added constraints:\n")
-		for _, c := range mt.AddedConstraints {
-			sb.WriteString(fmt.Sprintf("      - %s (%s)\n", c.Name, c.Type))
-		}
-	}
-
-	if len(mt.RemovedConstraints) > 0 {
-		sb.WriteString("    Removed constraints:\n")
-		for _, c := range mt.RemovedConstraints {
-			sb.WriteString(fmt.Sprintf("      - %s (%s)\n", c.Name, c.Type))
-		}
-	}
-
-	if len(mt.ModifiedConstraints) > 0 {
-		sb.WriteString("    Modified constraints:\n")
-		for _, ch := range mt.ModifiedConstraints {
-			if ch == nil {
-				continue
-			}
-			name := ch.Name
-			if name == "" {
-				switch {
-				case ch.New != nil:
-					name = string(ch.New.Type)
-				case ch.Old != nil:
-					name = string(ch.Old.Type)
-				default:
-					name = "(unnamed)"
-				}
-			}
-			sb.WriteString(fmt.Sprintf("      - %s:\n", name))
-			for _, fc := range ch.Changes {
-				sb.WriteString(fmt.Sprintf("        - %s: %q -> %q\n", fc.Field, fc.Old, fc.New))
-			}
-		}
-	}
-
-	if len(mt.AddedIndexes) > 0 {
-		sb.WriteString("    Added indexes:\n")
-		for _, idx := range mt.AddedIndexes {
-			sb.WriteString(fmt.Sprintf("      - %s %s\n", idx.Name, formatIndexColumns(idx.Columns)))
-		}
-	}
-
-	if len(mt.RemovedIndexes) > 0 {
-		sb.WriteString("    Removed indexes:\n")
-		for _, idx := range mt.RemovedIndexes {
-			sb.WriteString(fmt.Sprintf("      - %s %s\n", idx.Name, formatIndexColumns(idx.Columns)))
-		}
-	}
-
-	if len(mt.ModifiedIndexes) > 0 {
-		sb.WriteString("    Modified indexes:\n")
-		for _, ch := range mt.ModifiedIndexes {
-			name := ch.Name
-			if name == "" {
-				name = "(unnamed)"
-			}
-			sb.WriteString(fmt.Sprintf("      - %s:\n", name))
-			for _, fc := range ch.Changes {
-				sb.WriteString(fmt.Sprintf("        - %s: %q -> %q\n", fc.Field, fc.Old, fc.New))
-			}
-		}
-	}
-}
-
 func tableOptionMap(t *core.Table) map[string]string {
 	o := t.Options
-	m := map[string]string{
-		"AUTOEXTEND_SIZE":    strings.TrimSpace(o.AutoextendSize),
-		"AUTO_INCREMENT":     u64(o.AutoIncrement),
-		"AVG_ROW_LENGTH":     u64(o.AvgRowLength),
-		"CHARSET":            strings.TrimSpace(o.Charset),
-		"CHECKSUM":           u64(o.Checksum),
-		"COLLATE":            strings.TrimSpace(o.Collate),
-		"COMMENT":            strings.TrimSpace(t.Comment),
-		"COMPRESSION":        strings.TrimSpace(o.Compression),
-		"CONNECTION":         strings.TrimSpace(o.Connection),
-		"DATA DIRECTORY":     strings.TrimSpace(o.DataDirectory),
-		"DELAY_KEY_WRITE":    u64(o.DelayKeyWrite),
-		"ENCRYPTION":         strings.TrimSpace(o.Encryption),
-		"ENGINE":             strings.TrimSpace(o.Engine),
-		"INDEX DIRECTORY":    strings.TrimSpace(o.IndexDirectory),
-		"INSERT_METHOD":      strings.TrimSpace(o.InsertMethod),
-		"KEY_BLOCK_SIZE":     u64(o.KeyBlockSize),
-		"MAX_ROWS":           u64(o.MaxRows),
-		"MIN_ROWS":           u64(o.MinRows),
-		"PACK_KEYS":          strings.TrimSpace(o.PackKeys),
-		"PAGE_CHECKSUM":      u64(o.PageChecksum),
-		"PASSWORD":           strings.TrimSpace(o.Password),
-		"ROW_FORMAT":         strings.TrimSpace(o.RowFormat),
-		"STATS_AUTO_RECALC":  strings.TrimSpace(o.StatsAutoRecalc),
-		"STATS_PERSISTENT":   strings.TrimSpace(o.StatsPersistent),
-		"STATS_SAMPLE_PAGES": strings.TrimSpace(o.StatsSamplePages),
-		"STORAGE_MEDIA":      strings.TrimSpace(o.StorageMedia),
-		"TABLESPACE":         strings.TrimSpace(o.Tablespace),
-		"TRANSACTIONAL":      u64(o.Transactional),
+	m := make(map[string]string)
+
+	addStr := func(name, val string) {
+		if v := strings.TrimSpace(val); v != "" {
+			m[name] = v
+		}
 	}
 
-	if o.MySQL.SecondaryEngine != "" {
-		m["SECONDARY_ENGINE"] = o.MySQL.SecondaryEngine
+	addU64 := func(name string, val uint64) {
+		if val != 0 {
+			m[name] = u64(val)
+		}
 	}
-	if o.MySQL.TableChecksum != 0 {
-		m["TABLE_CHECKSUM"] = u64(o.MySQL.TableChecksum)
+
+	addBool := func(name string, val bool) {
+		if val {
+			m[name] = "ON"
+		}
 	}
-	if o.MySQL.EngineAttribute != "" {
-		m["ENGINE_ATTRIBUTE"] = o.MySQL.EngineAttribute
-	}
-	if o.MySQL.SecondaryEngineAttribute != "" {
-		m["SECONDARY_ENGINE_ATTRIBUTE"] = o.MySQL.SecondaryEngineAttribute
-	}
-	if o.MySQL.PageCompressed {
-		m["PAGE_COMPRESSED"] = "ON"
-	}
-	if o.MySQL.PageCompressionLevel != 0 {
-		m["PAGE_COMPRESSION_LEVEL"] = u64(o.MySQL.PageCompressionLevel)
-	}
-	if o.MySQL.IetfQuotes {
-		m["IETF_QUOTES"] = "ON"
-	}
-	if o.MySQL.Nodegroup != 0 {
-		m["NODEGROUP"] = u64(o.MySQL.Nodegroup)
-	}
+
+	addStr("AUTOEXTEND_SIZE", o.AutoextendSize)
+	addU64("AUTO_INCREMENT", o.AutoIncrement)
+	addU64("AVG_ROW_LENGTH", o.AvgRowLength)
+	addStr("CHARSET", o.Charset)
+	addU64("CHECKSUM", o.Checksum)
+	addStr("COLLATE", o.Collate)
+	addStr("COMMENT", t.Comment)
+	addStr("COMPRESSION", o.Compression)
+	addStr("CONNECTION", o.Connection)
+	addStr("DATA DIRECTORY", o.DataDirectory)
+	addU64("DELAY_KEY_WRITE", o.DelayKeyWrite)
+	addStr("ENCRYPTION", o.Encryption)
+	addStr("ENGINE", o.Engine)
+	addStr("INDEX DIRECTORY", o.IndexDirectory)
+	addStr("INSERT_METHOD", o.InsertMethod)
+	addU64("KEY_BLOCK_SIZE", o.KeyBlockSize)
+	addU64("MAX_ROWS", o.MaxRows)
+	addU64("MIN_ROWS", o.MinRows)
+	addStr("PACK_KEYS", o.PackKeys)
+	addU64("PAGE_CHECKSUM", o.PageChecksum)
+	addStr("PASSWORD", o.Password)
+	addStr("ROW_FORMAT", o.RowFormat)
+	addStr("STATS_AUTO_RECALC", o.StatsAutoRecalc)
+	addStr("STATS_PERSISTENT", o.StatsPersistent)
+	addStr("STATS_SAMPLE_PAGES", o.StatsSamplePages)
+	addStr("STORAGE_MEDIA", o.StorageMedia)
+	addStr("TABLESPACE", o.Tablespace)
+	addU64("TRANSACTIONAL", o.Transactional)
+
+	addStr("SECONDARY_ENGINE", o.MySQL.SecondaryEngine)
+	addU64("TABLE_CHECKSUM", o.MySQL.TableChecksum)
+	addStr("ENGINE_ATTRIBUTE", o.MySQL.EngineAttribute)
+	addStr("SECONDARY_ENGINE_ATTRIBUTE", o.MySQL.SecondaryEngineAttribute)
+	addBool("PAGE_COMPRESSED", o.MySQL.PageCompressed)
+	addU64("PAGE_COMPRESSION_LEVEL", o.MySQL.PageCompressionLevel)
+	addBool("IETF_QUOTES", o.MySQL.IetfQuotes)
+	addU64("NODEGROUP", o.MySQL.Nodegroup)
 	if len(o.MySQL.Union) > 0 {
 		m["UNION"] = strings.Join(o.MySQL.Union, ",")
 	}
 
-	if o.TiDB.AutoIdCache != 0 {
-		m["AUTO_ID_CACHE"] = u64(o.TiDB.AutoIdCache)
-	}
-	if o.TiDB.AutoRandomBase != 0 {
-		m["AUTO_RANDOM_BASE"] = u64(o.TiDB.AutoRandomBase)
-	}
-	if o.TiDB.ShardRowID != 0 {
-		m["SHARD_ROW_ID_BITS"] = u64(o.TiDB.ShardRowID)
-	}
-	if o.TiDB.PreSplitRegion != 0 {
-		m["PRE_SPLIT_REGIONS"] = u64(o.TiDB.PreSplitRegion)
-	}
-	if o.TiDB.TTL != "" {
-		m["TTL"] = o.TiDB.TTL
-	}
-	if o.TiDB.TTLEnable {
-		m["TTL_ENABLE"] = "ON"
-	}
-	if o.TiDB.TTLJobInterval != "" {
-		m["TTL_JOB_INTERVAL"] = o.TiDB.TTLJobInterval
-	}
-	if o.TiDB.PlacementPolicy != "" {
-		m["PLACEMENT_POLICY"] = o.TiDB.PlacementPolicy
-	}
+	addU64("AUTO_ID_CACHE", o.TiDB.AutoIdCache)
+	addU64("AUTO_RANDOM_BASE", o.TiDB.AutoRandomBase)
+	addU64("SHARD_ROW_ID_BITS", o.TiDB.ShardRowID)
+	addU64("PRE_SPLIT_REGIONS", o.TiDB.PreSplitRegion)
+	addStr("TTL", o.TiDB.TTL)
+	addBool("TTL_ENABLE", o.TiDB.TTLEnable)
+	addStr("TTL_JOB_INTERVAL", o.TiDB.TTLJobInterval)
+	addStr("PLACEMENT_POLICY", o.TiDB.PlacementPolicy)
 
 	return m
 }
@@ -346,24 +184,6 @@ func (td *TableDiff) sort() {
 	sortByNameCI(td.RemovedIndexes, func(i *core.Index) string { return i.Name })
 	sortByNameCI(td.ModifiedIndexes, func(ch *IndexChange) string { return ch.Name })
 	sortByNameCI(td.ModifiedOptions, func(o *TableOptionChange) string { return o.Name })
-}
-
-func unionKeys(a, b map[string]string) []string {
-	seen := make(map[string]struct{}, len(a)+len(b))
-	for k := range a {
-		seen[k] = struct{}{}
-	}
-	for k := range b {
-		seen[k] = struct{}{}
-	}
-	keys := make([]string, 0, len(seen))
-	for k := range seen {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		return strings.ToLower(keys[i]) < strings.ToLower(keys[j])
-	})
-	return keys
 }
 
 func (td *TableDiff) isEmpty() bool {

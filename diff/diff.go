@@ -1,12 +1,7 @@
 package diff
 
 import (
-	"fmt"
-	"os"
 	"schemift/core"
-	"sort"
-	"strconv"
-	"strings"
 )
 
 const (
@@ -106,104 +101,4 @@ func Diff(oldDB, newDB *core.Database) *SchemaDiff {
 	sortByNameCI(d.ModifiedTables, func(td *TableDiff) string { return td.Name })
 
 	return d
-}
-
-func (c *fieldChangeCollector) Add(field, oldV, newV string) {
-	if oldV == newV {
-		return
-	}
-	c.Changes = append(c.Changes, &FieldChange{Field: field, Old: oldV, New: newV})
-}
-
-func (d *SchemaDiff) String() string {
-	if d.IsEmpty() {
-		return "No differences detected."
-	}
-
-	var sb strings.Builder
-	sb.WriteString("Schema differences:\n")
-
-	if len(d.AddedTables) > 0 {
-		sb.WriteString("\nAdded tables:\n")
-		for _, t := range d.AddedTables {
-			sb.WriteString(fmt.Sprintf("  - %s\n", t.Name))
-		}
-	}
-
-	if len(d.RemovedTables) > 0 {
-		sb.WriteString("\nRemoved tables:\n")
-		for _, t := range d.RemovedTables {
-			sb.WriteString(fmt.Sprintf("  - %s\n", t.Name))
-		}
-	}
-
-	if len(d.ModifiedTables) > 0 {
-		sb.WriteString("\nModified tables:\n")
-		for _, mt := range d.ModifiedTables {
-			d.writeTableDiff(&sb, mt)
-		}
-	}
-
-	return sb.String()
-}
-
-func equalStringSliceCI(a, b []string) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !strings.EqualFold(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-func u64(v uint64) string {
-	return strconv.FormatUint(v, 10)
-}
-
-type fieldChangeCollector struct {
-	Changes []*FieldChange
-}
-
-func sortByNameCI[T any](items []T, name func(T) string) {
-	sort.Slice(items, func(i, j int) bool {
-		return strings.ToLower(name(items[i])) < strings.ToLower(name(items[j]))
-	})
-}
-
-func mapByLowerName[T any](items []T, name func(T) string) map[string]T {
-	m := make(map[string]T, len(items))
-	for _, item := range items {
-		m[strings.ToLower(name(item))] = item
-	}
-	return m
-}
-
-func mapByKey[T any](items []T, key func(T) string) map[string]T {
-	m := make(map[string]T, len(items))
-	for _, item := range items {
-		m[key(item)] = item
-	}
-	return m
-}
-
-func ptrStr(p *string) string {
-	if p == nil {
-		return ""
-	}
-	return *p
-}
-
-func formatNameList(items []string) string {
-	return "(" + strings.Join(items, ", ") + ")"
-}
-
-func (d *SchemaDiff) IsEmpty() bool {
-	return len(d.AddedTables) == 0 && len(d.RemovedTables) == 0 && len(d.ModifiedTables) == 0
-}
-
-func (d *SchemaDiff) SaveToFile(path string) error {
-	return os.WriteFile(path, []byte(d.String()), 0644)
 }
