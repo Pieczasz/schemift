@@ -2,31 +2,31 @@ package mysql
 
 import (
 	"fmt"
-	"schemift/core"
+	"schemift/diff"
 	"strings"
 )
 
-func (g *Generator) rollbackSuggestions(diff *core.SchemaDiff) []string {
-	if diff == nil {
+func (g *Generator) rollbackSuggestions(schemaDiff *diff.SchemaDiff) []string {
+	if schemaDiff == nil {
 		return nil
 	}
 	var out []string
 
-	for _, t := range diff.AddedTables {
+	for _, t := range schemaDiff.AddedTables {
 		if t == nil {
 			continue
 		}
 		out = append(out, g.GenerateDropTable(t))
 	}
 
-	for _, t := range diff.RemovedTables {
+	for _, t := range schemaDiff.RemovedTables {
 		if t == nil {
 			continue
 		}
 		out = append(out, fmt.Sprintf("-- cannot auto-rollback DROP TABLE %s (restore from backup)", g.QuoteIdentifier(t.Name)))
 	}
 
-	for _, td := range diff.ModifiedTables {
+	for _, td := range schemaDiff.ModifiedTables {
 		if td == nil {
 			continue
 		}
@@ -99,7 +99,7 @@ func (g *Generator) rollbackSuggestions(diff *core.SchemaDiff) []string {
 			if mo == nil {
 				continue
 			}
-			if stmt := g.alterOption(table, &core.TableOptionChange{Name: mo.Name, New: mo.Old}); stmt != "" {
+			if stmt := g.alterOption(table, &diff.TableOptionChange{Name: mo.Name, New: mo.Old}); stmt != "" {
 				out = append(out, stmt)
 			}
 		}

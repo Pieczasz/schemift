@@ -3,6 +3,7 @@ package tests
 import (
 	"schemift/dialect"
 	"schemift/dialect/mysql"
+	"schemift/diff"
 	"testing"
 
 	"schemift/core"
@@ -11,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestMySQLSafeMode_UsesChangeColumnForRename(t *testing.T) {
+func TestMySQLSafeModeUsesChangeColumnForRename(t *testing.T) {
 	oldDB := &core.Database{Tables: []*core.Table{{
 		Name:    "users",
 		Columns: []*core.Column{{Name: "password_hash", TypeRaw: "VARBINARY(60)", Type: core.NormalizeDataType("VARBINARY(60)"), Nullable: false}},
@@ -22,7 +23,7 @@ func TestMySQLSafeMode_UsesChangeColumnForRename(t *testing.T) {
 		Columns: []*core.Column{{Name: "password_digest", TypeRaw: "VARBINARY(72)", Type: core.NormalizeDataType("VARBINARY(72)"), Nullable: false}},
 	}}}
 
-	d := core.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
 	gen := mysql.NewMySQLDialect().Generator()

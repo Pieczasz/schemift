@@ -3,9 +3,9 @@ package tests
 import (
 	"fmt"
 	"os"
+	"schemift/diff"
 	"testing"
 
-	"schemift/core"
 	"schemift/parser"
 
 	"github.com/stretchr/testify/assert"
@@ -139,7 +139,7 @@ CREATE TABLE related_features (
 	newDB, err := p.ParseSchema(newSQL)
 	require.NoError(t, err)
 
-	d := core.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB)
 	require.NotNil(t, d)
 
 	assert.Empty(t, d.AddedTables)
@@ -227,7 +227,7 @@ CREATE TABLE related_features (
 	assert.Contains(t, string(b), "Schema differences")
 }
 
-func findTableDiff(t *testing.T, d *core.SchemaDiff, name string) *core.TableDiff {
+func findTableDiff(t *testing.T, d *diff.SchemaDiff, name string) *diff.TableDiff {
 	t.Helper()
 	for _, td := range d.ModifiedTables {
 		if td != nil && td.Name == name {
@@ -238,7 +238,7 @@ func findTableDiff(t *testing.T, d *core.SchemaDiff, name string) *core.TableDif
 	return nil
 }
 
-func assertOptionChange(t *testing.T, td *core.TableDiff, option string) {
+func assertOptionChange(t *testing.T, td *diff.TableDiff, option string) {
 	t.Helper()
 	for _, ch := range td.ModifiedOptions {
 		if ch != nil && ch.Name == option {
@@ -249,7 +249,7 @@ func assertOptionChange(t *testing.T, td *core.TableDiff, option string) {
 	require.FailNow(t, "expected option change not found", "table=%s option=%s", td.Name, option)
 }
 
-func hasColumnChange(td *core.TableDiff, col string) bool {
+func hasColumnChange(td *diff.TableDiff, col string) bool {
 	for _, ch := range td.ModifiedColumns {
 		if ch != nil && ch.Name == col {
 			return true
@@ -258,7 +258,7 @@ func hasColumnChange(td *core.TableDiff, col string) bool {
 	return false
 }
 
-func hasAddedColumn(td *core.TableDiff, col string) bool {
+func hasAddedColumn(td *diff.TableDiff, col string) bool {
 	for _, c := range td.AddedColumns {
 		if c != nil && c.Name == col {
 			return true
@@ -267,7 +267,7 @@ func hasAddedColumn(td *core.TableDiff, col string) bool {
 	return false
 }
 
-func hasRemovedColumn(td *core.TableDiff, col string) bool {
+func hasRemovedColumn(td *diff.TableDiff, col string) bool {
 	for _, c := range td.RemovedColumns {
 		if c != nil && c.Name == col {
 			return true
@@ -276,7 +276,7 @@ func hasRemovedColumn(td *core.TableDiff, col string) bool {
 	return false
 }
 
-func hasModifiedConstraint(td *core.TableDiff, constraintName string) bool {
+func hasModifiedConstraint(td *diff.TableDiff, constraintName string) bool {
 	for _, ch := range td.ModifiedConstraints {
 		if ch != nil && ch.Name == constraintName {
 			return true
@@ -285,7 +285,7 @@ func hasModifiedConstraint(td *core.TableDiff, constraintName string) bool {
 	return false
 }
 
-func hasModifiedIndex(td *core.TableDiff, indexName string) bool {
+func hasModifiedIndex(td *diff.TableDiff, indexName string) bool {
 	for _, ch := range td.ModifiedIndexes {
 		if ch != nil && ch.Name == indexName {
 			return true

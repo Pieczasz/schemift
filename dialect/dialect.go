@@ -1,6 +1,10 @@
 package dialect
 
-import "schemift/core"
+import (
+	"schemift/core"
+	"schemift/diff"
+	"schemift/migration"
+)
 
 type Type string
 
@@ -13,11 +17,11 @@ const (
 )
 
 type Generator interface {
-	GenerateMigration(diff *core.SchemaDiff) *core.Migration
-	GenerateMigrationWithOptions(diff *core.SchemaDiff, opts MigrationOptions) *core.Migration
+	GenerateMigration(diff *diff.SchemaDiff) *migration.Migration
+	GenerateMigrationWithOptions(diff *diff.SchemaDiff, opts MigrationOptions) *migration.Migration
 	GenerateCreateTable(table *core.Table) (statement string, fkStatements []string)
 	GenerateDropTable(table *core.Table) string
-	GenerateAlterTable(diff *core.TableDiff) []string
+	GenerateAlterTable(diff *diff.TableDiff) []string
 	QuoteIdentifier(name string) string
 	QuoteString(value string) string
 }
@@ -49,7 +53,7 @@ func GetDialect(d Type) Dialect {
 }
 
 type BreakingChangeDetector interface {
-	DetectBreakingChanges(diff *core.SchemaDiff) []core.BreakingChange
+	DetectBreakingChanges(schemaDiff *diff.SchemaDiff) []diff.BreakingChange
 }
 
 type MigrationOptions struct {
