@@ -43,10 +43,8 @@ func (p *Parser) Parse(sql string) (*core.Database, error) {
 
 func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, error) {
 	table := &core.Table{
-		Name:        stmt.Table.Name.O,
-		Columns:     []*core.Column{},
-		Constraints: []*core.Constraint{},
-		Indexes:     []*core.Index{},
+		Name:    stmt.Table.Name.O,
+		Columns: []*core.Column{},
 	}
 
 	p.parseTableOptions(stmt.Options, table)
@@ -54,6 +52,53 @@ func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, err
 	p.parseConstraints(stmt.Constraints, table)
 
 	return table, nil
+}
+
+func (p *Parser) ensurePrimaryKeyColumn(table *core.Table, colName string) {
+	if table == nil {
+		return
+	}
+	colName = strings.TrimSpace(colName)
+	if colName == "" {
+		return
+	}
+
+	var pk *core.Constraint
+	for _, c := range table.Constraints {
+		if c == nil {
+			continue
+		}
+		if c.Type == core.ConstraintPrimaryKey {
+			pk = c
+			break
+		}
+	}
+	if pk == nil {
+		pk = &core.Constraint{
+			Name:    "PRIMARY",
+			Type:    core.ConstraintPrimaryKey,
+			Columns: []string{},
+		}
+		table.Constraints = append(table.Constraints, pk)
+	}
+	if strings.TrimSpace(pk.Name) == "" {
+		pk.Name = "PRIMARY"
+	}
+
+	for _, existing := range pk.Columns {
+		if strings.EqualFold(existing, colName) {
+			if col := table.FindColumn(colName); col != nil {
+				col.PrimaryKey = true
+				col.Nullable = false
+			}
+			return
+		}
+	}
+	pk.Columns = append(pk.Columns, colName)
+	if col := table.FindColumn(colName); col != nil {
+		col.PrimaryKey = true
+		col.Nullable = false
+	}
 }
 
 func (p *Parser) parseTableOptions(opts []*ast.TableOption, table *core.Table) {
@@ -226,6 +271,7 @@ func (p *Parser) parseColumns(cols []*ast.ColumnDef, table *core.Table) {
 				col.Nullable = true
 			case ast.ColumnOptionPrimaryKey:
 				col.PrimaryKey = true
+				col.Nullable = false
 			case ast.ColumnOptionAutoIncrement:
 				col.AutoIncrement = true
 			case ast.ColumnOptionDefaultValue:
@@ -303,6 +349,9 @@ func (p *Parser) parseColumns(cols []*ast.ColumnDef, table *core.Table) {
 			}
 		}
 		table.Columns = append(table.Columns, col)
+		if col.PrimaryKey {
+			p.ensurePrimaryKeyColumn(table, col.Name)
+		}
 	}
 }
 
@@ -320,17 +369,13 @@ func (p *Parser) parseConstraints(constraints []*ast.Constraint, table *core.Tab
 
 		switch constraint.Tp {
 		case ast.ConstraintPrimaryKey:
-			c := &core.Constraint{
-				Name:    "PRIMARY",
-				Type:    core.ConstraintPrimaryKey,
-				Columns: columns,
-			}
 			for _, colName := range columns {
-				if col := table.FindColumn(colName); col != nil {
-					col.PrimaryKey = true
-				}
+				p.ensurePrimaryKeyColumn(table, colName)
 			}
-			table.Constraints = append(table.Constraints, c)
+			if pk := table.PrimaryKey(); pk != nil {
+				pk.Name = "PRIMARY"
+				pk.Columns = columns
+			}
 
 		case ast.ConstraintUniq, ast.ConstraintUniqKey, ast.ConstraintUniqIndex:
 			table.Constraints = append(table.Constraints, &core.Constraint{
