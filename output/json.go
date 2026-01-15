@@ -41,6 +41,10 @@ type migrationPayload struct {
 	Rollback        []string         `json:"rollback,omitempty"`
 }
 
+type Payload interface {
+	diffPayload | migrationPayload
+}
+
 func (jsonFormatter) FormatDiff(d *diff.SchemaDiff) (string, error) {
 	payload := diffPayload{Format: string(FormatJSON)}
 	if d != nil {
@@ -53,11 +57,7 @@ func (jsonFormatter) FormatDiff(d *diff.SchemaDiff) (string, error) {
 			ModifiedTables: len(d.ModifiedTables),
 		}
 	}
-	b, err := json.MarshalIndent(payload, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(b) + "\n", nil
+	return marshalJSON(payload)
 }
 
 func (jsonFormatter) FormatMigration(m *migration.Migration) (string, error) {
@@ -82,6 +82,10 @@ func (jsonFormatter) FormatMigration(m *migration.Migration) (string, error) {
 			RollbackStatements: len(rollback),
 		}
 	}
+	return marshalJSON(payload)
+}
+
+func marshalJSON[T Payload](payload T) (string, error) {
 	b, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return "", err
