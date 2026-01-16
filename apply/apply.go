@@ -87,27 +87,21 @@ type jsonMigration struct {
 func (a *Applier) ParseStatements(content string) []string {
 	content = strings.TrimSpace(content)
 
-	if strings.HasPrefix(content, "{") {
-		statements := a.parseJSONMigration(content)
-		if len(statements) > 0 {
-			a.statements = statements
-			return statements
+	var migration jsonMigration
+	if err := json.Unmarshal([]byte(content), &migration); err == nil {
+		if migration.Format == "json" {
+			statements := a.extractJSONStatements(&migration)
+			if len(statements) > 0 {
+				a.statements = statements
+				return statements
+			}
 		}
 	}
 
 	return a.parseHumanMigration(content)
 }
 
-func (a *Applier) parseJSONMigration(content string) []string {
-	var migration jsonMigration
-	if err := json.Unmarshal([]byte(content), &migration); err != nil {
-		return nil
-	}
-
-	if migration.Format != "json" {
-		return nil
-	}
-
+func (a *Applier) extractJSONStatements(migration *jsonMigration) []string {
 	var statements []string
 	for _, stmt := range migration.SQL {
 		stmt = strings.TrimSpace(stmt)
@@ -115,7 +109,6 @@ func (a *Applier) parseJSONMigration(content string) []string {
 			statements = append(statements, stmt)
 		}
 	}
-
 	return statements
 }
 
