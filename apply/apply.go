@@ -1,3 +1,6 @@
+// Package apply adds a functionality to connect to a user database and perform
+// an actual migration on the database. User can decide upon different settings,
+// so the migration can be as safe as possible and reversible.
 package apply
 
 import (
@@ -9,6 +12,7 @@ import (
 	"strings"
 )
 
+// PreflightResult contains a list of warnings, errors, and transactionality info about migration.
 type PreflightResult struct {
 	Warnings        []Warning
 	Errors          []string
@@ -16,12 +20,14 @@ type PreflightResult struct {
 	NonTxReasons    []string
 }
 
+// Warning contains a Level of a warning, message, and actual SQL from migration.
 type Warning struct {
 	Level   WarningLevel
 	Message string
 	SQL     string
 }
 
+// WarningLevel is a const that is expandable for later and contains different levels of danger.
 type WarningLevel string
 
 const (
@@ -29,6 +35,7 @@ const (
 	WarnDanger  WarningLevel = "DANGER"
 )
 
+// Options struct contains all setting available for user to choose during apply command.
 type Options struct {
 	DSN                   string
 	FilePath              string
@@ -38,18 +45,31 @@ type Options struct {
 	Unsafe                bool
 }
 
+type jsonMigration struct {
+	Format  string   `json:"format"`
+	SQL     []string `json:"sql,omitempty"`
+	Summary struct {
+		SQLStatements int `json:"sqlStatements"`
+	} `json:"summary"`
+}
+
+// Applier is a struct that contains data from a user to apply actual migration.
 type Applier struct {
 	db         *sql.DB
 	statements []string
 	options    Options
 }
 
+// NewApplier returns a pointer to Applier for user use, with provided options.
 func NewApplier(options Options) *Applier {
 	return &Applier{
 		options: options,
 	}
 }
 
+// Apply function, look for the dryRun option, runs it, and
+// depending on a transactional option, run the appropriate migration.
+// If something went wrong, returns an error, otherwise nil.
 func (a *Applier) Apply(ctx context.Context, statements []string, preflight *PreflightResult) error {
 	if a.options.DryRun {
 		return a.dryRun(statements, preflight)
@@ -68,6 +88,8 @@ func (a *Applier) Apply(ctx context.Context, statements []string, preflight *Pre
 	return a.applyWithoutTransaction(ctx, statements)
 }
 
+// Connect establishes a connection with a user database and pings it to test a connection.
+// If something went wrong, returns an error, otherwise nil.
 func (a *Applier) Connect(ctx context.Context) error {
 	db, err := sql.Open("mysql", a.options.DSN)
 	if err != nil {
@@ -86,19 +108,13 @@ func (a *Applier) Connect(ctx context.Context) error {
 	return nil
 }
 
+// Close closes a connection with a database from applier
+// If something went wrong, returns an error, otherwise nil.
 func (a *Applier) Close() error {
 	if a.db != nil {
 		return a.db.Close()
 	}
 	return nil
-}
-
-type jsonMigration struct {
-	Format  string   `json:"format"`
-	SQL     []string `json:"sql,omitempty"`
-	Summary struct {
-		SQLStatements int `json:"sqlStatements"`
-	} `json:"summary"`
 }
 
 func (a *Applier) ParseStatements(content string) []string {
@@ -116,6 +132,30 @@ func (a *Applier) ParseStatements(content string) []string {
 	}
 
 	return a.parseHumanMigration(content)
+}
+
+func (a *Applier) PreflightChecks(statements []string, unsafe bool) *PreflightResult {
+	result := &PreflightResult{
+		IsTransactional: true,
+	}
+
+	for _, stmt := range statements {
+		upper := strings.ToUpper(stmt)
+
+		blockingWarnings := checkBlockingDDL(stmt, upper)
+		result.Warnings = append(result.Warnings, blockingWarnings...)
+
+		destructiveWarnings := checkDestructive(stmt, upper, unsafe)
+		result.Warnings = append(result.Warnings, destructiveWarnings...)
+
+		if !isTransactionSafe(upper) {
+			result.IsTransactional = false
+			reason := getTransactionUnsafeReason(upper, stmt)
+			result.NonTxReasons = append(result.NonTxReasons, reason)
+		}
+	}
+
+	return result
 }
 
 func (a *Applier) extractJSONStatements(migration *jsonMigration) []string {
@@ -159,30 +199,6 @@ func (a *Applier) parseHumanMigration(content string) []string {
 
 	a.statements = statements
 	return statements
-}
-
-func (a *Applier) PreflightChecks(statements []string, unsafe bool) *PreflightResult {
-	result := &PreflightResult{
-		IsTransactional: true,
-	}
-
-	for _, stmt := range statements {
-		upper := strings.ToUpper(stmt)
-
-		blockingWarnings := checkBlockingDDL(stmt, upper)
-		result.Warnings = append(result.Warnings, blockingWarnings...)
-
-		destructiveWarnings := checkDestructive(stmt, upper, unsafe)
-		result.Warnings = append(result.Warnings, destructiveWarnings...)
-
-		if !isTransactionSafe(upper) {
-			result.IsTransactional = false
-			reason := getTransactionUnsafeReason(upper, stmt)
-			result.NonTxReasons = append(result.NonTxReasons, reason)
-		}
-	}
-
-	return result
 }
 
 func checkBlockingDDL(stmt, upper string) []Warning {
@@ -474,6 +490,8 @@ func (a *Applier) applyWithoutTransaction(ctx context.Context, statements []stri
 	return nil
 }
 
+// HasDestructiveOperations checks if there is a dangerous warning inside a preflight
+// analysis of a migration. If it has returns true, otherwise false.
 func HasDestructiveOperations(preflight *PreflightResult) bool {
 	for _, w := range preflight.Warnings {
 		if w.Level == WarnDanger {
