@@ -25,7 +25,6 @@ type Warning struct {
 type WarningLevel string
 
 const (
-	WarnInfo    WarningLevel = "INFO"
 	WarnCaution WarningLevel = "CAUTION"
 	WarnDanger  WarningLevel = "DANGER"
 )
@@ -49,6 +48,24 @@ func NewApplier(options Options) *Applier {
 	return &Applier{
 		options: options,
 	}
+}
+
+func (a *Applier) Apply(ctx context.Context, statements []string, preflight *PreflightResult) error {
+	if a.options.DryRun {
+		return a.dryRun(statements, preflight)
+	}
+
+	if a.options.Transaction && !preflight.IsTransactional {
+		if !a.options.AllowNonTransactional {
+			return fmt.Errorf("migration contains non-transactional DDL statements; use --allow-non-transactional to proceed")
+		}
+	}
+
+	if a.options.Transaction && preflight.IsTransactional {
+		return a.applyWithTransaction(ctx, statements)
+	}
+
+	return a.applyWithoutTransaction(ctx, statements)
 }
 
 func (a *Applier) Connect(ctx context.Context) error {
@@ -361,24 +378,6 @@ func truncateSQL(stmt string) string {
 	return stmt
 }
 
-func (a *Applier) Apply(ctx context.Context, statements []string, preflight *PreflightResult) error {
-	if a.options.DryRun {
-		return a.dryRun(statements, preflight)
-	}
-
-	if a.options.Transaction && !preflight.IsTransactional {
-		if !a.options.AllowNonTransactional {
-			return fmt.Errorf("migration contains non-transactional DDL statements; use --allow-non-transactional to proceed")
-		}
-	}
-
-	if a.options.Transaction && preflight.IsTransactional {
-		return a.applyWithTransaction(ctx, statements)
-	}
-
-	return a.applyWithoutTransaction(ctx, statements)
-}
-
 func (a *Applier) dryRun(statements []string, preflight *PreflightResult) error {
 	fmt.Println("=== DRY RUN MODE ===")
 	fmt.Println()
@@ -453,12 +452,12 @@ func (a *Applier) applyWithTransaction(ctx context.Context, statements []string)
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	fmt.Printf("✓ Successfully applied %d statements\n", len(statements))
+	fmt.Printf("Successfully applied %d statements\n", len(statements))
 	return nil
 }
 
 func (a *Applier) applyWithoutTransaction(ctx context.Context, statements []string) error {
-	fmt.Println("⚠ Applying migration without transaction wrapper (DDL statements cause implicit commits)")
+	fmt.Println("Applying migration without transaction wrapper (DDL statements cause implicit commits)")
 	fmt.Println()
 
 	successCount := 0
@@ -471,7 +470,7 @@ func (a *Applier) applyWithoutTransaction(ctx context.Context, statements []stri
 		successCount++
 	}
 
-	fmt.Printf("✓ Successfully applied %d statements\n", len(statements))
+	fmt.Printf("Successfully applied %d statements\n", len(statements))
 	return nil
 }
 
