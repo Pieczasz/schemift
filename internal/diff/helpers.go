@@ -54,6 +54,8 @@ func (m columnAttrMatch) AllMatch() bool {
 		m.ColumnFormat && m.Storage && m.AutoRandom
 }
 
+// SimilarityScore function calculates a similarity score between two column attributes.
+// It is used to detect renames between two columns.
 func (m columnAttrMatch) SimilarityScore() int {
 	score := 0
 	if m.TypeRaw {

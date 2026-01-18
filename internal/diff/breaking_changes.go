@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// BreakingChange represents a breaking change detected during schema comparison.
 type BreakingChange struct {
 	Severity    ChangeSeverity
 	Description string
@@ -16,6 +17,7 @@ type BreakingChange struct {
 	ObjectType  string
 }
 
+// ChangeSeverity represents the level of severity of a breaking change.
 type ChangeSeverity int
 
 const (
@@ -25,6 +27,7 @@ const (
 	SeverityCritical
 )
 
+// String returns a string representation of the severity level.
 func (s ChangeSeverity) String() string {
 	switch s {
 	case SeverityInfo:
@@ -40,14 +43,17 @@ func (s ChangeSeverity) String() string {
 	}
 }
 
+// BreakingChangeAnalyzer contains all breaking changes detected during schema comparison.
 type BreakingChangeAnalyzer struct {
 	Changes []BreakingChange
 }
 
+// NewBreakingChangeAnalyzer creates a new instance of BreakingChangeAnalyzer.
 func NewBreakingChangeAnalyzer() *BreakingChangeAnalyzer {
 	return &BreakingChangeAnalyzer{}
 }
 
+// Analyze analyzes the schema differences and returns a list of breaking changes.
 func (a *BreakingChangeAnalyzer) Analyze(diff *SchemaDiff) []BreakingChange {
 	if diff == nil {
 		return nil

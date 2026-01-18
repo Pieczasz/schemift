@@ -1,3 +1,5 @@
+// Package diff provides functionality to compare and generate schema diffs between two schema dumps.
+// It also includes breaking changes detection.
 package diff
 
 import (
@@ -9,12 +11,14 @@ const (
 	renameSharedTokenMinLen       = 3
 )
 
+// SchemaDiff represents the differences between two schema dumps.
 type SchemaDiff struct {
 	AddedTables    []*core.Table
 	RemovedTables  []*core.Table
 	ModifiedTables []*TableDiff
 }
 
+// TableDiff represents the differences between two tables.
 type TableDiff struct {
 	Name                string
 	AddedColumns        []*core.Column
@@ -30,6 +34,7 @@ type TableDiff struct {
 	ModifiedOptions     []*TableOptionChange
 }
 
+// ColumnChange represents the differences between two columns.
 type ColumnChange struct {
 	Name    string
 	Old     *core.Column
@@ -37,12 +42,14 @@ type ColumnChange struct {
 	Changes []*FieldChange
 }
 
+// ColumnRename represents the score of a column rename detection.
 type ColumnRename struct {
 	Old   *core.Column
 	New   *core.Column
 	Score int
 }
 
+// ConstraintChange represents the constraint difference between old table and new table.
 type ConstraintChange struct {
 	Name          string
 	Old           *core.Constraint
@@ -52,6 +59,7 @@ type ConstraintChange struct {
 	RebuildReason string
 }
 
+// IndexChange represents the differences between indexes of old table and new table.
 type IndexChange struct {
 	Name    string
 	Old     *core.Index
@@ -59,18 +67,21 @@ type IndexChange struct {
 	Changes []*FieldChange
 }
 
+// FieldChange represents the differences between two fields.
 type FieldChange struct {
 	Field string
 	Old   string
 	New   string
 }
 
+// TableOptionChange represents the differences between two table options.
 type TableOptionChange struct {
 	Name string
 	Old  string
 	New  string
 }
 
+// Diff compares two database dumps and returns a SchemaDiff object.
 func Diff(oldDB, newDB *core.Database) *SchemaDiff {
 	d := &SchemaDiff{}
 
