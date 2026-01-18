@@ -98,7 +98,7 @@ func migrateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "migrate <old.sql> <new.sql>",
 		Short: "Migrate schema from old dump to new dump",
-		Long: `Migrate generates the necessary SQL statements to transition a database schema 
+		Long: `Migrate generates the necessary SQL statements to transition a database schema
 from an old state (old.sql) to a new state (new.sql).
 You can specify the source and target database dialects using the --from and --to flags.`,
 		Args: cobra.ExactArgs(2),
