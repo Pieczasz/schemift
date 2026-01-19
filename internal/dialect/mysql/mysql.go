@@ -5,12 +5,13 @@ package mysql
 import (
 	"fmt"
 	"hash/fnv"
+	"strings"
+
 	"smf/internal/core"
 	"smf/internal/dialect"
 	"smf/internal/diff"
 	"smf/internal/migration"
 	"smf/internal/parser/mysql"
-	"strings"
 )
 
 // Instead of removing the table, in safe mode we rename it to a backup table, so
@@ -18,12 +19,6 @@ import (
 const backupSuffixPrefix = "__smf_backup_"
 
 const mysqlMaxIdentLen = 64
-
-func init() {
-	dialect.RegisterDialect(dialect.MySQL, func() dialect.Dialect {
-		return NewMySQLDialect()
-	})
-}
 
 // Dialect represents the MySQL dialect struct. With migration generator
 // and parser.
@@ -63,15 +58,16 @@ func NewMySQLGenerator() *Generator {
 	return &Generator{}
 }
 
-// GenerateMigration generates a migration for the given schema diff.
+// GenerateMigration generates a migration for the given schema diff in safe mode.
+// Safe mode renames drops instead of executing them, preserving data and enabling rollback.
 func (g *Generator) GenerateMigration(schemaDiff *diff.SchemaDiff) *migration.Migration {
 	opts := dialect.DefaultMigrationOptions(dialect.MySQL)
-	opts.IncludeUnsafe = true
+	opts.IncludeUnsafe = false
 	return g.GenerateMigrationWithOptions(schemaDiff, opts)
 }
 
 // GenerateMigrationWithOptions generates a migration for the given schema diff with the given options.
-// Options are provided by a user to customize the migration process.
+// A user provides options to customize the migration process.
 func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff.SchemaDiff, opts dialect.MigrationOptions) *migration.Migration {
 	m := &migration.Migration{}
 	if schemaDiff == nil {
