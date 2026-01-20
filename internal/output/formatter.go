@@ -24,15 +24,16 @@ type Formatter interface {
 }
 
 // NewFormatter creates a new Formatter instance based on the given name.
+// If no format is specified, defaults to human-readable format.
 func NewFormatter(name string) (Formatter, error) {
 	format := Format(strings.ToLower(strings.TrimSpace(name)))
 	switch format {
-	case "", FormatJSON:
-		return jsonFormatter{}, nil
-	case FormatHuman:
+	case "", FormatHuman:
 		return humanFormatter{}, nil
+	case FormatJSON:
+		return jsonFormatter{}, nil
 	default:
-		return nil, fmt.Errorf("unsupported format: %s", name)
+		return nil, fmt.Errorf("unsupported format: %s; use 'human' or 'json'", name)
 	}
 }
 
