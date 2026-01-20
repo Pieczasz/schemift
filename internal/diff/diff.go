@@ -97,6 +97,7 @@ func Diff(oldDB, newDB *core.Database) *SchemaDiff {
 }
 
 // DiffWithOptions compares two database dumps and returns a SchemaDiff object.
+// TODO: rename this function with something more descriptive.
 func DiffWithOptions(oldDB, newDB *core.Database, opts Options) *SchemaDiff {
 	d := &SchemaDiff{}
 

@@ -1,4 +1,4 @@
-// Package core contains the single source of truth from database schema.
+// Package core contains the single source of truth from the database schema.
 // It provides a structured representation of data for tables, columns, constraints, and so on
 // for all databases that we support.
 package core
@@ -75,7 +75,7 @@ type MySQLTableOptions struct {
 	Nodegroup                uint64
 }
 
-// TiDBTableOptions contains TiDB-specific table options. Since we use TIDB mysql parser
+// TiDBTableOptions contains TiDB-specific table options. Since we use TIDB mysql parser,
 // it is a nice addition to mysql parser.
 type TiDBTableOptions struct {
 	AutoIDCache     uint64

@@ -6,6 +6,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"strings"
+	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/spf13/cobra"
+
 	"smf/internal/apply"
 	"smf/internal/core"
 	"smf/internal/dialect"
@@ -14,25 +20,22 @@ import (
 	"smf/internal/migration"
 	"smf/internal/output"
 	"smf/internal/parser"
-	"strings"
-	"time"
-
-	_ "github.com/go-sql-driver/mysql"
-	"github.com/spf13/cobra"
 )
 
 type diffFlags struct {
-	outFile string
-	format  string
+	outFile       string
+	format        string
+	detectRenames bool
 }
 
 type migrateFlags struct {
-	fromDialect  string
-	toDialect    string
-	outFile      string
-	rollbackFile string
-	format       string
-	unsafe       bool
+	fromDialect   string
+	toDialect     string
+	outFile       string
+	rollbackFile  string
+	format        string
+	unsafe        bool
+	detectRenames bool
 }
 
 type applyFlags struct {
@@ -70,8 +73,11 @@ func diffCmd() *cobra.Command {
 			return runDiff(args[0], args[1], flags)
 		},
 	}
+
 	cmd.Flags().StringVarP(&flags.outFile, "output", "o", "", "Output file for the diff")
 	cmd.Flags().StringVarP(&flags.format, "format", "f", "", "Output format: json or human")
+	cmd.Flags().BoolVarP(&flags.detectRenames, "detect-renames", "r", true, "Enable heuristic column rename detection")
+
 	return cmd
 }
 
@@ -81,16 +87,18 @@ func runDiff(oldPath, newPath string, flags *diffFlags) error {
 		return err
 	}
 
-	schemaDiff := diff.Diff(oldDB, newDB)
+	schemaDiff := diff.DiffWithOptions(oldDB, newDB, diff.Options{DetectColumnRenames: flags.detectRenames})
 	formatter, err := output.NewFormatter(flags.format)
 	if err != nil {
 		return err
 	}
-	formatted, err := formatter.FormatDiff(schemaDiff)
+
+	formattedDiff, err := formatter.FormatDiff(schemaDiff)
 	if err != nil {
 		return fmt.Errorf("failed to format output: %w", err)
 	}
-	return writeOutput(formatted, flags.outFile, flags.format)
+
+	return writeOutput(formattedDiff, flags.outFile, flags.format)
 }
 
 func migrateCmd() *cobra.Command {
@@ -106,16 +114,20 @@ You can specify the source and target database dialects using the --from and --t
 			return runMigrate(args[0], args[1], flags)
 		},
 	}
+
 	cmd.Flags().StringVar(&flags.fromDialect, "from", "mysql", "Source database dialect (e.g., mysql)")
 	cmd.Flags().StringVarP(&flags.toDialect, "to", "t", "mysql", "Target database dialect (e.g., mysql)")
 	cmd.Flags().StringVarP(&flags.outFile, "output", "o", "", "Output file for the generated migration SQL")
 	cmd.Flags().StringVarP(&flags.rollbackFile, "rollback-output", "r", "", "Output file for generated rollback SQL (run separately)")
 	cmd.Flags().StringVarP(&flags.format, "format", "f", "", "Output format: json or human")
 	cmd.Flags().BoolVarP(&flags.unsafe, "unsafe", "u", false, "Generate unsafe migration (may drop/overwrite data); safe mode by default")
+	cmd.Flags().BoolVarP(&flags.detectRenames, "detect-renames", "r", true, "Enable heuristic column rename detection")
+
 	return cmd
 }
 
 func runMigrate(oldPath, newPath string, flags *migrateFlags) error {
+	// TODO: refactor this function
 	printInfo(flags.format, fmt.Sprintf("migrating from %s (%s) to %s (%s)", oldPath, flags.fromDialect, newPath, flags.toDialect))
 
 	if err := validateDialect(flags.fromDialect); err != nil {
@@ -130,7 +142,7 @@ func runMigrate(oldPath, newPath string, flags *migrateFlags) error {
 		return err
 	}
 
-	schemaDiff := diff.Diff(oldDB, newDB)
+	schemaDiff := diff.DiffWithOptions(oldDB, newDB, diff.Options{DetectColumnRenames: flags.detectRenames})
 	printInfo(flags.format, fmt.Sprintf("detected changes between schemas (old: %d tables, new: %d tables)",
 		len(oldDB.Tables), len(newDB.Tables)))
 
@@ -199,6 +211,7 @@ func runApply(flags *applyFlags) error {
 		Transaction:           flags.transaction,
 		AllowNonTransactional: flags.allowNonTransactional,
 		Unsafe:                flags.unsafe,
+		Out:                   os.Stdout,
 	})
 	defer func() {
 		_ = applier.Close()
@@ -279,6 +292,7 @@ func validateDialect(dialectName string) error {
 }
 
 func generateMigration(schemaDiff *diff.SchemaDiff, unsafe bool) *migration.Migration {
+	// TODO: keep in minde to refactor this after we add more dialects
 	d := mysql.NewMySQLDialect()
 	opts := dialect.DefaultMigrationOptions(dialect.MySQL)
 	opts.IncludeUnsafe = unsafe
@@ -312,7 +326,7 @@ func checkDestructiveOperations(preflight *apply.PreflightResult, unsafe bool) e
 	fmt.Println("--- Preflight Warnings ---")
 	for _, w := range preflight.Warnings {
 		if w.Level == apply.WarnDanger {
-			fmt.Printf("✗ [%s] %s\n", w.Level, w.Message)
+			fmt.Printf("[%s] %s\n", w.Level, w.Message)
 			if w.SQL != "" {
 				fmt.Printf("    SQL: %s\n", w.SQL)
 			}
@@ -342,9 +356,11 @@ func writeOutput(content, outFile, format string) error {
 		fmt.Print(content)
 		return nil
 	}
-	if err := os.WriteFile(outFile, []byte(content), 0644); err != nil {
+
+	if err := os.WriteFile(outFile, []byte(content), 0o644); err != nil {
 		return fmt.Errorf("failed to write output: %w", err)
 	}
+
 	printInfo(format, fmt.Sprintf("Output saved to %s", outFile))
 	return nil
 }
