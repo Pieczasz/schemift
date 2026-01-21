@@ -21,7 +21,7 @@ func TestMySQLSafeModeUsesChangeColumnForRename(t *testing.T) {
 		Columns: []*core.Column{{Name: "password_digest", TypeRaw: "VARBINARY(72)", Type: core.NormalizeDataType("VARBINARY(72)"), Nullable: false}},
 	}}}
 
-	d := diff.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
 	gen := NewMySQLDialect().Generator()

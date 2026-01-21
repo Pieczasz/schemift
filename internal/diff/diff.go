@@ -92,13 +92,7 @@ func DefaultOptions() Options {
 }
 
 // Diff compares two database dumps and returns a SchemaDiff object.
-func Diff(oldDB, newDB *core.Database) *SchemaDiff {
-	return DiffWithOptions(oldDB, newDB, DefaultOptions())
-}
-
-// DiffWithOptions compares two database dumps and returns a SchemaDiff object.
-// TODO: rename this function with something more descriptive.
-func DiffWithOptions(oldDB, newDB *core.Database, opts Options) *SchemaDiff {
+func Diff(oldDB, newDB *core.Database, opts Options) *SchemaDiff {
 	d := &SchemaDiff{}
 
 	oldTables, oldCollisions := mapByLowerNameWithCollisions(oldDB.Tables, func(t *core.Table) string { return t.Name })

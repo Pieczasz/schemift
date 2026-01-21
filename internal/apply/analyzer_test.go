@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStatementAnalyzerAnalyzeStatement(t *testing.T) {
@@ -110,8 +109,7 @@ func TestStatementAnalyzerAnalyzeStatement(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			analysis, err := analyzer.AnalyzeStatement(tt.sql)
-			require.NoError(t, err)
+			analysis := analyzer.AnalyzeStatement(tt.sql)
 
 			assert.Equal(t, tt.wantDestructive, analysis.IsDestructive, "IsDestructive mismatch")
 			assert.Equal(t, tt.wantBlocking, analysis.IsBlocking, "IsBlocking mismatch")
@@ -165,8 +163,7 @@ func TestStatementAnalyzerFalsePositiveAvoidance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			analysis, err := analyzer.AnalyzeStatement(tt.sql)
-			require.NoError(t, err)
+			analysis := analyzer.AnalyzeStatement(tt.sql)
 			assert.Equal(t, tt.wantDestructive, analysis.IsDestructive, "false positive detected")
 		})
 	}
@@ -209,8 +206,7 @@ func TestStatementAnalyzerAlterTableSpecs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			analysis, err := analyzer.AnalyzeStatement(tt.sql)
-			require.NoError(t, err)
+			analysis := analyzer.AnalyzeStatement(tt.sql)
 			assert.Equal(t, tt.wantBlocking, analysis.IsBlocking, "IsBlocking mismatch")
 			assert.Equal(t, tt.wantDestructive, analysis.IsDestructive, "IsDestructive mismatch")
 		})

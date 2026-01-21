@@ -87,7 +87,7 @@ func runDiff(oldPath, newPath string, flags *diffFlags) error {
 		return err
 	}
 
-	schemaDiff := diff.DiffWithOptions(oldDB, newDB, diff.Options{DetectColumnRenames: flags.detectRenames})
+	schemaDiff := diff.Diff(oldDB, newDB, diff.Options{DetectColumnRenames: flags.detectRenames})
 	formatter, err := output.NewFormatter(flags.format)
 	if err != nil {
 		return err
@@ -142,7 +142,7 @@ func runMigrate(oldPath, newPath string, flags *migrateFlags) error {
 		return err
 	}
 
-	schemaDiff := diff.DiffWithOptions(oldDB, newDB, diff.Options{DetectColumnRenames: flags.detectRenames})
+	schemaDiff := diff.Diff(oldDB, newDB, diff.Options{DetectColumnRenames: flags.detectRenames})
 	printInfo(flags.format, fmt.Sprintf("detected changes between schemas (old: %d tables, new: %d tables)",
 		len(oldDB.Tables), len(newDB.Tables)))
 

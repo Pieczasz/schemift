@@ -76,7 +76,7 @@ func TestBreakingChangeAnalyzer(t *testing.T) {
 		require.NotNil(t, oldUsers)
 		oldUsers.Columns = append(oldUsers.Columns, &core.Column{Name: "old_col", TypeRaw: "INT", Type: core.NormalizeDataType("INT"), Nullable: true, Comment: "same"})
 
-		d := Diff(oldDB, newDB)
+		d := Diff(oldDB, newDB, DefaultOptions())
 		require.NotNil(t, d)
 
 		an := NewBreakingChangeAnalyzer()
@@ -120,7 +120,7 @@ func TestBreakingChangeAnalyzer(t *testing.T) {
 			},
 		}}}
 
-		d := Diff(oldDB, newDB)
+		d := Diff(oldDB, newDB, DefaultOptions())
 		an := NewBreakingChangeAnalyzer()
 		changes := an.Analyze(d)
 

@@ -53,7 +53,7 @@ func (a *StatementAnalyzer) AnalyzeStatements(statements []string, unsafeAllowed
 	}
 
 	for _, stmt := range statements {
-		analysis, _ := a.AnalyzeStatement(stmt)
+		analysis := a.AnalyzeStatement(stmt)
 		if analysis == nil {
 			continue
 		}

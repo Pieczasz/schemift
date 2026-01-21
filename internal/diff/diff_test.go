@@ -137,7 +137,7 @@ CREATE TABLE related_features (
 	newDB, err := p.ParseSchema(newSQL)
 	require.NoError(t, err)
 
-	d := Diff(oldDB, newDB)
+	d := Diff(oldDB, newDB, DefaultOptions())
 	require.NotNil(t, d)
 
 	assert.Empty(t, d.AddedTables)

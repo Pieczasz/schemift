@@ -36,7 +36,7 @@ func TestBasicMigration(t *testing.T) {
 	newDB, err := p.ParseSchema(newSQL)
 	require.NoError(t, err)
 
-	d := diff.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
 	mysqlDialect := NewMySQLDialect()
