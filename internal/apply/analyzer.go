@@ -33,17 +33,17 @@ func NewStatementAnalyzer() *StatementAnalyzer {
 }
 
 // AnalyzeStatement parses a single SQL statement and returns analysis results.
-func (a *StatementAnalyzer) AnalyzeStatement(sql string) (*StatementAnalysis, error) {
+func (a *StatementAnalyzer) AnalyzeStatement(sql string) *StatementAnalysis {
 	stmtNodes, _, err := a.parser.Parse(sql, "", "")
 	if err != nil {
-		return a.fallbackAnalysis(sql), nil
+		return a.fallbackAnalysis(sql)
 	}
 
 	if len(stmtNodes) == 0 {
-		return &StatementAnalysis{}, nil
+		return &StatementAnalysis{}
 	}
 
-	return a.analyzeNode(stmtNodes[0], sql), nil
+	return a.analyzeNode(stmtNodes[0], sql)
 }
 
 // AnalyzeStatements analyzes multiple SQL statements and returns a PreflightResult.

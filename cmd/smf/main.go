@@ -118,7 +118,7 @@ You can specify the source and target database dialects using the --from and --t
 	cmd.Flags().StringVar(&flags.fromDialect, "from", "mysql", "Source database dialect (e.g., mysql)")
 	cmd.Flags().StringVarP(&flags.toDialect, "to", "t", "mysql", "Target database dialect (e.g., mysql)")
 	cmd.Flags().StringVarP(&flags.outFile, "output", "o", "", "Output file for the generated migration SQL")
-	cmd.Flags().StringVarP(&flags.rollbackFile, "rollback-output", "r", "", "Output file for generated rollback SQL (run separately)")
+	cmd.Flags().StringVarP(&flags.rollbackFile, "rollback-output", "b", "", "Output file for generated rollback SQL (run separately)")
 	cmd.Flags().StringVarP(&flags.format, "format", "f", "", "Output format: json or human")
 	cmd.Flags().BoolVarP(&flags.unsafe, "unsafe", "u", false, "Generate unsafe migration (may drop/overwrite data); safe mode by default")
 	cmd.Flags().BoolVarP(&flags.detectRenames, "detect-renames", "r", true, "Enable heuristic column rename detection")
@@ -292,7 +292,7 @@ func validateDialect(dialectName string) error {
 }
 
 func generateMigration(schemaDiff *diff.SchemaDiff, unsafe bool) *migration.Migration {
-	// TODO: keep in minde to refactor this after we add more dialects
+	// TODO: keep in mind to refactor this after we add more dialects
 	d := mysql.NewMySQLDialect()
 	opts := dialect.DefaultMigrationOptions(dialect.MySQL)
 	opts.IncludeUnsafe = unsafe

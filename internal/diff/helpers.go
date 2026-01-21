@@ -137,6 +137,7 @@ func mapByLowerNameWithCollisions[T any](items []T, name func(T) string) (map[st
 			if prev != n {
 				collisions = append(collisions, fmt.Sprintf("case-insensitive name collision: %q vs %q", prev, n))
 			}
+			// TODO: Consider whether it would be better to return an error or handle this case differently.
 			continue
 		}
 		original[key] = n

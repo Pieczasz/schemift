@@ -167,7 +167,7 @@ func (d *SchemaDiff) IsEmpty() bool {
 }
 
 // SaveToFile function save a SchemaDiff struct to a file of a given path.
-// 0644 permissions means read/write for owner, read for group and others.
+// 0o644 permissions means read/write for owner, read for group and others.
 func (d *SchemaDiff) SaveToFile(path string) error {
-	return os.WriteFile(path, []byte(d.String()), 0644)
+	return os.WriteFile(path, []byte(d.String()), 0o644:w)
 }
