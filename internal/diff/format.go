@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+// String returns a string representation of all schema differences between two sql dumps.
 func (d *SchemaDiff) String() string {
 	if d.IsEmpty() {
 		return "No differences detected."
@@ -13,6 +14,17 @@ func (d *SchemaDiff) String() string {
 
 	var sb strings.Builder
 	sb.WriteString("Schema differences:\n")
+
+	if len(d.Warnings) > 0 {
+		sb.WriteString("\nWarnings:\n")
+		for _, w := range d.Warnings {
+			w = strings.TrimSpace(w)
+			if w == "" {
+				continue
+			}
+			sb.WriteString(fmt.Sprintf("  - %s\n", w))
+		}
+	}
 
 	if len(d.AddedTables) > 0 {
 		sb.WriteString("\nAdded tables:\n")
@@ -40,6 +52,17 @@ func (d *SchemaDiff) String() string {
 
 func (d *SchemaDiff) writeTableDiff(sb *strings.Builder, mt *TableDiff) {
 	sb.WriteString(fmt.Sprintf("\n  - %s\n", mt.Name))
+
+	if len(mt.Warnings) > 0 {
+		sb.WriteString("    Warnings:\n")
+		for _, w := range mt.Warnings {
+			w = strings.TrimSpace(w)
+			if w == "" {
+				continue
+			}
+			sb.WriteString(fmt.Sprintf("      - %s\n", w))
+		}
+	}
 
 	if len(mt.ModifiedOptions) > 0 {
 		sb.WriteString("    Options changed:\n")
@@ -143,6 +166,8 @@ func (d *SchemaDiff) IsEmpty() bool {
 	return len(d.AddedTables) == 0 && len(d.RemovedTables) == 0 && len(d.ModifiedTables) == 0
 }
 
+// SaveToFile function save a SchemaDiff struct to a file of a given path.
+// 0o644 permissions means read/write for owner, read for group and others.
 func (d *SchemaDiff) SaveToFile(path string) error {
-	return os.WriteFile(path, []byte(d.String()), 0644)
+	return os.WriteFile(path, []byte(d.String()), 0o644:w)
 }

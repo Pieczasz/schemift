@@ -1,29 +1,33 @@
+// Package mysql provides MySQL dialect support for schema migration,
+// rollback generation, formatting and migration.
 package mysql
 
 import (
 	"fmt"
 	"hash/fnv"
-	core2 "smf/internal/core"
+	"strings"
+
+	"smf/internal/core"
 	"smf/internal/dialect"
-	diff2 "smf/internal/diff"
+	"smf/internal/diff"
 	"smf/internal/migration"
 	"smf/internal/parser/mysql"
-	"strings"
 )
 
+// Instead of removing the table, in safe mode we rename it to a backup table, so
+// that rollback is possible, and all data is preserved.
 const backupSuffixPrefix = "__smf_backup_"
 
-func init() {
-	dialect.RegisterDialect(dialect.MySQL, func() dialect.Dialect {
-		return NewMySQLDialect()
-	})
-}
+const mysqlMaxIdentLen = 64
 
+// Dialect represents the MySQL dialect struct. With migration generator
+// and parser.
 type Dialect struct {
 	generator *Generator
 	parser    *mysql.Parser
 }
 
+// NewMySQLDialect initializes a new MySQL dialect instance.
 func NewMySQLDialect() *Dialect {
 	return &Dialect{
 		generator: NewMySQLGenerator(),
@@ -31,46 +35,55 @@ func NewMySQLDialect() *Dialect {
 	}
 }
 
+// Name returns the name of the MySQL dialect.
 func (d *Dialect) Name() dialect.Type {
 	return dialect.MySQL
 }
 
+// Generator returns the migration generator for the MySQL dialect.
 func (d *Dialect) Generator() dialect.Generator {
 	return d.generator
 }
 
+// Parser returns the schema parser for the MySQL dialect.
 func (d *Dialect) Parser() dialect.Parser {
 	return d.parser
 }
 
+// Generator is an empty struct that you can perform migrations with.
 type Generator struct{}
 
+// NewMySQLGenerator initializes a new MySQL migration generator instance.
 func NewMySQLGenerator() *Generator {
 	return &Generator{}
 }
 
-func (g *Generator) GenerateMigration(schemaDiff *diff2.SchemaDiff) *migration.Migration {
+// GenerateMigration generates a migration for the given schema diff in safe mode.
+// Safe mode renames drops instead of executing them, preserving data and enabling rollback.
+func (g *Generator) GenerateMigration(schemaDiff *diff.SchemaDiff) *migration.Migration {
 	opts := dialect.DefaultMigrationOptions(dialect.MySQL)
-	opts.IncludeUnsafe = true
+	opts.IncludeUnsafe = false
 	return g.GenerateMigrationWithOptions(schemaDiff, opts)
 }
 
-func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff2.SchemaDiff, opts dialect.MigrationOptions) *migration.Migration {
+// GenerateMigrationWithOptions generates a migration for the given schema diff with the given options.
+// A user provides options to customize the migration process.
+func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff.SchemaDiff, opts dialect.MigrationOptions) *migration.Migration {
 	m := &migration.Migration{}
 	if schemaDiff == nil {
 		m.AddNote("No diff provided; nothing to migrate.")
 		return m
 	}
 
-	analyzer := diff2.NewBreakingChangeAnalyzer()
+	analyzer := diff.NewBreakingChangeAnalyzer()
 	breakingChanges := analyzer.Analyze(schemaDiff)
 	for _, bc := range breakingChanges {
 		switch bc.Severity {
-		case diff2.SeverityCritical, diff2.SeverityBreaking:
+		case diff.SeverityCritical, diff.SeverityBreaking:
 			m.AddBreaking(fmt.Sprintf("[%s] %s.%s: %s", bc.Severity, bc.Table, bc.Object, bc.Description))
-		case diff2.SeverityWarning:
+		case diff.SeverityWarning:
 			m.AddNote(fmt.Sprintf("[WARNING] %s.%s: %s", bc.Table, bc.Object, bc.Description))
-		case diff2.SeverityInfo:
+		case diff.SeverityInfo:
 		}
 
 		for _, rec := range migrationRecommendations(bc) {
@@ -85,17 +98,17 @@ func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff2.SchemaDiff, o
 	var pendingFKs []string
 	var pendingFKRollback []string
 
-	for _, t := range schemaDiff.AddedTables {
-		if t == nil {
+	for _, at := range schemaDiff.AddedTables {
+		if at == nil {
 			continue
 		}
-		create, fks := g.GenerateCreateTable(t)
-		m.AddStatementWithRollback(create, g.GenerateDropTable(t))
+		create, fks := g.GenerateCreateTable(at)
+		m.AddStatementWithRollback(create, g.GenerateDropTable(at))
 		pendingFKs = append(pendingFKs, fks...)
 
-		table := g.QuoteIdentifier(t.Name)
-		for _, c := range t.Constraints {
-			if c == nil || c.Type != core2.ConstraintForeignKey {
+		table := g.QuoteIdentifier(at.Name)
+		for _, c := range at.Constraints {
+			if c == nil || c.Type != core.ConstraintForeignKey {
 				continue
 			}
 			rb := g.dropConstraint(table, c)
@@ -111,11 +124,9 @@ func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff2.SchemaDiff, o
 		}
 		stmts, rollback, fkAdds, fkRollback := g.generateAlterTableWithOptions(td, opts)
 
-		pairCount := len(stmts)
-		if len(rollback) < pairCount {
-			pairCount = len(rollback)
-		}
-		for i := 0; i < pairCount; i++ {
+		pairCount := min(len(stmts), len(rollback))
+
+		for i := range pairCount {
 			m.AddStatementWithRollback(stmts[i], rollback[i])
 		}
 
@@ -176,7 +187,8 @@ func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff2.SchemaDiff, o
 	return m
 }
 
-func (g *Generator) GenerateCreateTable(t *core2.Table) (string, []string) {
+// GenerateCreateTable generate an SQL statement to create a table, depending on Table struct representation.
+func (g *Generator) GenerateCreateTable(t *core.Table) (string, []string) {
 	name := g.QuoteIdentifier(t.Name)
 
 	var lines []string
@@ -187,12 +199,12 @@ func (g *Generator) GenerateCreateTable(t *core2.Table) (string, []string) {
 		lines = append(lines, "  "+g.columnDefinition(c))
 	}
 
-	var fks []*core2.Constraint
+	var fks []*core.Constraint
 	for _, c := range t.Constraints {
 		if c == nil {
 			continue
 		}
-		if c.Type == core2.ConstraintForeignKey {
+		if c.Type == core.ConstraintForeignKey {
 			fks = append(fks, c)
 			continue
 		}
@@ -224,21 +236,25 @@ func (g *Generator) GenerateCreateTable(t *core2.Table) (string, []string) {
 	return create, fkStmts
 }
 
-func (g *Generator) GenerateDropTable(t *core2.Table) string {
+// GenerateDropTable generate an SQL statement to drop a table.
+func (g *Generator) GenerateDropTable(t *core.Table) string {
 	return fmt.Sprintf("DROP TABLE %s;", g.QuoteIdentifier(t.Name))
 }
 
-func (g *Generator) GenerateAlterTable(td *diff2.TableDiff) []string {
+// GenerateAlterTable generate an SQL statement to alter a table.
+func (g *Generator) GenerateAlterTable(td *diff.TableDiff) []string {
 	stmts, fkAdds := g.generateAlterTable(td)
 	return append(stmts, fkAdds...)
 }
 
+// QuoteIdentifier is a function used for quote identification inside an SQL dialect.
 func (g *Generator) QuoteIdentifier(name string) string {
 	name = strings.TrimSpace(name)
 	name = strings.ReplaceAll(name, "`", "``")
 	return "`" + name + "`"
 }
 
+// QuoteString is a function used for quote string inside an SQL dialect.
 func (g *Generator) QuoteString(value string) string {
 	value = strings.ReplaceAll(value, "\\", "\\\\")
 	value = strings.ReplaceAll(value, "'", "\\'")
@@ -252,12 +268,8 @@ func (g *Generator) safeBackupName(name string) string {
 	_, _ = h.Write([]byte(base))
 	suffix := fmt.Sprintf("%s%016x", backupSuffixPrefix, h.Sum64())
 
-	const mysqlMaxIdentLen = 64
 	if len(base)+len(suffix) > mysqlMaxIdentLen {
-		maxBase := mysqlMaxIdentLen - len(suffix)
-		if maxBase < 0 {
-			maxBase = 0
-		}
+		maxBase := max(mysqlMaxIdentLen-len(suffix), 0)
 		if len(base) > maxBase {
 			base = base[:maxBase]
 		}
@@ -269,9 +281,9 @@ func (g *Generator) safeBackupName(name string) string {
 	return base + suffix
 }
 
-func hasPotentiallyLockingStatements(plan []core2.Operation) bool {
+func hasPotentiallyLockingStatements(plan []core.Operation) bool {
 	for _, op := range plan {
-		if op.Kind != core2.OperationSQL {
+		if op.Kind != core.OperationSQL {
 			continue
 		}
 		s := strings.TrimSpace(op.SQL)

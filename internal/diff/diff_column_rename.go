@@ -1,8 +1,9 @@
 package diff
 
 import (
-	"smf/internal/core"
 	"strings"
+
+	"smf/internal/core"
 )
 
 func (td *TableDiff) detectColumnRenames() {
@@ -29,6 +30,9 @@ func (td *TableDiff) detectColumnRenames() {
 		if bestIdx >= 0 && bestScore >= renameDetectionScoreThreshold {
 			newC := td.AddedColumns[bestIdx]
 			if !renameEvidence(oldC, newC) {
+				continue
+			}
+			if !strings.EqualFold(oldC.TypeRaw, newC.TypeRaw) {
 				continue
 			}
 			usedAdded[bestIdx] = struct{}{}

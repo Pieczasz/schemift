@@ -2,6 +2,7 @@ package output
 
 import (
 	"encoding/json"
+
 	"smf/internal/core"
 	"smf/internal/diff"
 	"smf/internal/migration"
@@ -18,6 +19,7 @@ type diffSummary struct {
 type diffPayload struct {
 	Format         string            `json:"format"`
 	Summary        diffSummary       `json:"summary"`
+	Warnings       []string          `json:"warnings,omitempty"`
 	AddedTables    []*core.Table     `json:"addedTables,omitempty"`
 	RemovedTables  []*core.Table     `json:"removedTables,omitempty"`
 	ModifiedTables []*diff.TableDiff `json:"modifiedTables,omitempty"`
@@ -41,13 +43,16 @@ type migrationPayload struct {
 	Rollback        []string         `json:"rollback,omitempty"`
 }
 
+// Payload interface is used as a generic interface to marshal JSON payload only for this interface.
 type Payload interface {
 	diffPayload | migrationPayload
 }
 
+// FormatDiff formats a schema diff in json format.
 func (jsonFormatter) FormatDiff(d *diff.SchemaDiff) (string, error) {
 	payload := diffPayload{Format: string(FormatJSON)}
 	if d != nil {
+		payload.Warnings = d.Warnings
 		payload.AddedTables = d.AddedTables
 		payload.RemovedTables = d.RemovedTables
 		payload.ModifiedTables = d.ModifiedTables
@@ -60,6 +65,7 @@ func (jsonFormatter) FormatDiff(d *diff.SchemaDiff) (string, error) {
 	return marshalJSON(payload)
 }
 
+// FormatMigration formats a migration in json format.
 func (jsonFormatter) FormatMigration(m *migration.Migration) (string, error) {
 	payload := migrationPayload{Format: string(FormatJSON)}
 	if m != nil {

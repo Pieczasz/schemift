@@ -87,7 +87,7 @@
           "Nodegroup": 0
         },
         "TiDB": {
-          "AutoIdCache": 0,
+          "AutoIDCache": 0,
           "AutoRandomBase": 0,
           "ShardRowID": 0,
           "PreSplitRegion": 0,
@@ -188,7 +188,7 @@
           "Nodegroup": 0
         },
         "TiDB": {
-          "AutoIdCache": 0,
+          "AutoIDCache": 0,
           "AutoRandomBase": 0,
           "ShardRowID": 0,
           "PreSplitRegion": 0,
