@@ -92,6 +92,7 @@ func DefaultOptions() Options {
 }
 
 // Diff compares two database dumps and returns a SchemaDiff object.
+// TODO: optimize this code to run Diff comparision in pararell?
 func Diff(oldDB, newDB *core.Database, opts Options) *SchemaDiff {
 	d := &SchemaDiff{}
 
