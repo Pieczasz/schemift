@@ -25,8 +25,8 @@ func compareTable(oldT, newT *core.Table, opts Options) *TableDiff {
 }
 
 func compareColumns(oldItems, newItems []*core.Column, td *TableDiff, opts Options) {
-	oldMap, oldCollisions := mapByLowerNameWithCollisions(oldItems, func(c *core.Column) string { return c.Name })
-	newMap, newCollisions := mapByLowerNameWithCollisions(newItems, func(c *core.Column) string { return c.Name })
+	oldMap, oldCollisions := mapColumnsByName(oldItems)
+	newMap, newCollisions := mapColumnsByName(newItems)
 	for _, c := range oldCollisions {
 		td.Warnings = append(td.Warnings, "old table columns: "+c)
 	}
@@ -34,7 +34,6 @@ func compareColumns(oldItems, newItems []*core.Column, td *TableDiff, opts Optio
 		td.Warnings = append(td.Warnings, "new table columns: "+c)
 	}
 
-	// TODO: extract a method from duplicated code
 	for name, newItem := range newMap {
 		oldItem, exists := oldMap[name]
 		if !exists {
@@ -178,22 +177,23 @@ func tableOptionMap(t *core.Table) map[string]string {
 }
 
 func (td *TableDiff) sort() {
-	sortByNameCI(td.AddedColumns, func(c *core.Column) string { return c.Name })
-	sortByNameCI(td.RemovedColumns, func(c *core.Column) string { return c.Name })
-	sortByNameCI(td.RenamedColumns, func(r *ColumnRename) string {
+	sortNamed(td.AddedColumns)
+	sortNamed(td.RemovedColumns)
+	// ColumnRename needs special handling - it uses New.Name, not a direct Name field
+	sortByFunc(td.RenamedColumns, func(r *ColumnRename) string {
 		if r == nil || r.New == nil {
 			return ""
 		}
 		return r.New.Name
 	})
-	sortByNameCI(td.ModifiedColumns, func(ch *ColumnChange) string { return ch.Name })
-	sortByNameCI(td.AddedConstraints, func(c *core.Constraint) string { return c.Name })
-	sortByNameCI(td.RemovedConstraints, func(c *core.Constraint) string { return c.Name })
-	sortByNameCI(td.ModifiedConstraints, func(ch *ConstraintChange) string { return ch.Name })
-	sortByNameCI(td.AddedIndexes, func(i *core.Index) string { return i.Name })
-	sortByNameCI(td.RemovedIndexes, func(i *core.Index) string { return i.Name })
-	sortByNameCI(td.ModifiedIndexes, func(ch *IndexChange) string { return ch.Name })
-	sortByNameCI(td.ModifiedOptions, func(o *TableOptionChange) string { return o.Name })
+	sortNamed(td.ModifiedColumns)
+	sortNamed(td.AddedConstraints)
+	sortNamed(td.RemovedConstraints)
+	sortNamed(td.ModifiedConstraints)
+	sortNamed(td.AddedIndexes)
+	sortNamed(td.RemovedIndexes)
+	sortNamed(td.ModifiedIndexes)
+	sortNamed(td.ModifiedOptions)
 }
 
 func (td *TableDiff) isEmpty() bool {

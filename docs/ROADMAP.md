@@ -15,7 +15,6 @@
 
 ## M1 - Plan Output & Deterministic Formatting
 
-
 **Problem:** Schema change plans need to be stable for CI/CD and reviewable in PRs.
 
 **Current Issues:**
