@@ -63,7 +63,7 @@ func (a *StatementAnalyzer) AnalyzeStatements(statements []string, unsafeAllowed
 				result.Warnings = append(result.Warnings, Warning{
 					Level:   WarnCaution,
 					Message: fmt.Sprintf("Potentially blocking DDL: %s", reason),
-					SQL:     truncateSQL(stmt),
+					SQL:     stmt,
 				})
 			}
 		}
@@ -76,7 +76,7 @@ func (a *StatementAnalyzer) AnalyzeStatements(statements []string, unsafeAllowed
 			result.Warnings = append(result.Warnings, Warning{
 				Level:   WarnDanger,
 				Message: msg,
-				SQL:     truncateSQL(stmt),
+				SQL:     stmt,
 			})
 		}
 
@@ -84,9 +84,9 @@ func (a *StatementAnalyzer) AnalyzeStatements(statements []string, unsafeAllowed
 			result.IsTransactional = false
 			reason := analysis.TxUnsafeReason
 			if reason != "" {
-				reason = fmt.Sprintf("%s: %s", reason, truncateSQL(stmt))
+				reason = fmt.Sprintf("%s: %s", reason, stmt)
 			} else {
-				reason = fmt.Sprintf("DDL statement causes implicit commit: %s", truncateSQL(stmt))
+				reason = fmt.Sprintf("DDL statement causes implicit commit: %s", stmt)
 			}
 			result.NonTxReasons = append(result.NonTxReasons, reason)
 		}
