@@ -2,10 +2,11 @@ package output
 
 import (
 	"os"
-	"smf/internal/migration"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"smf/internal/migration"
 )
 
 func TestMigrationStringMultiLineNotesAreCommented(t *testing.T) {

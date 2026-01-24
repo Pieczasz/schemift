@@ -2,6 +2,8 @@
 // package for cli tool implementation.
 package main
 
+// TODO: Create github CI/CD pipeline to build project and run tests
+
 import (
 	"context"
 	"fmt"
@@ -87,7 +89,7 @@ func runDiff(oldPath, newPath string, flags *diffFlags) error {
 		return err
 	}
 
-	schemaDiff := diff.DiffWithOptions(oldDB, newDB, diff.Options{DetectColumnRenames: flags.detectRenames})
+	schemaDiff := diff.Diff(oldDB, newDB, diff.Options{DetectColumnRenames: flags.detectRenames})
 	formatter, err := output.NewFormatter(flags.format)
 	if err != nil {
 		return err
@@ -142,7 +144,7 @@ func runMigrate(oldPath, newPath string, flags *migrateFlags) error {
 		return err
 	}
 
-	schemaDiff := diff.DiffWithOptions(oldDB, newDB, diff.Options{DetectColumnRenames: flags.detectRenames})
+	schemaDiff := diff.Diff(oldDB, newDB, diff.Options{DetectColumnRenames: flags.detectRenames})
 	printInfo(flags.format, fmt.Sprintf("detected changes between schemas (old: %d tables, new: %d tables)",
 		len(oldDB.Tables), len(newDB.Tables)))
 
@@ -261,26 +263,58 @@ func executeApply(applier *apply.Applier, statements []string, preflight *apply.
 }
 
 // Helper functions
+type parseResult struct {
+	db  *core.Database
+	err error
+}
+
 func parseSchemas(oldPath, newPath string) (*core.Database, *core.Database, error) {
-	oldData, err := os.ReadFile(oldPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read old schema: %w", err)
+	oldCh := make(chan parseResult, 1)
+	newCh := make(chan parseResult, 1)
+
+	go func() {
+		oldData, err := os.ReadFile(oldPath)
+		if err != nil {
+			oldCh <- parseResult{nil, fmt.Errorf("failed to read old schema: %w", err)}
+			return
+		}
+
+		p := parser.NewSQLParser()
+		oldDB, err := p.ParseSchema(string(oldData))
+		if err != nil {
+			oldCh <- parseResult{nil, fmt.Errorf("failed to parse old schema: %w", err)}
+			return
+		}
+		oldCh <- parseResult{oldDB, nil}
+	}()
+
+	go func() {
+		newData, err := os.ReadFile(newPath)
+		if err != nil {
+			newCh <- parseResult{nil, fmt.Errorf("failed to read new schema: %w", err)}
+			return
+		}
+
+		p := parser.NewSQLParser()
+		newDB, err := p.ParseSchema(string(newData))
+		if err != nil {
+			newCh <- parseResult{nil, fmt.Errorf("failed to parse new schema: %w", err)}
+			return
+		}
+		newCh <- parseResult{newDB, nil}
+	}()
+
+	oldResult := <-oldCh
+	newResult := <-newCh
+
+	if oldResult.err != nil {
+		return nil, nil, oldResult.err
 	}
-	newData, err := os.ReadFile(newPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read new schema: %w", err)
+	if newResult.err != nil {
+		return nil, nil, newResult.err
 	}
 
-	p := parser.NewSQLParser()
-	oldDB, err := p.ParseSchema(string(oldData))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse old schema: %w", err)
-	}
-	newDB, err := p.ParseSchema(string(newData))
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to parse new schema: %w", err)
-	}
-	return oldDB, newDB, nil
+	return oldResult.db, newResult.db, nil
 }
 
 func validateDialect(dialectName string) error {

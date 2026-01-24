@@ -1,10 +1,9 @@
 // Package mysql inside parser, provides implementation to parse MySQL schema dumps.
-// It uses TiDB's parser, so we support both MySQL syntax and TiDB specific options.
+// It uses TiDB's parser, so we support both MySQL syntax and TiDB-specific options.
 package mysql
 
 import (
 	"fmt"
-	"smf/internal/core"
 	"strconv"
 	"strings"
 
@@ -12,6 +11,8 @@ import (
 	"github.com/pingcap/tidb/pkg/parser/ast"
 	"github.com/pingcap/tidb/pkg/parser/format"
 	_ "github.com/pingcap/tidb/pkg/parser/test_driver"
+
+	"smf/internal/core"
 )
 
 type Parser struct {
@@ -24,6 +25,7 @@ func NewParser() *Parser {
 
 func (p *Parser) Parse(sql string) (*core.Database, error) {
 	// TODO: add support to specify charset and collation
+	// NOTE: this can be parallelized, it can help if schema dumps are big.
 	stmtNodes, _, err := p.p.Parse(sql, "", "")
 	if err != nil {
 		return nil, fmt.Errorf("parse error: %w", err)

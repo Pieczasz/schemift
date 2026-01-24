@@ -2,11 +2,12 @@ package diff
 
 import (
 	"os"
-	"smf/internal/parser"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"smf/internal/parser"
 )
 
 func TestDiff(t *testing.T) {
@@ -35,7 +36,7 @@ func TestDiff(t *testing.T) {
 	newDB, err := p.ParseSchema(newSQL)
 	require.NoError(t, err)
 
-	d := Diff(oldDB, newDB)
+	d := Diff(oldDB, newDB, DefaultOptions())
 	require.NotNil(t, d)
 
 	s := d.String()
@@ -56,6 +57,7 @@ func TestDiff(t *testing.T) {
 	defer func(name string) {
 		err := os.Remove(name)
 		if err != nil {
+			t.Logf("Failed to remove temp file: %v", err)
 		}
 	}(f.Name())
 

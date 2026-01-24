@@ -53,7 +53,7 @@ func (a *StatementAnalyzer) AnalyzeStatements(statements []string, unsafeAllowed
 	}
 
 	for _, stmt := range statements {
-		analysis, _ := a.AnalyzeStatement(stmt)
+		analysis := a.AnalyzeStatement(stmt)
 		if analysis == nil {
 			continue
 		}
@@ -63,7 +63,7 @@ func (a *StatementAnalyzer) AnalyzeStatements(statements []string, unsafeAllowed
 				result.Warnings = append(result.Warnings, Warning{
 					Level:   WarnCaution,
 					Message: fmt.Sprintf("Potentially blocking DDL: %s", reason),
-					SQL:     truncateSQL(stmt),
+					SQL:     stmt,
 				})
 			}
 		}
@@ -76,7 +76,7 @@ func (a *StatementAnalyzer) AnalyzeStatements(statements []string, unsafeAllowed
 			result.Warnings = append(result.Warnings, Warning{
 				Level:   WarnDanger,
 				Message: msg,
-				SQL:     truncateSQL(stmt),
+				SQL:     stmt,
 			})
 		}
 
@@ -84,9 +84,9 @@ func (a *StatementAnalyzer) AnalyzeStatements(statements []string, unsafeAllowed
 			result.IsTransactional = false
 			reason := analysis.TxUnsafeReason
 			if reason != "" {
-				reason = fmt.Sprintf("%s: %s", reason, truncateSQL(stmt))
+				reason = fmt.Sprintf("%s: %s", reason, stmt)
 			} else {
-				reason = fmt.Sprintf("DDL statement causes implicit commit: %s", truncateSQL(stmt))
+				reason = fmt.Sprintf("DDL statement causes implicit commit: %s", stmt)
 			}
 			result.NonTxReasons = append(result.NonTxReasons, reason)
 		}
@@ -286,6 +286,54 @@ func (a *StatementAnalyzer) analyzeAlterTable(stmt *ast.AlterTableStmt, analysis
 			analysis.IsBlocking = true
 			analysis.BlockingReasons = append(analysis.BlockingReasons,
 				"RENAME TABLE acquires an exclusive lock but is typically fast")
+		case ast.AlterTableOption:
+		case ast.AlterTableRenameColumn:
+		case ast.AlterTableAlterColumn:
+		case ast.AlterTableLock:
+		case ast.AlterTableWriteable:
+		case ast.AlterTableAlgorithm:
+		case ast.AlterTableRenameIndex:
+		case ast.AlterTableForce:
+		case ast.AlterTableAddPartitions:
+		case ast.AlterTablePartitionAttributes:
+		case ast.AlterTablePartitionOptions:
+		case ast.AlterTableCoalescePartitions:
+		case ast.AlterTableDropPartition:
+		case ast.AlterTableTruncatePartition:
+		case ast.AlterTablePartition:
+		case ast.AlterTableEnableKeys:
+		case ast.AlterTableDisableKeys:
+		case ast.AlterTableRemovePartitioning:
+		case ast.AlterTableWithValidation:
+		case ast.AlterTableWithoutValidation:
+		case ast.AlterTableSecondaryLoad:
+		case ast.AlterTableSecondaryUnload:
+		case ast.AlterTableRebuildPartition:
+		case ast.AlterTableReorganizePartition:
+		case ast.AlterTableCheckPartitions:
+		case ast.AlterTableExchangePartition:
+		case ast.AlterTableOptimizePartition:
+		case ast.AlterTableRepairPartition:
+		case ast.AlterTableImportPartitionTablespace:
+		case ast.AlterTableDiscardPartitionTablespace:
+		case ast.AlterTableAlterCheck:
+		case ast.AlterTableDropCheck:
+		case ast.AlterTableImportTablespace:
+		case ast.AlterTableDiscardTablespace:
+		case ast.AlterTableIndexInvisible:
+		case ast.AlterTableOrderByColumns:
+		case ast.AlterTableSetTiFlashReplica:
+		case ast.AlterTableAddStatistics:
+		case ast.AlterTableDropStatistics:
+		case ast.AlterTableAttributes:
+		case ast.AlterTableCache:
+		case ast.AlterTableNoCache:
+		case ast.AlterTableStatsOptions:
+		case ast.AlterTableDropFirstPartition:
+		case ast.AlterTableAddLastPartition:
+		case ast.AlterTableReorganizeLastPartition:
+		case ast.AlterTableReorganizeFirstPartition:
+		case ast.AlterTableRemoveTTL:
 		}
 		// TODO: Add support for all possible cases
 	}

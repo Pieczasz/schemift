@@ -44,7 +44,7 @@ type ColumnChange struct {
 	Changes []*FieldChange
 }
 
-// ColumnRename represents the score of a column rename detection.
+// ColumnRename represents the score of column rename detection.
 type ColumnRename struct {
 	Old   *core.Column
 	New   *core.Column
@@ -83,6 +83,13 @@ type TableOptionChange struct {
 	New  string
 }
 
+// GetName methods implement the Named interface for type-safe sorting.
+func (td *TableDiff) GetName() string          { return td.Name }
+func (cc *ColumnChange) GetName() string       { return cc.Name }
+func (cc *ConstraintChange) GetName() string   { return cc.Name }
+func (ic *IndexChange) GetName() string        { return ic.Name }
+func (toc *TableOptionChange) GetName() string { return toc.Name }
+
 type Options struct {
 	DetectColumnRenames bool
 }
@@ -92,17 +99,12 @@ func DefaultOptions() Options {
 }
 
 // Diff compares two database dumps and returns a SchemaDiff object.
-func Diff(oldDB, newDB *core.Database) *SchemaDiff {
-	return DiffWithOptions(oldDB, newDB, DefaultOptions())
-}
-
-// DiffWithOptions compares two database dumps and returns a SchemaDiff object.
-// TODO: rename this function with something more descriptive.
-func DiffWithOptions(oldDB, newDB *core.Database, opts Options) *SchemaDiff {
+// TODO: optimize this code to run Diff comparison in parallel?
+func Diff(oldDB, newDB *core.Database, opts Options) *SchemaDiff {
 	d := &SchemaDiff{}
 
-	oldTables, oldCollisions := mapByLowerNameWithCollisions(oldDB.Tables, func(t *core.Table) string { return t.Name })
-	newTables, newCollisions := mapByLowerNameWithCollisions(newDB.Tables, func(t *core.Table) string { return t.Name })
+	oldTables, oldCollisions := mapTablesByName(oldDB.Tables)
+	newTables, newCollisions := mapTablesByName(newDB.Tables)
 	for _, c := range oldCollisions {
 		d.Warnings = append(d.Warnings, "old schema: "+c)
 	}
@@ -129,9 +131,9 @@ func DiffWithOptions(oldDB, newDB *core.Database, opts Options) *SchemaDiff {
 		}
 	}
 
-	sortByNameCI(d.AddedTables, func(t *core.Table) string { return t.Name })
-	sortByNameCI(d.RemovedTables, func(t *core.Table) string { return t.Name })
-	sortByNameCI(d.ModifiedTables, func(td *TableDiff) string { return td.Name })
+	sortNamed(d.AddedTables)
+	sortNamed(d.RemovedTables)
+	sortNamed(d.ModifiedTables)
 
 	return d
 }

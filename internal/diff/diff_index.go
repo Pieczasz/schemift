@@ -1,14 +1,15 @@
 package diff
 
 import (
-	"smf/internal/core"
 	"strconv"
 	"strings"
+
+	"smf/internal/core"
 )
 
 func compareIndexes(oldItems, newItems []*core.Index, td *TableDiff) {
-	oldMap := mapByKey(oldItems, indexKey)
-	newMap := mapByKey(newItems, indexKey)
+	oldMap := mapIndexesByKey(oldItems, indexKey)
+	newMap := mapIndexesByKey(newItems, indexKey)
 
 	for name, newItem := range newMap {
 		oldItem, exists := oldMap[name]

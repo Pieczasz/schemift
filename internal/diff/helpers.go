@@ -3,7 +3,6 @@ package diff
 import (
 	"fmt"
 	"sort"
-	"strconv"
 	"strings"
 
 	"smf/internal/core"
@@ -110,47 +109,84 @@ func (c *fieldChangeCollector) Add(field, oldV, newV string) {
 	c.Changes = append(c.Changes, &FieldChange{Field: field, Old: oldV, New: newV})
 }
 
-func sortByNameCI[T any](items []T, name func(T) string) {
+// Named is implemented by types that have a name identifier.
+// This interface enables type-safe sorting and mapping operations.
+type Named interface {
+	GetName() string
+}
+
+// sortNamed sorts a slice of Named items by name (case-insensitive).
+func sortNamed[T Named](items []T) {
 	sort.Slice(items, func(i, j int) bool {
-		return strings.ToLower(name(items[i])) < strings.ToLower(name(items[j]))
+		return strings.ToLower(items[i].GetName()) < strings.ToLower(items[j].GetName())
 	})
 }
 
-func mapByLowerName[T any](items []T, name func(T) string) map[string]T {
-	m := make(map[string]T, len(items))
+// sortByFunc sorts items using a custom name extractor function.
+// Use this only when the type doesn't implement Named (e.g., has special name logic).
+// NOTE: delete this function if it will be later used only in diff_table
+func sortByFunc[T any](items []T, getName func(T) string) {
+	sort.Slice(items, func(i, j int) bool {
+		return strings.ToLower(getName(items[i])) < strings.ToLower(getName(items[j]))
+	})
+}
+
+// mapTablesByName creates a lookup map of tables keyed by lowercase name.
+// Returns the map and any case-insensitive name collisions found.
+func mapTablesByName(tables []*core.Table) (map[string]*core.Table, []string) {
+	m := make(map[string]*core.Table, len(tables))
+	original := make(map[string]string, len(tables))
+	var collisions []string
+
+	for _, t := range tables {
+		key := strings.ToLower(t.Name)
+		if prev, ok := original[key]; ok {
+			if prev != t.Name {
+				collisions = append(collisions, fmt.Sprintf("case-insensitive name collision: %q vs %q", prev, t.Name))
+			}
+			continue
+		}
+		original[key] = t.Name
+		m[key] = t
+	}
+	return m, collisions
+}
+
+// mapColumnsByName creates a lookup map of columns keyed by lowercase name.
+// Returns the map and any case-insensitive name collisions found.
+func mapColumnsByName(columns []*core.Column) (map[string]*core.Column, []string) {
+	m := make(map[string]*core.Column, len(columns))
+	original := make(map[string]string, len(columns))
+	var collisions []string
+
+	for _, c := range columns {
+		key := strings.ToLower(c.Name)
+		if prev, ok := original[key]; ok {
+			if prev != c.Name {
+				collisions = append(collisions, fmt.Sprintf("case-insensitive name collision: %q vs %q", prev, c.Name))
+			}
+			continue
+		}
+		original[key] = c.Name
+		m[key] = c
+	}
+	return m, collisions
+}
+
+// mapConstraintsByKey creates a lookup map of constraints keyed by a custom key function.
+func mapConstraintsByKey(items []*core.Constraint, keyFn func(*core.Constraint) string) map[string]*core.Constraint {
+	m := make(map[string]*core.Constraint, len(items))
 	for _, item := range items {
-		lowerKey := strings.ToLower(name(item))
-		m[lowerKey] = item
+		m[keyFn(item)] = item
 	}
 	return m
 }
 
-func mapByLowerNameWithCollisions[T any](items []T, name func(T) string) (map[string]T, []string) {
-	m := make(map[string]T, len(items))
-	original := make(map[string]string, len(items))
-	var collisions []string
-
+// mapIndexesByKey creates a lookup map of indexes keyed by a custom key function.
+func mapIndexesByKey(items []*core.Index, keyFn func(*core.Index) string) map[string]*core.Index {
+	m := make(map[string]*core.Index, len(items))
 	for _, item := range items {
-		n := name(item)
-		key := strings.ToLower(n)
-		if prev, ok := original[key]; ok {
-			if prev != n {
-				collisions = append(collisions, fmt.Sprintf("case-insensitive name collision: %q vs %q", prev, n))
-			}
-			// TODO: Consider whether it would be better to return an error or handle this case differently.
-			continue
-		}
-		original[key] = n
-		m[key] = item
-	}
-
-	return m, collisions
-}
-
-func mapByKey[T any](items []T, key func(T) string) map[string]T {
-	m := make(map[string]T, len(items))
-	for _, item := range items {
-		m[key(item)] = item
+		m[keyFn(item)] = item
 	}
 	return m
 }
@@ -165,10 +201,6 @@ func equalStringSliceCI(a, b []string) bool {
 		}
 	}
 	return true
-}
-
-func u64(v uint64) string {
-	return strconv.FormatUint(v, 10)
 }
 
 func ptrStr(p *string) string {

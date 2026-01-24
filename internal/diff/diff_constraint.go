@@ -1,13 +1,14 @@
 package diff
 
 import (
-	"smf/internal/core"
 	"strings"
+
+	"smf/internal/core"
 )
 
 func compareConstraints(oldItems, newItems []*core.Constraint, td *TableDiff) {
-	oldMap := mapByKey(oldItems, constraintKey)
-	newMap := mapByKey(newItems, constraintKey)
+	oldMap := mapConstraintsByKey(oldItems, constraintKey)
+	newMap := mapConstraintsByKey(newItems, constraintKey)
 
 	for name, newItem := range newMap {
 		oldItem, exists := oldMap[name]
@@ -55,8 +56,8 @@ func markConstraintsForRebuild(oldItems, newItems []*core.Constraint, td *TableD
 		return
 	}
 
-	oldMap := mapByKey(oldItems, constraintKey)
-	newMap := mapByKey(newItems, constraintKey)
+	oldMap := mapConstraintsByKey(oldItems, constraintKey)
+	newMap := mapConstraintsByKey(newItems, constraintKey)
 
 	already := make(map[string]struct{}, len(td.ModifiedConstraints))
 	for _, mc := range td.ModifiedConstraints {

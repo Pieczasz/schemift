@@ -1,13 +1,14 @@
 package mysql
 
 import (
-	"smf/internal/core"
-	"smf/internal/dialect"
-	"smf/internal/diff"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"smf/internal/core"
+	"smf/internal/dialect"
+	"smf/internal/diff"
 )
 
 func TestMySQLSafeModeUsesChangeColumnForRename(t *testing.T) {
@@ -21,7 +22,7 @@ func TestMySQLSafeModeUsesChangeColumnForRename(t *testing.T) {
 		Columns: []*core.Column{{Name: "password_digest", TypeRaw: "VARBINARY(72)", Type: core.NormalizeDataType("VARBINARY(72)"), Nullable: false}},
 	}}}
 
-	d := diff.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
 	gen := NewMySQLDialect().Generator()

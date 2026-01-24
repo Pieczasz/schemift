@@ -4,12 +4,15 @@
 package apply
 
 import (
+	"bufio"
 	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 	"strings"
+	"time"
 
 	"github.com/pingcap/tidb/pkg/parser/format"
 )
@@ -46,6 +49,8 @@ type Options struct {
 	AllowNonTransactional bool
 	Unsafe                bool
 	Out                   io.Writer
+	In                    io.Reader
+	SkipConfirmation      bool
 }
 
 type jsonMigration struct {
@@ -63,6 +68,7 @@ type Applier struct {
 	options    Options
 	analyzer   *StatementAnalyzer
 	out        io.Writer
+	in         io.Reader
 }
 
 // NewApplier returns a pointer to Applier for user use, with provided options.
@@ -71,10 +77,15 @@ func NewApplier(options Options) *Applier {
 	if out == nil {
 		out = io.Discard
 	}
+	in := options.In
+	if in == nil {
+		in = os.Stdin
+	}
 	return &Applier{
 		options:  options,
 		analyzer: NewStatementAnalyzer(),
 		out:      out,
+		in:       in,
 	}
 }
 
@@ -91,8 +102,13 @@ func (a *Applier) println(args ...any) {
 // depending on a transactional option, run the appropriate migration.
 // If something went wrong, returns an error, otherwise nil.
 func (a *Applier) Apply(ctx context.Context, statements []string, preflight *PreflightResult) error {
+	a.displayPreflightChecks(preflight)
+	a.displayStatements(statements)
+
 	if a.options.DryRun {
-		return a.dryRun(statements, preflight)
+		a.println("\n=== DRY RUN MODE ===")
+		a.println("Run without --dry-run to apply.")
+		return a.validatePreflight(preflight)
 	}
 
 	if a.options.Transaction && !preflight.IsTransactional {
@@ -100,6 +116,21 @@ func (a *Applier) Apply(ctx context.Context, statements []string, preflight *Pre
 			return fmt.Errorf("migration contains non-transactional DDL statements; use --allow-non-transactional to proceed")
 		}
 	}
+
+	// Validate preflight before asking for confirmation
+	if err := a.validatePreflight(preflight); err != nil {
+		return err
+	}
+
+	// Ask for confirmation
+	if !a.options.SkipConfirmation {
+		if !a.askConfirmation() {
+			a.println("\nMigration cancelled.")
+			return nil
+		}
+	}
+
+	a.println("\nExecuting...")
 
 	if a.options.Transaction && preflight.IsTransactional {
 		return a.applyWithTransaction(ctx, statements)
@@ -229,44 +260,56 @@ func (a *Applier) splitStatementsWithParser(content string) []string {
 	return statements
 }
 
-func truncateSQL(stmt string) string {
+func truncateSQL(stmt string, maxLen int) string {
 	stmt = strings.TrimSpace(stmt)
-	if len(stmt) > 80 {
-		return stmt[:77] + "..."
+	if maxLen <= 0 {
+		maxLen = 60
+	}
+	if len(stmt) > maxLen {
+		return stmt[:maxLen-3] + "..."
 	}
 	return stmt
 }
 
-func (a *Applier) dryRun(statements []string, preflight *PreflightResult) error {
-	a.println("=== DRY RUN MODE ===")
+func (a *Applier) displayPreflightChecks(preflight *PreflightResult) {
+	a.println("Preflight checks:")
 
-	a.println("--- Preflight Checks ---")
-	if len(preflight.Warnings) == 0 {
-		a.println("No warnings")
-	} else {
-		for _, w := range preflight.Warnings {
-			a.printf("[%s] %s\n", w.Level, w.Message)
-			if w.SQL != "" {
-				a.printf("    SQL: %s\n", w.SQL)
-			}
+	if a.db != nil {
+		a.println("  OK: Database is accessible")
+	}
+
+	if len(a.statements) > 0 || len(preflight.Errors) == 0 {
+		a.println("  OK: All migrations are valid SQL")
+	}
+
+	for _, err := range preflight.Errors {
+		a.printf("  ERROR: %s\n", err)
+	}
+
+	for _, w := range preflight.Warnings {
+		if w.Level == WarnDanger {
+			a.printf("  DANGER: %s\n", w.Message)
+		} else {
+			a.printf("  WARNING: %s\n", w.Message)
 		}
 	}
 
-	a.println("--- Transaction Safety ---")
-	if preflight.IsTransactional {
-		a.println("All statements are transaction-safe")
-	} else {
-		a.println("Migration is NOT transaction-safe")
+	if !preflight.IsTransactional {
+		a.println("  WARNING: Migration is NOT transaction-safe")
 		for _, reason := range preflight.NonTxReasons {
-			a.printf("  - %s\n", reason)
+			a.printf("    - %s\n", reason)
 		}
 	}
+}
 
-	a.println("--- Statements to Execute ---")
+func (a *Applier) displayStatements(statements []string) {
+	a.println("\nStatements to execute:")
 	for i, stmt := range statements {
-		a.printf("%d. %s\n\n", i+1, stmt)
+		a.printf("  %d. %s\n", i+1, stmt)
 	}
+}
 
+func (a *Applier) validatePreflight(preflight *PreflightResult) error {
 	hasDestructive := false
 	for _, w := range preflight.Warnings {
 		if w.Level == WarnDanger && !a.options.Unsafe {
@@ -283,9 +326,18 @@ func (a *Applier) dryRun(statements []string, preflight *PreflightResult) error 
 		return fmt.Errorf("preflight checks failed: non-transactional DDL detected without --allow-non-transactional flag")
 	}
 
-	a.println("=== DRY RUN COMPLETE ===")
-	a.println("All preflight checks passed. Run without --dry-run to apply.")
 	return nil
+}
+
+func (a *Applier) askConfirmation() bool {
+	a.printf("\nExecute? [y/n]: ")
+	reader := bufio.NewReader(a.in)
+	response, err := reader.ReadString('\n')
+	if err != nil {
+		return false
+	}
+	response = strings.TrimSpace(strings.ToLower(response))
+	return response == "y" || response == "yes"
 }
 
 func (a *Applier) applyWithTransaction(ctx context.Context, statements []string) error {
@@ -294,38 +346,44 @@ func (a *Applier) applyWithTransaction(ctx context.Context, statements []string)
 		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
 
+	total := len(statements)
 	for i, stmt := range statements {
-		a.printf("Executing statement %d/%d...\n", i+1, len(statements))
+		start := time.Now()
 		if _, err := tx.ExecContext(ctx, stmt); err != nil {
+			a.printf("  [%d/%d] FAILED: %s\n", i+1, total, truncateSQL(stmt, 50))
 			if rbErr := tx.Rollback(); rbErr != nil {
 				return fmt.Errorf("execute failed: %w; rollback also failed: %v", err, rbErr)
 			}
-			return fmt.Errorf("execute failed (rolled back): %w\n  Statement: %s", err, truncateSQL(stmt))
+			return fmt.Errorf("execute failed (rolled back): %w\n  Statement: %s", err, truncateSQL(stmt, 80))
 		}
+		elapsed := time.Since(start)
+		a.printf("  [%d/%d] OK: %s (%.2fs)\n", i+1, total, truncateSQL(stmt, 50), elapsed.Seconds())
 	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
-	a.printf("Successfully applied %d statements\n", len(statements))
+	a.println("\nMigration complete!")
 	return nil
 }
 
 func (a *Applier) applyWithoutTransaction(ctx context.Context, statements []string) error {
-	a.println("Applying migration without transaction wrapper (DDL statements cause implicit commits)")
-
+	total := len(statements)
 	successCount := 0
 	for i, stmt := range statements {
-		a.printf("Executing statement %d/%d...\n", i+1, len(statements))
+		start := time.Now()
 		if _, err := a.db.ExecContext(ctx, stmt); err != nil {
+			a.printf("  [%d/%d] FAILED: %s\n", i+1, total, truncateSQL(stmt, 50))
 			return fmt.Errorf("statement %d failed: %w\n  Statement: %s\n  %d statements were already applied and cannot be automatically rolled back",
-				i+1, err, truncateSQL(stmt), successCount)
+				i+1, err, truncateSQL(stmt, 80), successCount)
 		}
+		elapsed := time.Since(start)
+		a.printf("  [%d/%d] OK: %s (%.2fs)\n", i+1, total, truncateSQL(stmt, 50), elapsed.Seconds())
 		successCount++
 	}
 
-	a.printf("Successfully applied %d statements\n", len(statements))
+	a.println("\nMigration complete!")
 	return nil
 }
 

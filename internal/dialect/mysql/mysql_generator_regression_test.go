@@ -1,13 +1,14 @@
 package mysql
 
 import (
-	"smf/internal/core"
-	"smf/internal/diff"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"smf/internal/core"
+	"smf/internal/diff"
 )
 
 func TestMySQLGeneratorDoesNotEmitCharsetCollateForJSONAndBinary(t *testing.T) {
@@ -27,7 +28,7 @@ func TestMySQLGeneratorDoesNotEmitCharsetCollateForJSONAndBinary(t *testing.T) {
 		Constraints: []*core.Constraint{{Name: "PRIMARY", Type: core.ConstraintPrimaryKey, Columns: []string{"id"}}},
 	}}}
 
-	d := diff.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
 	mig := NewMySQLDialect().Generator().GenerateMigration(d)
@@ -57,7 +58,7 @@ func TestMySQLGeneratorDoesNotEmitBinaryAttributeForVarbinary(t *testing.T) {
 		Constraints: []*core.Constraint{{Name: "PRIMARY", Type: core.ConstraintPrimaryKey, Columns: []string{"id"}}},
 	}}}
 
-	d := diff.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
 	mig := NewMySQLDialect().Generator().GenerateMigration(d)
@@ -106,7 +107,7 @@ func TestMySQLGeneratorDefersFKAddsUntilEnd(t *testing.T) {
 		},
 	}}
 
-	d := diff.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
 	mig := NewMySQLDialect().Generator().GenerateMigration(d)
@@ -174,7 +175,7 @@ func TestMySQLGeneratorRebuildsUnchangedFKWhenColumnModifiedWithoutConstraintMod
 		},
 	}}
 
-	d := diff.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
 	mig := NewMySQLDialect().Generator().GenerateMigration(d)
@@ -211,7 +212,7 @@ func TestMigrationGenerationSafetyNotesAndRollback(t *testing.T) {
 		Options: core.TableOptions{Engine: "MyISAM", Charset: "latin1", Collate: "latin1_swedish_ci"},
 	}}}
 
-	d := diff.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
 	mig := NewMySQLDialect().Generator().GenerateMigration(d)
@@ -234,7 +235,7 @@ func TestBreakingChangesVarcharLengthChangeDoesNotAlsoReportTypeChange(t *testin
 		Columns: []*core.Column{{Name: "s", TypeRaw: "VARCHAR(40)", Type: core.NormalizeDataType("VARCHAR(40)"), Nullable: false}},
 	}}}
 
-	d := diff.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
 	changes := diff.NewBreakingChangeAnalyzer().Analyze(d)

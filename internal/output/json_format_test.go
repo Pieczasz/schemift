@@ -63,7 +63,7 @@ func formatDiffJSON(t *testing.T) string {
 	newDB, err := p.ParseSchema(jsonNewSchema)
 	require.NoError(t, err)
 
-	d := diff.Diff(oldDB, newDB)
+	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	formatter, err := NewFormatter("json")
 	require.NoError(t, err)
 	out, err := formatter.FormatDiff(d)
@@ -79,7 +79,7 @@ func formatMigrationJSON(t *testing.T) string {
 	newDB, err := p.ParseSchema(jsonNewSchema)
 	require.NoError(t, err)
 
-	schemaDiff := diff.Diff(oldDB, newDB)
+	schemaDiff := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	d := mysql.NewMySQLDialect()
 	opts := dialect.DefaultMigrationOptions(dialect.MySQL)
 	migration := d.Generator().GenerateMigrationWithOptions(schemaDiff, opts)
