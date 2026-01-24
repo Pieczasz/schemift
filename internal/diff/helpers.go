@@ -124,6 +124,7 @@ func sortNamed[T Named](items []T) {
 
 // sortByFunc sorts items using a custom name extractor function.
 // Use this only when the type doesn't implement Named (e.g., has special name logic).
+// NOTE: delete this function if it will be later used only in diff_table
 func sortByFunc[T any](items []T, getName func(T) string) {
 	sort.Slice(items, func(i, j int) bool {
 		return strings.ToLower(getName(items[i])) < strings.ToLower(getName(items[j]))

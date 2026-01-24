@@ -1,3 +1,5 @@
+// Package migration provides a way to define and execute database migrations.
+// It is designed to be used with the smf/internal/core package.
 package migration
 
 import (
@@ -7,10 +9,14 @@ import (
 	"smf/internal/core"
 )
 
+// Migration struct contains all operations that needs to be performed,
+// to apply a schema migration.
 type Migration struct {
 	Operations []core.Operation
 }
 
+// Plan returns the list of operations that needs to be performed,
+// to apply a schema migration.
 func (m *Migration) Plan() []core.Operation {
 	if m == nil {
 		return nil
@@ -18,215 +24,34 @@ func (m *Migration) Plan() []core.Operation {
 	return m.Operations
 }
 
+// SQLStatements returns the list of SQL statements that needs to be executed,
+// to apply a schema migration.
 func (m *Migration) SQLStatements() []string {
 	return m.sqlStatements()
 }
 
+// RollbackStatements returns the list of SQL statements that needs to be executed,
+// to rollback a schema migration.
 func (m *Migration) RollbackStatements() []string {
 	return m.rollbackStatements()
 }
 
+// BreakingNotes returns the list of notes that needs to be addressed,
+// to apply a schema migration. The notes refer to breaking changes in the schema.
 func (m *Migration) BreakingNotes() []string {
 	return m.breakingNotes()
 }
 
+// UnresolvedNotes returns the list of notes that needs to be addressed,
+// to apply a schema migration. The notes refer to unresolved issues in the schema.
 func (m *Migration) UnresolvedNotes() []string {
 	return m.unresolvedNotes()
 }
 
+// InfoNotes returns the list of notes that needs to be addressed,
+// to apply a schema migration. The notes are information for the user.
 func (m *Migration) InfoNotes() []string {
 	return m.infoNotes()
-}
-
-func (m *Migration) sqlStatements() []string {
-	if m == nil {
-		return nil
-	}
-	var out []string
-	for _, op := range m.Operations {
-		if op.Kind != core.OperationSQL {
-			continue
-		}
-		stmt := strings.TrimSpace(op.SQL)
-		if stmt == "" {
-			continue
-		}
-		out = append(out, stmt)
-	}
-	return out
-}
-
-func (m *Migration) rollbackStatements() []string {
-	if m == nil {
-		return nil
-	}
-	var out []string
-	for _, op := range m.Operations {
-		if op.Kind != core.OperationSQL {
-			continue
-		}
-		stmt := strings.TrimSpace(op.RollbackSQL)
-		if stmt == "" {
-			continue
-		}
-		out = append(out, stmt)
-	}
-	return out
-}
-
-func (m *Migration) breakingNotes() []string {
-	if m == nil {
-		return nil
-	}
-	var out []string
-	for _, op := range m.Operations {
-		if op.Kind != core.OperationBreaking {
-			continue
-		}
-		msg := strings.TrimSpace(op.SQL)
-		if msg == "" {
-			continue
-		}
-		out = append(out, msg)
-	}
-	return out
-}
-
-func (m *Migration) unresolvedNotes() []string {
-	if m == nil {
-		return nil
-	}
-	var out []string
-	for _, op := range m.Operations {
-		if op.Kind != core.OperationUnresolved {
-			continue
-		}
-		msg := strings.TrimSpace(op.UnresolvedReason)
-		if msg == "" {
-			continue
-		}
-		out = append(out, msg)
-	}
-	return out
-}
-
-func (m *Migration) infoNotes() []string {
-	if m == nil {
-		return nil
-	}
-	var out []string
-	for _, op := range m.Operations {
-		if op.Kind != core.OperationNote {
-			continue
-		}
-		msg := strings.TrimSpace(op.SQL)
-		if msg == "" {
-			continue
-		}
-		out = append(out, msg)
-	}
-	return out
-}
-
-func (m *Migration) String() string {
-	var sb strings.Builder
-	sb.WriteString("-- smf migration\n")
-	sb.WriteString("-- Review before running in production.\n")
-
-	writeCommentSection := func(title string, items []string) {
-		if len(items) == 0 {
-			return
-		}
-		sb.WriteString("\n-- " + title + "\n")
-		for _, item := range items {
-			for _, line := range splitCommentLines(item) {
-				if line == "" {
-					continue
-				}
-				sb.WriteString("-- - " + line + "\n")
-			}
-		}
-	}
-
-	writeCommentSection("BREAKING CHANGES (manual review required)", m.breakingNotes())
-	writeCommentSection("UNRESOLVED (cannot auto-generate safely)", m.unresolvedNotes())
-	writeCommentSection("NOTES", m.infoNotes())
-
-	sql := m.sqlStatements()
-	rb := m.rollbackStatements()
-
-	if len(sql) == 0 {
-		sb.WriteString("\n-- No SQL statements generated.\n")
-		if len(rb) > 0 {
-			sb.WriteString("\n-- ROLLBACK SQL (run separately)\n")
-			writeRollbackAsComments(&sb, rb)
-		}
-		return sb.String()
-	}
-
-	sb.WriteString("\n-- SQL\n")
-	for _, stmt := range sql {
-		if stmt == "" {
-			continue
-		}
-		sb.WriteString(stmt)
-		if !strings.HasSuffix(stmt, ";") {
-			sb.WriteString(";")
-		}
-		sb.WriteString("\n")
-	}
-
-	if len(rb) > 0 {
-		sb.WriteString("\n-- ROLLBACK SQL (run separately)\n")
-		writeRollbackAsComments(&sb, rb)
-	}
-
-	return sb.String()
-}
-
-func (m *Migration) RollbackString() string {
-	var sb strings.Builder
-	sb.WriteString("-- smf rollback\n")
-	sb.WriteString("-- Run to revert the migration (review carefully).\n")
-
-	rb := m.rollbackStatements()
-	if len(rb) == 0 {
-		sb.WriteString("\n-- No rollback statements generated.\n")
-		return sb.String()
-	}
-
-	sb.WriteString("\n-- SQL\n")
-	for i := len(rb) - 1; i >= 0; i-- {
-		stmt := strings.TrimSpace(rb[i])
-		if stmt == "" {
-			continue
-		}
-		sb.WriteString(stmt)
-		if !strings.HasSuffix(stmt, ";") {
-			sb.WriteString(";")
-		}
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
-}
-
-func splitCommentLines(s string) []string {
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	s = strings.ReplaceAll(s, "\r", "\n")
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
-		lines[i] = strings.TrimSpace(line)
-	}
-	return lines
-}
-
-func (m *Migration) SaveToFile(path string) error {
-	return os.WriteFile(path, []byte(m.String()), 0644)
-}
-
-func (m *Migration) SaveRollbackToFile(path string) error {
-	return os.WriteFile(path, []byte(m.RollbackString()), 0644)
 }
 
 func (m *Migration) AddStatement(stmt string) {
@@ -350,6 +175,201 @@ func (m *Migration) Dedupe() {
 		}
 	}
 	m.Operations = out
+}
+
+func (m *Migration) SaveToFile(path string) error {
+	return os.WriteFile(path, []byte(m.String()), 0644)
+}
+
+func (m *Migration) SaveRollbackToFile(path string) error {
+	return os.WriteFile(path, []byte(m.RollbackString()), 0644)
+}
+
+func (m *Migration) String() string {
+	var sb strings.Builder
+	sb.WriteString("-- smf migration\n")
+	sb.WriteString("-- Review before running in production.\n")
+
+	writeCommentSection := func(title string, items []string) {
+		if len(items) == 0 {
+			return
+		}
+		sb.WriteString("\n-- " + title + "\n")
+		for _, item := range items {
+			for _, line := range splitCommentLines(item) {
+				if line == "" {
+					continue
+				}
+				sb.WriteString("-- - " + line + "\n")
+			}
+		}
+	}
+
+	writeCommentSection("BREAKING CHANGES (manual review required)", m.breakingNotes())
+	writeCommentSection("UNRESOLVED (cannot auto-generate safely)", m.unresolvedNotes())
+	writeCommentSection("NOTES", m.infoNotes())
+
+	sql := m.sqlStatements()
+	rb := m.rollbackStatements()
+
+	if len(sql) == 0 {
+		sb.WriteString("\n-- No SQL statements generated.\n")
+		if len(rb) > 0 {
+			sb.WriteString("\n-- ROLLBACK SQL (run separately if needed)\n")
+			writeRollbackAsComments(&sb, rb)
+		}
+		return sb.String()
+	}
+
+	sb.WriteString("\n-- SQL\n")
+	for _, stmt := range sql {
+		if stmt == "" {
+			continue
+		}
+		sb.WriteString(stmt)
+		if !strings.HasSuffix(stmt, ";") {
+			sb.WriteString(";")
+		}
+		sb.WriteString("\n")
+	}
+
+	if len(rb) > 0 {
+		sb.WriteString("\n-- ROLLBACK SQL (run separately)\n")
+		writeRollbackAsComments(&sb, rb)
+	}
+
+	return sb.String()
+}
+
+func (m *Migration) RollbackString() string {
+	var sb strings.Builder
+	sb.WriteString("-- smf rollback\n")
+	sb.WriteString("-- Run to revert the migration (review carefully).\n")
+
+	rb := m.rollbackStatements()
+	if len(rb) == 0 {
+		sb.WriteString("\n-- No rollback statements generated.\n")
+		return sb.String()
+	}
+
+	sb.WriteString("\n-- SQL\n")
+	for i := len(rb) - 1; i >= 0; i-- {
+		stmt := strings.TrimSpace(rb[i])
+		if stmt == "" {
+			continue
+		}
+		sb.WriteString(stmt)
+		if !strings.HasSuffix(stmt, ";") {
+			sb.WriteString(";")
+		}
+		sb.WriteString("\n")
+	}
+
+	return sb.String()
+}
+
+func (m *Migration) sqlStatements() []string {
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, op := range m.Operations {
+		if op.Kind != core.OperationSQL {
+			continue
+		}
+		stmt := strings.TrimSpace(op.SQL)
+		if stmt == "" {
+			continue
+		}
+		out = append(out, stmt)
+	}
+	return out
+}
+
+func (m *Migration) rollbackStatements() []string {
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, op := range m.Operations {
+		if op.Kind != core.OperationSQL {
+			continue
+		}
+		stmt := strings.TrimSpace(op.RollbackSQL)
+		if stmt == "" {
+			continue
+		}
+		out = append(out, stmt)
+	}
+	return out
+}
+
+// TODO: extract these to single method?
+func (m *Migration) breakingNotes() []string {
+	if m == nil {
+		return nil
+	}
+
+	var out []string
+	for _, op := range m.Operations {
+		if op.Kind != core.OperationBreaking {
+			continue
+		}
+
+		msg := strings.TrimSpace(op.SQL)
+		if msg == "" {
+			continue
+		}
+		out = append(out, msg)
+	}
+
+	return out
+}
+
+func (m *Migration) unresolvedNotes() []string {
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, op := range m.Operations {
+		if op.Kind != core.OperationUnresolved {
+			continue
+		}
+		msg := strings.TrimSpace(op.UnresolvedReason)
+		if msg == "" {
+			continue
+		}
+		out = append(out, msg)
+	}
+	return out
+}
+
+func (m *Migration) infoNotes() []string {
+	if m == nil {
+		return nil
+	}
+	var out []string
+	for _, op := range m.Operations {
+		if op.Kind != core.OperationNote {
+			continue
+		}
+		msg := strings.TrimSpace(op.SQL)
+		if msg == "" {
+			continue
+		}
+		out = append(out, msg)
+	}
+	return out
+}
+
+func splitCommentLines(s string) []string {
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = strings.ReplaceAll(s, "\r", "\n")
+	lines := strings.Split(s, "\n")
+	for i, line := range lines {
+		lines[i] = strings.TrimSpace(line)
+	}
+	return lines
 }
 
 func writeRollbackAsComments(sb *strings.Builder, rollback []string) {
