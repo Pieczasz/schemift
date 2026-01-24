@@ -2,8 +2,6 @@
 // package for cli tool implementation.
 package main
 
-// TODO: Create github CI/CD pipeline to build project and run tests
-
 import (
 	"context"
 	"fmt"

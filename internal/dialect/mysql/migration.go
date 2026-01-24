@@ -33,6 +33,7 @@ func migrationRecommendations(bc diff.BreakingChange) []string {
 	return out
 }
 
+// TODO: Refactor this long function into more readable parts.
 func (g *Generator) generateAlterTableWithOptions(td *diff.TableDiff, opts dialect.MigrationOptions) ([]string, []string, []string, []string) {
 	table := g.QuoteIdentifier(td.Name)
 	var stmts []string
