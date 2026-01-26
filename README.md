@@ -87,7 +87,7 @@ The generator annotates output with warnings/breaking changes for schema operati
 
 - SMF operates on SQL schema dumps (DDL). It does not inspect live DB data.
 - SMF does not apply migrations to a database yet (no `apply`, no `_smf_migrations` table).
-- Output is currently optimized for humans; stable JSON output is planned.
+- Output is currently optimized for SQL; stable JSON output is planned.
 
 ## Contributing
 

@@ -18,7 +18,7 @@
 **Problem:** Schema change plans need to be stable for CI/CD and reviewable in PRs.
 
 **Current Issues:**
-- Human-readable output changes formatting between runs
+- SQL output changes formatting between runs
 - JSON is difficult to review in pull requests
 - No risk assessment or change summary
 
@@ -50,8 +50,8 @@ Safe Changes (6):
 #### 2. Format Flags
 
 ```bash
-# Human-readable (default)
-$ smf plan old.sql new.sql --format=human
+# SQK-readable (default)
+$ smf plan old.sql new.sql --format=sql
 
 # JSON (stable for CI/CD)
 $ smf plan old.sql new.sql --format=json

@@ -9,6 +9,7 @@ import (
 	"smf/internal/core"
 	"smf/internal/dialect"
 	"smf/internal/diff"
+	"smf/internal/output"
 )
 
 func TestMySQLSafeModeUsesChangeColumnForRename(t *testing.T) {
@@ -32,7 +33,7 @@ func TestMySQLSafeModeUsesChangeColumnForRename(t *testing.T) {
 	mig := gen.GenerateMigrationWithOptions(d, opts)
 	require.NotNil(t, mig)
 
-	out := mig.String()
+	out := output.FormatMigrationSQL(mig)
 	assert.Contains(t, out, "CHANGE COLUMN")
 	assert.Contains(t, out, "password_hash")
 	assert.Contains(t, out, "password_digest")

@@ -3,7 +3,6 @@
 package migration
 
 import (
-	"os"
 	"strings"
 
 	"smf/internal/core"
@@ -177,97 +176,6 @@ func (m *Migration) Dedupe() {
 	m.Operations = out
 }
 
-func (m *Migration) SaveToFile(path string) error {
-	return os.WriteFile(path, []byte(m.String()), 0644)
-}
-
-func (m *Migration) SaveRollbackToFile(path string) error {
-	return os.WriteFile(path, []byte(m.RollbackString()), 0644)
-}
-
-func (m *Migration) String() string {
-	var sb strings.Builder
-	sb.WriteString("-- smf migration\n")
-	sb.WriteString("-- Review before running in production.\n")
-
-	writeCommentSection := func(title string, items []string) {
-		if len(items) == 0 {
-			return
-		}
-		sb.WriteString("\n-- " + title + "\n")
-		for _, item := range items {
-			for _, line := range splitCommentLines(item) {
-				if line == "" {
-					continue
-				}
-				sb.WriteString("-- - " + line + "\n")
-			}
-		}
-	}
-
-	writeCommentSection("BREAKING CHANGES (manual review required)", m.breakingNotes())
-	writeCommentSection("UNRESOLVED (cannot auto-generate safely)", m.unresolvedNotes())
-	writeCommentSection("NOTES", m.infoNotes())
-
-	sql := m.sqlStatements()
-	rb := m.rollbackStatements()
-
-	if len(sql) == 0 {
-		sb.WriteString("\n-- No SQL statements generated.\n")
-		if len(rb) > 0 {
-			sb.WriteString("\n-- ROLLBACK SQL (run separately if needed)\n")
-			writeRollbackAsComments(&sb, rb)
-		}
-		return sb.String()
-	}
-
-	sb.WriteString("\n-- SQL\n")
-	for _, stmt := range sql {
-		if stmt == "" {
-			continue
-		}
-		sb.WriteString(stmt)
-		if !strings.HasSuffix(stmt, ";") {
-			sb.WriteString(";")
-		}
-		sb.WriteString("\n")
-	}
-
-	if len(rb) > 0 {
-		sb.WriteString("\n-- ROLLBACK SQL (run separately)\n")
-		writeRollbackAsComments(&sb, rb)
-	}
-
-	return sb.String()
-}
-
-func (m *Migration) RollbackString() string {
-	var sb strings.Builder
-	sb.WriteString("-- smf rollback\n")
-	sb.WriteString("-- Run to revert the migration (review carefully).\n")
-
-	rb := m.rollbackStatements()
-	if len(rb) == 0 {
-		sb.WriteString("\n-- No rollback statements generated.\n")
-		return sb.String()
-	}
-
-	sb.WriteString("\n-- SQL\n")
-	for i := len(rb) - 1; i >= 0; i-- {
-		stmt := strings.TrimSpace(rb[i])
-		if stmt == "" {
-			continue
-		}
-		sb.WriteString(stmt)
-		if !strings.HasSuffix(stmt, ";") {
-			sb.WriteString(";")
-		}
-		sb.WriteString("\n")
-	}
-
-	return sb.String()
-}
-
 func (m *Migration) sqlStatements() []string {
 	if m == nil {
 		return nil
@@ -360,30 +268,4 @@ func (m *Migration) infoNotes() []string {
 		out = append(out, msg)
 	}
 	return out
-}
-
-func splitCommentLines(s string) []string {
-	s = strings.ReplaceAll(s, "\r\n", "\n")
-	s = strings.ReplaceAll(s, "\r", "\n")
-	lines := strings.Split(s, "\n")
-	for i, line := range lines {
-		lines[i] = strings.TrimSpace(line)
-	}
-	return lines
-}
-
-func writeRollbackAsComments(sb *strings.Builder, rollback []string) {
-	for i := len(rollback) - 1; i >= 0; i-- {
-		for _, line := range splitCommentLines(rollback[i]) {
-			if line == "" {
-				continue
-			}
-			sb.WriteString("-- ")
-			sb.WriteString(line)
-			if !strings.HasSuffix(line, ";") {
-				sb.WriteString(";")
-			}
-			sb.WriteString("\n")
-		}
-	}
 }

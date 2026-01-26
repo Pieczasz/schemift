@@ -225,7 +225,6 @@ const (
 )
 
 // GetName methods allow these types to be used with generic Named interface.
-
 func (t *Table) GetName() string      { return t.Name }
 func (c *Column) GetName() string     { return c.Name }
 func (c *Constraint) GetName() string { return c.Name }
