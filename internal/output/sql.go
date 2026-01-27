@@ -11,12 +11,11 @@ import (
 type sqlFormatter struct{}
 
 // FormatDiff formats a schema diff in SQL format.
-// TODO: move diff formatting to this package, instead of using d.String()
 func (sqlFormatter) FormatDiff(d *diff.SchemaDiff) (string, error) {
 	if d == nil {
 		return "", nil
 	}
-	return d.String(), nil
+	return formatDiffText(d), nil
 }
 
 // FormatMigration formats a migration in SQL format.

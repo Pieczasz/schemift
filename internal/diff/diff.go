@@ -137,3 +137,8 @@ func Diff(oldDB, newDB *core.Database, opts Options) *SchemaDiff {
 
 	return d
 }
+
+// IsEmpty returns true if there are no differences in the schema diff.
+func (d *SchemaDiff) IsEmpty() bool {
+	return len(d.AddedTables) == 0 && len(d.RemovedTables) == 0 && len(d.ModifiedTables) == 0
+}
