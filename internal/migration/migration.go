@@ -17,9 +17,6 @@ type Migration struct {
 // Plan returns the list of operations that needs to be performed,
 // to apply a schema migration.
 func (m *Migration) Plan() []core.Operation {
-	if m == nil {
-		return nil
-	}
 	return m.Operations
 }
 
@@ -54,9 +51,6 @@ func (m *Migration) InfoNotes() []string {
 }
 
 func (m *Migration) AddStatement(stmt string) {
-	if m == nil {
-		return
-	}
 	if stmt = strings.TrimSpace(stmt); stmt == "" {
 		return
 	}
@@ -64,9 +58,6 @@ func (m *Migration) AddStatement(stmt string) {
 }
 
 func (m *Migration) AddRollbackStatement(stmt string) {
-	if m == nil {
-		return
-	}
 	if stmt = strings.TrimSpace(stmt); stmt == "" {
 		return
 	}
@@ -74,9 +65,6 @@ func (m *Migration) AddRollbackStatement(stmt string) {
 }
 
 func (m *Migration) AddStatementWithRollback(up, down string) {
-	if m == nil {
-		return
-	}
 	up = strings.TrimSpace(up)
 	down = strings.TrimSpace(down)
 	if up == "" && down == "" {
@@ -86,9 +74,6 @@ func (m *Migration) AddStatementWithRollback(up, down string) {
 }
 
 func (m *Migration) AddBreaking(msg string) {
-	if m == nil {
-		return
-	}
 	if msg = strings.TrimSpace(msg); msg == "" {
 		return
 	}
@@ -96,9 +81,6 @@ func (m *Migration) AddBreaking(msg string) {
 }
 
 func (m *Migration) AddNote(msg string) {
-	if m == nil {
-		return
-	}
 	if msg = strings.TrimSpace(msg); msg == "" {
 		return
 	}
@@ -106,9 +88,6 @@ func (m *Migration) AddNote(msg string) {
 }
 
 func (m *Migration) AddUnresolved(msg string) {
-	if m == nil {
-		return
-	}
 	if msg = strings.TrimSpace(msg); msg == "" {
 		return
 	}
@@ -116,9 +95,6 @@ func (m *Migration) AddUnresolved(msg string) {
 }
 
 func (m *Migration) Dedupe() {
-	if m == nil {
-		return
-	}
 	seenNote := make(map[string]struct{})
 	seenBreaking := make(map[string]struct{})
 	seenUnresolved := make(map[string]struct{})
@@ -177,9 +153,6 @@ func (m *Migration) Dedupe() {
 }
 
 func (m *Migration) sqlStatements() []string {
-	if m == nil {
-		return nil
-	}
 	var out []string
 	for _, op := range m.Operations {
 		if op.Kind != core.OperationSQL {
@@ -195,9 +168,6 @@ func (m *Migration) sqlStatements() []string {
 }
 
 func (m *Migration) rollbackStatements() []string {
-	if m == nil {
-		return nil
-	}
 	var out []string
 	for _, op := range m.Operations {
 		if op.Kind != core.OperationSQL {
@@ -214,10 +184,6 @@ func (m *Migration) rollbackStatements() []string {
 
 // TODO: extract these to single method?
 func (m *Migration) breakingNotes() []string {
-	if m == nil {
-		return nil
-	}
-
 	var out []string
 	for _, op := range m.Operations {
 		if op.Kind != core.OperationBreaking {
@@ -235,9 +201,6 @@ func (m *Migration) breakingNotes() []string {
 }
 
 func (m *Migration) unresolvedNotes() []string {
-	if m == nil {
-		return nil
-	}
 	var out []string
 	for _, op := range m.Operations {
 		if op.Kind != core.OperationUnresolved {
@@ -253,9 +216,6 @@ func (m *Migration) unresolvedNotes() []string {
 }
 
 func (m *Migration) infoNotes() []string {
-	if m == nil {
-		return nil
-	}
 	var out []string
 	for _, op := range m.Operations {
 		if op.Kind != core.OperationNote {

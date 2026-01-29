@@ -4,6 +4,7 @@ package mysql
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
@@ -39,7 +40,39 @@ func (p *Parser) Parse(sql string) (*core.Database, error) {
 		}
 	}
 
+	if err := validateDatabase(db); err != nil {
+		return nil, err
+	}
+
 	return db, nil
+}
+
+func validateDatabase(db *core.Database) error {
+	if db == nil {
+		return fmt.Errorf("invalid schema: database is nil")
+	}
+
+	for i, table := range db.Tables {
+		if table == nil {
+			return fmt.Errorf("invalid schema: table at index %d is nil", i)
+		}
+		if strings.TrimSpace(table.Name) == "" {
+			return fmt.Errorf("invalid schema: table at index %d has empty name", i)
+		}
+		if len(table.Columns) == 0 {
+			return fmt.Errorf("invalid schema: table %q has no columns", table.Name)
+		}
+		for j, col := range table.Columns {
+			if col == nil {
+				return fmt.Errorf("invalid schema: column at index %d in table %q is nil", j, table.Name)
+			}
+			if strings.TrimSpace(col.Name) == "" {
+				return fmt.Errorf("invalid schema: column at index %d in table %q has empty name", j, table.Name)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, error) {
@@ -48,6 +81,7 @@ func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, err
 		Columns: []*core.Column{},
 	}
 
+	p.parseTableOptions(stmt.Options, table)
 	p.parseColumns(stmt.Cols, table)
 	p.parseConstraints(stmt.Constraints, table)
 

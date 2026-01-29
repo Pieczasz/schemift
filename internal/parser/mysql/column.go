@@ -114,9 +114,6 @@ func (p *Parser) parseColumns(cols []*ast.ColumnDef, table *core.Table) {
 }
 
 func (p *Parser) ensurePrimaryKeyColumn(table *core.Table, colName string) {
-	if table == nil {
-		return
-	}
 	colName = strings.TrimSpace(colName)
 	if colName == "" {
 		return
