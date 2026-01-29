@@ -50,7 +50,7 @@ func (d *Dialect) Parser() dialect.Parser {
 	return d.parser
 }
 
-// Generator is an empty struct that you can perform migrations with.
+// Generator is a stateless struct for generating MySQL migrations.
 type Generator struct{}
 
 // NewMySQLGenerator initializes a new MySQL migration generator instance.
@@ -70,10 +70,6 @@ func (g *Generator) GenerateMigration(schemaDiff *diff.SchemaDiff) *migration.Mi
 // A user provides options to customize the migration process.
 func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff.SchemaDiff, opts dialect.MigrationOptions) *migration.Migration {
 	m := &migration.Migration{}
-	if schemaDiff == nil {
-		m.AddNote("No diff provided; nothing to migrate.")
-		return m
-	}
 
 	analyzer := diff.NewBreakingChangeAnalyzer()
 	breakingChanges := analyzer.Analyze(schemaDiff)
@@ -256,9 +252,30 @@ func (g *Generator) QuoteIdentifier(name string) string {
 
 // QuoteString is a function used for quote string inside an SQL dialect.
 func (g *Generator) QuoteString(value string) string {
-	value = strings.ReplaceAll(value, "\\", "\\\\")
-	value = strings.ReplaceAll(value, "'", "\\'")
-	return "'" + value + "'"
+	var b strings.Builder
+	b.Grow(len(value) + len(value)/10 + 2)
+
+	b.WriteByte('\'')
+	for _, char := range value {
+		switch char {
+		case '\'':
+			b.WriteString("''")
+		case '\\': // Backslash escaped
+			b.WriteString(`\\`)
+		case '\x00': // NUL byte
+			b.WriteString(`\0`)
+		case '\n': // Newline
+			b.WriteString(`\n`)
+		case '\r': // Carriage return
+			b.WriteString(`\r`)
+		case '\x1A': // Ctrl+Z
+			b.WriteString(`\Z`)
+		default:
+			b.WriteRune(char)
+		}
+	}
+	b.WriteByte('\'')
+	return b.String()
 }
 
 // Helpers
