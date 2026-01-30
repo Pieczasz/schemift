@@ -8,7 +8,7 @@ import (
 	"smf/internal/core"
 )
 
-// Migration struct contains all operations that needs to be performed,
+// Migration struct contains all operations that need to be performed
 // to apply a schema migration.
 type Migration struct {
 	Operations []core.Operation
