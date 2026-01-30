@@ -4,7 +4,6 @@ package mysql
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/pingcap/tidb/pkg/parser"
 	"github.com/pingcap/tidb/pkg/parser/ast"
@@ -22,57 +21,29 @@ func NewParser() *Parser {
 }
 
 func (p *Parser) Parse(sql string) (*core.Database, error) {
-	// TODO: add support to specify charset and collation
 	// NOTE: this can be parallelized, it can help if schema dumps are big.
 	stmtNodes, _, err := p.p.Parse(sql, "", "")
 	if err != nil {
-		return nil, fmt.Errorf("parse error: %w", err)
+		return nil, fmt.Errorf("SQL parse error: %w", err)
 	}
 
 	db := &core.Database{Tables: []*core.Table{}}
 	for _, stmt := range stmtNodes {
 		if create, ok := stmt.(*ast.CreateTableStmt); ok {
+			tableName := create.Table.Name.O
 			table, err := p.convertCreateTable(create)
 			if err != nil {
-				return nil, err
+				return nil, fmt.Errorf("failed to parse table %q: %w", tableName, err)
 			}
 			db.Tables = append(db.Tables, table)
 		}
 	}
 
-	if err := validateDatabase(db); err != nil {
-		return nil, err
+	if err := db.Validate(); err != nil {
+		return nil, fmt.Errorf("schema validation failed: %w", err)
 	}
 
 	return db, nil
-}
-
-func validateDatabase(db *core.Database) error {
-	if db == nil {
-		return fmt.Errorf("invalid schema: database is nil")
-	}
-
-	for i, table := range db.Tables {
-		if table == nil {
-			return fmt.Errorf("invalid schema: table at index %d is nil", i)
-		}
-		if strings.TrimSpace(table.Name) == "" {
-			return fmt.Errorf("invalid schema: table at index %d has empty name", i)
-		}
-		if len(table.Columns) == 0 {
-			return fmt.Errorf("invalid schema: table %q has no columns", table.Name)
-		}
-		for j, col := range table.Columns {
-			if col == nil {
-				return fmt.Errorf("invalid schema: column at index %d in table %q is nil", j, table.Name)
-			}
-			if strings.TrimSpace(col.Name) == "" {
-				return fmt.Errorf("invalid schema: column at index %d in table %q has empty name", j, table.Name)
-			}
-		}
-	}
-
-	return nil
 }
 
 func (p *Parser) convertCreateTable(stmt *ast.CreateTableStmt) (*core.Table, error) {

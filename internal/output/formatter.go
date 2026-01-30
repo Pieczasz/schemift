@@ -14,8 +14,9 @@ import (
 type Format string
 
 const (
-	FormatSQL  Format = "sql"
-	FormatJSON Format = "json"
+	FormatSQL     Format = "sql"
+	FormatJSON    Format = "json"
+	FormatSummary Format = "summary"
 )
 
 // Formatter is an interface for formatting schema diffs and migrations.
@@ -33,8 +34,10 @@ func NewFormatter(name string) (Formatter, error) {
 		return sqlFormatter{}, nil
 	case FormatJSON:
 		return jsonFormatter{}, nil
+	case FormatSummary:
+		return summaryFormatter{}, nil
 	default:
-		return nil, fmt.Errorf("unsupported format: %s; use 'sql' or 'json'", name)
+		return nil, fmt.Errorf("unsupported format: %s; use 'sql', 'json', or 'summary'", name)
 	}
 }
 
