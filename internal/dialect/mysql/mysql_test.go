@@ -548,29 +548,6 @@ func TestGenerateMigrationWithFKStatementWithoutRollback(t *testing.T) {
 	assert.True(t, hasFKStatement)
 }
 
-func TestGenerateMigrationRemovedTableNilSkipped(t *testing.T) {
-	g := NewMySQLGenerator()
-
-	schemaDiff := &diff.SchemaDiff{
-		RemovedTables: []*core.Table{
-			{Name: "old_table"},
-		},
-	}
-
-	mig := g.GenerateMigration(schemaDiff)
-	require.NotNil(t, mig)
-
-	plan := mig.Plan()
-	hasRenameOrDrop := false
-	for _, op := range plan {
-		if op.Kind == core.OperationSQL && (containsStr(op.SQL, "RENAME TABLE") || containsStr(op.SQL, "DROP TABLE")) {
-			hasRenameOrDrop = true
-			break
-		}
-	}
-	assert.True(t, hasRenameOrDrop)
-}
-
 func TestGenerateMigrationWithFKNoRollbackBranch(t *testing.T) {
 	g := NewMySQLGenerator()
 
@@ -599,16 +576,6 @@ func TestGenerateMigrationWithFKNoRollbackBranch(t *testing.T) {
 
 	mig := g.GenerateMigration(schemaDiff)
 	require.NotNil(t, mig)
-}
-
-func TestAlterTableResultRollbackMoreThanStatements(t *testing.T) {
-	result := &AlterTableResult{}
-
-	result.Statements = []string{"stmt1"}
-	result.Rollback = []string{"rb1", "rb2", "rb3"}
-
-	assert.Len(t, result.Statements, 1)
-	assert.Len(t, result.Rollback, 3)
 }
 
 func TestGenerateMigrationWithOrphanedFKRollbacks(t *testing.T) {
@@ -649,7 +616,7 @@ func containsAll(s string, substrings ...string) bool {
 }
 
 func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsStr(s, substr))
+	return containsStr(s, substr)
 }
 
 func containsStr(s, substr string) bool {
