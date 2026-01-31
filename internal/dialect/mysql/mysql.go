@@ -310,7 +310,8 @@ func (g *Generator) safeBackupName(name string) string {
 }
 
 func hasPotentiallyLockingStatements(plan []core.Operation) bool {
-	for _, op := range plan {
+	for i := range plan {
+		op := &plan[i]
 		if op.Kind != core.OperationSQL {
 			continue
 		}
@@ -318,10 +319,16 @@ func hasPotentiallyLockingStatements(plan []core.Operation) bool {
 		if s == "" {
 			continue
 		}
-		u := strings.ToUpper(strings.TrimSpace(s))
-		if strings.HasPrefix(u, "ALTER TABLE") || strings.HasPrefix(u, "CREATE INDEX") || strings.HasPrefix(u, "DROP INDEX") {
+		if hasPrefixFoldCI(s, "ALTER TABLE") || hasPrefixFoldCI(s, "CREATE INDEX") || hasPrefixFoldCI(s, "DROP INDEX") {
 			return true
 		}
 	}
 	return false
+}
+
+func hasPrefixFoldCI(s, prefix string) bool {
+	if len(s) < len(prefix) {
+		return false
+	}
+	return strings.EqualFold(s[:len(prefix)], prefix)
 }
