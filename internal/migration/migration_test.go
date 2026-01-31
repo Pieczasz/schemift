@@ -60,7 +60,7 @@ func TestMigrationPlan(t *testing.T) {
 
 func TestMigrationSQLStatements(t *testing.T) {
 	tests := []opsToStringsTest{
-		{"empty operations", nil, nil},
+		{"empty operations", nil, []string{}},
 		{
 			name: "single SQL operation",
 			operations: []core.Operation{
@@ -114,7 +114,7 @@ func TestMigrationSQLStatements(t *testing.T) {
 
 func TestMigrationRollbackStatements(t *testing.T) {
 	tests := []opsToStringsTest{
-		{"empty operations", nil, nil},
+		{"empty operations", nil, []string{}},
 		{
 			name: "single rollback statement",
 			operations: []core.Operation{
@@ -159,7 +159,7 @@ func TestMigrationRollbackStatements(t *testing.T) {
 
 func TestMigrationBreakingNotes(t *testing.T) {
 	tests := []opsToStringsTest{
-		{"empty operations", nil, nil},
+		{"empty operations", nil, []string{}},
 		{
 			name: "single breaking note",
 			operations: []core.Operation{
@@ -196,7 +196,7 @@ func TestMigrationBreakingNotes(t *testing.T) {
 
 func TestMigrationUnresolvedNotes(t *testing.T) {
 	tests := []opsToStringsTest{
-		{"empty operations", nil, nil},
+		{"empty operations", nil, []string{}},
 		{
 			name: "single unresolved note",
 			operations: []core.Operation{
@@ -233,7 +233,7 @@ func TestMigrationUnresolvedNotes(t *testing.T) {
 
 func TestMigrationInfoNotes(t *testing.T) {
 	tests := []opsToStringsTest{
-		{"empty operations", nil, nil},
+		{"empty operations", nil, []string{}},
 		{
 			name: "single info note",
 			operations: []core.Operation{

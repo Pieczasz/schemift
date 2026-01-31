@@ -78,7 +78,8 @@ func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff.SchemaDiff, op
 	m := &migration.Migration{}
 	analyzer := diff.NewBreakingChangeAnalyzer()
 	breakingChanges := analyzer.Analyze(schemaDiff)
-	for _, bc := range breakingChanges {
+	for i := range breakingChanges {
+		bc := &breakingChanges[i]
 		switch bc.Severity {
 		case diff.SeverityCritical, diff.SeverityBreaking:
 			m.AddBreaking(fmt.Sprintf("[%s] %s.%s: %s", bc.Severity, bc.Table, bc.Object, bc.Description))
@@ -87,7 +88,7 @@ func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff.SchemaDiff, op
 		case diff.SeverityInfo:
 		}
 
-		for _, rec := range migrationRecommendations(bc) {
+		for _, rec := range migrationRecommendations(*bc) {
 			m.AddNote(rec)
 		}
 	}
@@ -96,8 +97,9 @@ func (g *Generator) GenerateMigrationWithOptions(schemaDiff *diff.SchemaDiff, op
 		m.AddNote("Safe mode: destructive drops are avoided (tables/columns are renamed to __smf_backup_* instead of dropped) to enable a reliable rollback.")
 	}
 
-	var pendingFKs []string
-	var pendingFKRollback []string
+	estimatedFKs := len(schemaDiff.AddedTables) * 2
+	pendingFKs := make([]string, 0, estimatedFKs)
+	pendingFKRollback := make([]string, 0, estimatedFKs)
 
 	for _, at := range schemaDiff.AddedTables {
 		create, fks := g.GenerateCreateTable(at)

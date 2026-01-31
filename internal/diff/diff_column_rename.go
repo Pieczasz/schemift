@@ -12,7 +12,11 @@ func (td *TableDiff) detectColumnRenames() {
 	}
 
 	usedAdded := make(map[int]struct{}, len(td.AddedColumns))
-	var renames []*ColumnRename
+	maxRenames := len(td.RemovedColumns)
+	if len(td.AddedColumns) < maxRenames {
+		maxRenames = len(td.AddedColumns)
+	}
+	renames := make([]*ColumnRename, 0, maxRenames)
 
 	for _, oldC := range td.RemovedColumns {
 		bestIdx := -1
