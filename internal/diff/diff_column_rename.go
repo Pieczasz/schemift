@@ -142,8 +142,3 @@ func hasSharedTokens(a, b []string) bool {
 	}
 	return false
 }
-
-// hasSharedNameToken checks if two names share a common token (for non-cached usage).
-func hasSharedNameToken(a, b string) bool {
-	return hasSharedTokens(tokenizeName(a), tokenizeName(b))
-}

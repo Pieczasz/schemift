@@ -124,6 +124,7 @@ func TestQuoteIdentifierEdgeCases(t *testing.T) {
 			name:  "result_is_quoted",
 			input: "test",
 			check: func(t *testing.T, result string) {
+				t.Helper()
 				assert.True(t, len(result) > 0, "result should not be empty")
 				assert.Equal(t, '`', rune(result[0]), "result should start with backtick")
 				assert.Equal(t, '`', rune(result[len(result)-1]), "result should end with backtick")
@@ -134,6 +135,7 @@ func TestQuoteIdentifierEdgeCases(t *testing.T) {
 			name:  "preserves_content_structure",
 			input: "my_table",
 			check: func(t *testing.T, result string) {
+				t.Helper()
 				assert.Equal(t, "`my_table`", result)
 			},
 			desc: "quoted identifier should preserve the content",
@@ -142,6 +144,7 @@ func TestQuoteIdentifierEdgeCases(t *testing.T) {
 			name:  "idempotency_is_not_required",
 			input: "already`quoted",
 			check: func(t *testing.T, result string) {
+				t.Helper()
 				result2 := gen.QuoteIdentifier(result)
 				assert.NotEqual(t, result, result2, "quoting again produces different result (backticks get escaped again)")
 			},

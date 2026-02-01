@@ -34,13 +34,12 @@ func TestMigrationSaveRollbackToFileWritesRollbackSQL(t *testing.T) {
 	m := &migration.Migration{}
 	m.AddRollbackStatement("ALTER TABLE t ADD COLUMN c INT")
 
-	f, err := os.CreateTemp("", "smf-rollback-*.sql")
+	f, err := os.CreateTemp(t.TempDir(), "smf-rollback-*.sql")
 	if err != nil {
 		t.Fatalf("CreateTemp: %v", err)
 	}
 	name := f.Name()
 	_ = f.Close()
-	defer func() { _ = os.Remove(name) }()
 
 	assert.NoError(t, SaveRollbackToFile(m, name))
 	b, err := os.ReadFile(name)
@@ -54,13 +53,12 @@ func TestSaveMigrationToFileCreatesFile(t *testing.T) {
 	m := &migration.Migration{}
 	m.AddStatementWithRollback("CREATE TABLE users (id INT)", "DROP TABLE users")
 
-	f, err := os.CreateTemp("", "smf-migration-*.sql")
+	f, err := os.CreateTemp(t.TempDir(), "smf-migration-*.sql")
 	if err != nil {
 		t.Fatalf("CreateTemp: %v", err)
 	}
 	name := f.Name()
 	_ = f.Close()
-	defer func() { _ = os.Remove(name) }()
 
 	assert.NoError(t, SaveMigrationToFile(m, name))
 	b, err := os.ReadFile(name)
@@ -82,13 +80,12 @@ func TestSaveMigrationToFileInvalidPath(t *testing.T) {
 func TestSaveMigrationToFileEmptyMigration(t *testing.T) {
 	m := &migration.Migration{}
 
-	f, err := os.CreateTemp("", "smf-empty-*.sql")
+	f, err := os.CreateTemp(t.TempDir(), "smf-empty-*.sql")
 	if err != nil {
 		t.Fatalf("CreateTemp: %v", err)
 	}
 	name := f.Name()
 	_ = f.Close()
-	defer func() { _ = os.Remove(name) }()
 
 	assert.NoError(t, SaveMigrationToFile(m, name))
 	b, err := os.ReadFile(name)
@@ -109,13 +106,12 @@ func TestSaveRollbackToFileInvalidPath(t *testing.T) {
 func TestSaveRollbackToFileEmptyRollback(t *testing.T) {
 	m := &migration.Migration{}
 
-	f, err := os.CreateTemp("", "smf-empty-rollback-*.sql")
+	f, err := os.CreateTemp(t.TempDir(), "smf-empty-rollback-*.sql")
 	if err != nil {
 		t.Fatalf("CreateTemp: %v", err)
 	}
 	name := f.Name()
 	_ = f.Close()
-	defer func() { _ = os.Remove(name) }()
 
 	assert.NoError(t, SaveRollbackToFile(m, name))
 	b, err := os.ReadFile(name)

@@ -125,7 +125,7 @@ func (a *Applier) Apply(ctx context.Context, statements []string, preflight *Pre
 	// Ask for confirmation
 	if !a.options.SkipConfirmation {
 		if !a.askConfirmation() {
-			a.println("\nMigration cancelled.")
+			a.println("\nMigration canceled.")
 			return nil
 		}
 	}
@@ -149,7 +149,7 @@ func (a *Applier) Connect(ctx context.Context) error {
 
 	if pingErr := db.PingContext(ctx); pingErr != nil {
 		if closeErr := db.Close(); closeErr != nil {
-			return fmt.Errorf("failed to ping database: %v; additionally failed to close connection: %w", pingErr, closeErr)
+			return fmt.Errorf("failed to ping database: %w; additionally failed to close connection: %w", pingErr, closeErr)
 		}
 		return fmt.Errorf("failed to ping database: %w", pingErr)
 	}
@@ -352,7 +352,7 @@ func (a *Applier) applyWithTransaction(ctx context.Context, statements []string)
 		if _, err := tx.ExecContext(ctx, stmt); err != nil {
 			a.printf("  [%d/%d] FAILED: %s\n", i+1, total, truncateSQL(stmt, 50))
 			if rbErr := tx.Rollback(); rbErr != nil {
-				return fmt.Errorf("execute failed: %w; rollback also failed: %v", err, rbErr)
+				return fmt.Errorf("execute failed: %w; rollback also failed: %w", err, rbErr)
 			}
 			return fmt.Errorf("execute failed (rolled back): %w\n  Statement: %s", err, truncateSQL(stmt, 80))
 		}

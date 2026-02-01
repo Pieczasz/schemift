@@ -187,10 +187,10 @@ func TestConstraintDefinitionForeignKeyReturnsEmpty(t *testing.T) {
 	g := NewMySQLGenerator()
 
 	c := &core.Constraint{
-		Name:             "fk_user",
-		Type:             core.ConstraintForeignKey,
-		Columns:          []string{"user_id"},
-		ReferencedTable:  "users",
+		Name:              "fk_user",
+		Type:              core.ConstraintForeignKey,
+		Columns:           []string{"user_id"},
+		ReferencedTable:   "users",
 		ReferencedColumns: []string{"id"},
 	}
 

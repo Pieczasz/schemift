@@ -41,7 +41,7 @@ func TestFormatDiffText(t *testing.T) {
 	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
-	formatter, err := NewFormatter("sql") 
+	formatter, err := NewFormatter("sql")
 	require.NoError(t, err)
 
 	s, err := formatter.FormatDiff(d)
