@@ -8,6 +8,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -149,7 +150,8 @@ func (a *Applier) Connect(ctx context.Context) error {
 
 	if pingErr := db.PingContext(ctx); pingErr != nil {
 		if closeErr := db.Close(); closeErr != nil {
-			return fmt.Errorf("failed to ping database: %w; additionally failed to close connection: %w", pingErr, closeErr)
+			err := errors.Join(pingErr, closeErr)
+			return fmt.Errorf("failed to ping database and failed to close connection: %w", err)
 		}
 		return fmt.Errorf("failed to ping database: %w", pingErr)
 	}
@@ -363,7 +365,8 @@ func (a *Applier) applyWithTransaction(ctx context.Context, statements []string)
 		if _, err := tx.ExecContext(ctx, stmt); err != nil {
 			a.printf("  [%d/%d] FAILED: %s\n", i+1, total, truncateSQL(stmt, 50))
 			if rbErr := tx.Rollback(); rbErr != nil {
-				return fmt.Errorf("execute failed: %w; rollback also failed: %w", err, rbErr)
+				execRbErr := errors.Join(err, rbErr)
+				return fmt.Errorf("execute and rollback failed: %w", execRbErr)
 			}
 			return fmt.Errorf("execute failed (rolled back): %w\n  Statement: %s", err, truncateSQL(stmt, 80))
 		}
