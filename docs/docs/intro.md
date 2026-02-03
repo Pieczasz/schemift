@@ -2,46 +2,44 @@
 sidebar_position: 1
 ---
 
-# Tutorial Intro
+# Introduction
 
-Let's discover **Docusaurus in less than 5 minutes**.
+`smf` is a database migration tool for MySQL designed to help you manage your database schema efficiently. It provides tools to compare schemas, generate migrations, and apply them with safety checks.
 
-## Getting Started
+## Key Features
 
-Get started by **creating a new site**.
+- **Schema Comparison**: Compare two SQL schema dumps and see the differences.
+- **Migration Generation**: Automatically generate the SQL statements needed to transition from one schema state to another.
+- **Safe Execution**: Preflight checks warn about destructive operations (like `DROP TABLE` or `TRUNCATE`) and transaction-safety issues.
+- **Dialect Support**: Currently focused on **MySQL**.
 
-Or **try Docusaurus immediately** with **[docusaurus.new](https://docusaurus.new)**.
+## Quick Start
 
-### What you'll need
+To see what `smf` can do, you can run the following commands:
 
-- [Node.js](https://nodejs.org/en/download/) version 20.0 or above:
-  - When installing Node.js, you are recommended to check all checkboxes related to dependencies.
-
-## Generate a new site
-
-Generate a new Docusaurus site using the **classic template**.
-
-The classic template will automatically be added to your project after you run the command:
+### Compare two schemas
 
 ```bash
-npm init docusaurus@latest my-website classic
+smf diff old_schema.sql new_schema.sql
 ```
 
-You can type this command into Command Prompt, Powershell, Terminal, or any other integrated terminal of your code editor.
-
-The command also installs all necessary dependencies you need to run Docusaurus.
-
-## Start your site
-
-Run the development server:
+### Generate a migration
 
 ```bash
-cd my-website
-npm run start
+smf migrate old_schema.sql new_schema.sql --output migration.sql
 ```
 
-The `cd` command changes the directory you're working with. In order to work with your newly created Docusaurus site, you'll need to navigate the terminal there.
+### Apply a migration
 
-The `npm run start` command builds your website locally and serves it through a development server, ready for you to view at http://localhost:3000/.
+```bash
+smf apply --dsn "user:pass@tcp(localhost:3306)/dbname" --file migration.sql
+```
 
-Open `docs/intro.md` (this page) and edit some lines: the site **reloads automatically** and displays your changes.
+## Installation
+
+Building from source:
+
+```bash
+go build -o smf ./cmd/smf
+```
+
