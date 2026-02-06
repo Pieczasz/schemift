@@ -12,6 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TODO: This file starts a fresh MySQL container via setupMySQL(t) in many separate top-level tests.
+// Spinning up containers repeatedly can make the test suite very slow/flaky.
+// Consider reusing a single container per package (e.g., via TestMain, sync.Once, or a shared helper) and cleaning schemas between subtests.
 func TestApplierApplyDryRunIntegration(t *testing.T) {
 	if testing.Short() {
 
