@@ -859,7 +859,6 @@ func TestApplierApplyEarlyReturn_Integration(t *testing.T) {
 	})
 }
 
-
 func edgeCasesTestHelper(ctx context.Context, t *testing.T, tc *testMySQLContainer,
 	dryRun bool, transaction bool) (*Applier, *bytes.Buffer) {
 	t.Helper()
