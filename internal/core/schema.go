@@ -10,8 +10,9 @@ import (
 
 // Database represents a database in the schema.
 type Database struct {
-	Name   string
-	Tables []*Table
+	Name    string
+	Dialect string
+	Tables  []*Table
 }
 
 // Table represents a table in the schema.

@@ -178,7 +178,7 @@
 
 [database]
 name = "ecommerce"
-
+dialect = "mysql"
 
 [[database.tables]]
 name    = "tenants"
