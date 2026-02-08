@@ -135,7 +135,9 @@ func (g *Generator) processAddedTables(m *migration.Migration, schemaDiff *diff.
 }
 
 func (g *Generator) processModifiedTables(m *migration.Migration, schemaDiff *diff.SchemaDiff, opts *dialect.MigrationOptions) ([]string, []string) {
-	var pendingFKs, pendingFKRollback []string
+	estimatedFKs := len(schemaDiff.ModifiedTables) * 2
+	pendingFKs := make([]string, 0, estimatedFKs)
+	pendingFKRollback := make([]string, 0, estimatedFKs)
 
 	for _, td := range schemaDiff.ModifiedTables {
 		result := g.generateAlterTable(td, opts)
