@@ -1,4 +1,4 @@
-#   smf - Dialect-Agnostic Database Schema Definition (TOML)
+# smf - Dialect-Agnostic Database Schema Definition (TOML)
 #
 #   This file is the SINGLE SOURCE OF TRUTH for the database schema.
 #   It maps directly to core.Database and can be transformed to any
@@ -10,29 +10,30 @@
 #   Oracle 19c / 21c        IBM DB2 11.5+
 #   Snowflake               Microsoft SQL Server 2019+ / Azure SQL
 #
-#
 #   Design
 #
 #   1.  ONE `type` field per column.
 #       Write a human-friendly, portable type string.  The generator maps it
 #       to the correct dialect-specific DDL automatically.
 #
-#   2.  Sensible defaults - you only declare what deviates from the norm:
-#         nullable        -> false   (columns are NOT NULL by default)
+#   2.  Sensible defaults — you only declare what deviates from the norm:
+#         nullable        -> false   (column are NOT NULL by default)
 #         primary_key     -> false
 #         auto_increment  -> false
-#         unique (index)  -> false
+#         unique          -> false
 #         enforced (chk)  -> true
 #
-#   3.  Optional `type_raw` escape hatch.
+#   3.  Optional dialect-scoped type overrides.
 #       When you *must* use a dialect-specific type the portable mapping
-#       cannot express, set `type_raw` and it takes precedence verbatim.
-#       Use sparingly.
+#       cannot express, use:
+#       raw_type = "JSONB"
+#       then the raw type will be applied for the dialect specified inside
+#       [database], for all other dialects the type value will be used.
 #
-#   Type mapping
+#   Type mapping (portable -> dialect-specific)
 #
 #   Portable            MySQL / MariaDB        PostgreSQL         SQLite     Oracle               DB2                  Snowflake            MSSQL / Azure SQL
-#   ──────────────────  ─────────────────────  ─────────────────  ─────────  ───────────────────  ───────────────────  ───────────────────  ─────────────────────
+#   ------------------  ---------------------  -----------------  ---------  -------------------  -------------------  -------------------  ---------------------
 #   varchar(N)          VARCHAR(N)             VARCHAR(N)         TEXT       VARCHAR2(N)          VARCHAR(N)           VARCHAR(N)           NVARCHAR(N)
 #   char(N)             CHAR(N)                CHAR(N)            TEXT       CHAR(N)              CHAR(N)              CHAR(N)              NCHAR(N)
 #   text                TEXT                   TEXT               TEXT       CLOB                 CLOB                 VARCHAR(16777216)    NVARCHAR(MAX)
@@ -52,385 +53,270 @@
 #   blob                BLOB                   BYTEA              BLOB       BLOB                 BLOB                 BINARY               VARBINARY(MAX)
 #   binary(N)           BINARY(N)              BYTEA              BLOB       RAW(N)               CHAR(N) FOR BIT DATA BINARY(N)            BINARY(N)
 #   varbinary(N)        VARBINARY(N)           BYTEA              BLOB       RAW(N)               VARCHAR(N) FOR BIT.. VARBINARY(N)         VARBINARY(N)
-#   enum('a','b','c')   ENUM('a','b','c')      TEXT + CHECK       TEXT       VARCHAR2 + CHECK     VARCHAR + CHECK      VARCHAR + CHECK      NVARCHAR(255) + CHECK
+#   enum                ENUM('a','b','c')      TEXT + CHECK       TEXT       VARCHAR2 + CHECK     VARCHAR + CHECK      VARCHAR + CHECK      NVARCHAR(255) + CHECK
 #
 #   *  DB2: BOOLEAN available in 11.1+. UUID via CHAR(36) or GENERATE_UNIQUE().
 #
-#   Support matrix
+#   Constraint notes
 #
-#   Option              MySQL  MariaDB  PostgreSQL  SQLite  Oracle  DB2     Snowflake  MSSQL/Azure
-#   ──────────────────  ─────  ───────  ──────────  ──────  ──────  ──────  ─────────  ───────────
-#   engine              ✓      ✓        -           -       -       -       -          -
-#   charset             ✓      ✓        -*          -       -       -       -          -
-#   collate             ✓      ✓        ✓ (col)     ✓ (col) NLS     ✓ (col) ✓ (col)    ✓
-#   auto_increment      ✓      ✓        -**         -**     -***    ✓****   ✓*****     ✓ (IDENTITY)
-#   row_format          ✓      ✓        -           -       -       -       -          -
-#   tablespace          ✓      ✓        ✓           -       ✓       ✓       -          ✓ (filegroup)
-#   compression         ✓      ✓        -           -       ✓       ✓       -          ✓ (PAGE/ROW)
-#   encryption          ✓      ✓        -           -       TDE     TDE     auto       TDE
-#   key_block_size      ✓      ✓        -           -       -       -       -          -
-#   pack_keys           ✓      ✓        -           -       -       -       -          -
-#   stats_persistent    ✓      ✓        -           -       -       -       -          -
-#   stats_auto_recalc   ✓      ✓        -           -       -       -       -          -
-#   stats_sample_pages  ✓      ✓        -           -       -       -       -          -
-#   page_checksum       -      ✓        -           -       -       -       -          -
-#   transactional       -      ✓ (Aria) -           -       -       -       -          -
-#   max_rows            ✓      ✓        -           -       -       -       -          -
-#   min_rows            ✓      ✓        -           -       -       -       -          -
+#   Primary key:
+#       Use `primary_key = true` on the column for single-column PKs.
+#       For composite PKs, use a [[constraints]] entry. Never both.
 #
-#   *   PostgreSQL: encoding is set at database level, not table level.
-#   **  PostgreSQL/SQLite: use SERIAL/BIGSERIAL or AUTOINCREMENT respectively.
-#       The generator emits the correct keyword from `auto_increment = true`.
-#   *** Oracle: use GENERATED ALWAYS AS IDENTITY. Generator handles it.
-#   **** DB2: GENERATED ALWAYS AS IDENTITY. Generator handles it.
-#   ***** Snowflake: AUTOINCREMENT keyword. Generator handles it.
-#
-#   Constraint notes:
+#   Inline FK (`references = "table.column"`):
+#       Generates a FOREIGN KEY constraint automatically.  on_delete / on_update
+#       sit on the column.  For composite FKs, use a [[constraints]] entry.
 #
 #   CHECK constraints:
-#       MySQL  : Supported since 8.0.16; MariaDB since 10.2.1.
-#       SQLite : Parsed but not always enforced unless PRAGMA foreign_keys=ON
-#                (for FKs) or compile-time option.
-#       Oracle : Full support. Inline or out-of-line.
-#       DB2    : Full support.
+#       MySQL    : Supported since 8.0.16; MariaDB since 10.2.1.
+#       SQLite   : Parsed but not always enforced unless PRAGMA foreign_keys=ON.
+#       Oracle   : Full support.
+#       DB2      : Full support.
 #       Snowflake: Parsed but NOT enforced (informational only).
-#       MSSQL  : Full support. WITH CHECK / NOCHECK.
+#       MSSQL    : Full support.
 #
 #   FOREIGN KEY ON UPDATE:
-#       Oracle : Does NOT support ON UPDATE CASCADE/SET NULL - only ON DELETE.
-#                Generator ignores on_update for Oracle or emits a trigger.
-#       SQLite : Requires PRAGMA foreign_keys = ON at connection time.
-#       Snowflake: FKs are informational only - not enforced.
-#       DB2    : ON UPDATE RESTRICT supported; CASCADE/SET NULL via triggers.
+#       Oracle   : Does NOT support ON UPDATE CASCADE/SET NULL — only ON DELETE.
+#                  Generator ignores on_update for Oracle or emits a trigger.
+#       SQLite   : Requires PRAGMA foreign_keys = ON at connection time.
+#       Snowflake: FKs are informational only — not enforced.
+#       DB2      : ON UPDATE RESTRICT supported; CASCADE/SET NULL via triggers.
 #
 #   ENUM type:
+#       Use `type = "enum"` with `values = ["a", "b"]`.
 #       MySQL/MariaDB : Native ENUM.
-#       PostgreSQL    : CREATE TYPE ... AS ENUM or VARCHAR + CHECK.
+#       PostgreSQL    : CREATE TYPE … AS ENUM or VARCHAR + CHECK.
 #       Oracle/DB2    : VARCHAR2/VARCHAR + CHECK constraint.
 #       Snowflake     : VARCHAR + informational CHECK.
 #       MSSQL/Azure   : NVARCHAR + CHECK constraint.
 #       SQLite        : TEXT + CHECK constraint.
 #
-#   Index notes:
+#   Index notes
+#
+#   Simple indexes: use `column = ["col1", "col2"]`.
+#   Advanced indexes (prefix-length, DESC order): use `[[…column_defs]]`.
 #
 #   Index types:
-#       BTREE     : MySQL, MariaDB, PostgreSQL, DB2, MSSQL (clustered/nonclustered).
-#                   Oracle uses B-tree by default. Snowflake: no user-managed indexes.
+#       BTREE     : MySQL, MariaDB, PostgreSQL, DB2, MSSQL, Oracle, SQLite.
 #       HASH      : MySQL (MEMORY engine), MariaDB, PostgreSQL.
 #       FULLTEXT  : MySQL, MariaDB. PostgreSQL uses GIN/GiST with tsvector.
-#                   Oracle: Oracle Text (CONTEXT index). DB2: Text Search.
-#                   MSSQL: Full-Text Search with CONTAINS/FREETEXT.
-#                   Snowflake: not supported (use SEARCH OPTIMIZATION).
 #       SPATIAL   : MySQL, MariaDB. PostgreSQL: GiST on geometry.
-#                   Oracle: SPATIAL index. MSSQL: spatial index. DB2: spatial.
 #       GIN       : PostgreSQL only.
 #       GiST      : PostgreSQL only.
 #
-#   Index visibility (VISIBLE / INVISIBLE):
-#       MySQL 8.0+ : Native support.
-#       MariaDB    : IGNORED indexes since 10.6.
-#       Oracle     : VISIBLE / INVISIBLE since 11g.
-#       PostgreSQL : Not supported (drop/create to toggle).
-#       DB2        : Not supported.
-#       Snowflake  : Not applicable (no user indexes).
-#       MSSQL      : Not supported (disabled indexes are similar but different).
+#   Timestamps shortcut:
+#       `[tables.timestamps] enabled = true` injects created_at and
+#       updated_at columns automatically.  created_at gets DEFAULT CURRENT_TIMESTAMP.
+#       updated_at gets DEFAULT CURRENT_TIMESTAMP + ON UPDATE CURRENT_TIMESTAMP.
+#       The generator emits dialect-appropriate triggers where ON UPDATE is not
+#       natively supported (PostgreSQL, Oracle, etc.).
+#       Custom column names: `created_column = "inserted_at"`, etc.
 #
-#   Prefix-length indexes (e.g. label(20)):
-#       MySQL/MariaDB : Native.
-#       PostgreSQL    : Use expression index: CREATE INDEX ... ON t (left(col, 20)).
-#       Oracle        : Not directly; use function-based index.
-#       DB2           : Not directly; use expression-based index.
-#       MSSQL         : Computed column + index, or filtered index.
-#       Snowflake     : Not applicable.
-#       SQLite        : Not supported.
+#   Auto increment:
+#       MySQL / MariaDB : AUTO_INCREMENT
+#       PostgreSQL      : GENERATED { ALWAYS | BY DEFAULT } AS IDENTITY
+#       SQLite          : INTEGER PRIMARY KEY  (implicit rowid alias)
+#       Oracle          : GENERATED ALWAYS AS IDENTITY
+#       DB2             : GENERATED ALWAYS AS IDENTITY
+#       Snowflake       : AUTOINCREMENT / IDENTITY(start, step)
+#       MSSQL / Azure   : IDENTITY(seed, increment)
 #
-#   DESC index columns:
-#       MySQL 8.0+    : Native.
-#       MariaDB       : Parsed but ignored (always ASC).
-#       PostgreSQL    : Native.
-#       Oracle        : Native.
-#       DB2           : Native.
-#       MSSQL         : Native.
-#       Snowflake     : Not applicable.
-#       SQLite        : Native in CREATE INDEX.
+#   Generated (computed) column:
+#       MySQL / MariaDB : GENERATED ALWAYS AS (expr) [VIRTUAL | STORED]
+#       PostgreSQL      : GENERATED ALWAYS AS (expr) STORED  (no VIRTUAL before v17)
+#       SQLite          : GENERATED ALWAYS AS (expr) [VIRTUAL | STORED]
+#       Oracle          : col AS (expr) [VIRTUAL]
+#       DB2             : GENERATED ALWAYS AS (expr) — always materialised
+#       Snowflake       : Not supported (use views)
+#       MSSQL / Azure   : AS (expr) [PERSISTED]
 #
-#   Generation
-#
-#   MySQL / MariaDB : GENERATED ALWAYS AS (expr) [VIRTUAL | STORED]
-#   PostgreSQL      : GENERATED ALWAYS AS (expr) STORED  (no VIRTUAL before v17)
-#   SQLite          : GENERATED ALWAYS AS (expr) [VIRTUAL | STORED]
-#   Oracle          : col AS (expr) [VIRTUAL]  - VIRTUAL is default & only option
-#   DB2             : GENERATED ALWAYS AS (expr)  - always materialised
-#   Snowflake       : Not supported (use views or transforms)
-#   MSSQL / Azure   : AS (expr) [PERSISTED]  - PERSISTED = STORED
-#
-#   Auto increment
-#
-#   MySQL / MariaDB : AUTO_INCREMENT
-#   PostgreSQL      : GENERATED { ALWAYS | BY DEFAULT } AS IDENTITY
-#                     (or legacy SERIAL / BIGSERIAL)
-#   SQLite          : INTEGER PRIMARY KEY  (implicit rowid alias)
-#   Oracle          : GENERATED ALWAYS AS IDENTITY
-#   DB2             : GENERATED ALWAYS AS IDENTITY (START WITH n, INCREMENT BY n)
-#   Snowflake       : AUTOINCREMENT  or  IDENTITY(start, step)
-#   MSSQL / Azure   : IDENTITY(seed, increment)
-
+#   Example schema:
 
 [database]
 name = "ecommerce"
 dialect = "mysql"
 
-[[database.tables]]
-name    = "tenants"
+# Optional
+[validation]
+max_table_name_length = 64
+max_column_name_length = 64
+auto_generate_constraint_names = true
+allowed_name_pattern = "^[a-z][a-z0-9_]*$"
+
+[[tables]]
+name = "tenants"
 comment = "Tenant / account"
 
-  [database.tables.options]
-  engine  = "InnoDB"       # MySQL / MariaDB only; ignored on other dialects
-  charset = "utf8mb4"      # MySQL / MariaDB only
-  collate = "utf8mb4_unicode_ci"
+[tables.options]
+engine = "InnoDB"  # MySQL / MariaDB only; ignored on other dialects
+charset = "utf8mb4"  # MySQL / MariaDB only
+collate = "utf8mb4_unicode_ci"
 
-  [[database.tables.columns]]
-  name           = "id"
-  type           = "bigint"
-  primary_key    = true
-  auto_increment = true
+[tables.timestamps]
+enabled = true  # Automatically adds created_at/updated_at
 
-  [[database.tables.columns]]
-  name = "slug"
-  type = "varchar(64)"
+[[tables.columns]]
+name = "id"
+type = "bigint"
+primary_key = true
+auto_increment = true
 
-  [[database.tables.columns]]
-  name = "name"
-  type = "varchar(255)"
+[[tables.columns]]
+name = "slug"
+type = "varchar(64)"
+unique = true  # auto-synthesises UNIQUE constraint
 
-  # ENUM: MySQL/MariaDB emit native ENUM; all others get VARCHAR + CHECK.
-  [[database.tables.columns]]
-  name          = "plan"
-  type          = "enum('free','pro','enterprise')"
-  default_value = "free"
+[[tables.columns]]
+name = "name"
+type = "varchar(255)"
 
-  [[database.tables.columns]]
-  name     = "settings"
-  type     = "json"
-  nullable = true
-  # MySQL/MariaDB -> JSON; PostgreSQL -> JSONB; Oracle -> CLOB;
-  # DB2 -> CLOB; Snowflake -> VARIANT; MSSQL -> NVARCHAR(MAX); SQLite -> TEXT
+# Enum with safe TOML array — no embedded quotes, no escaping issues.
+[[tables.columns]]
+name = "plan"
+type = "enum"
+values = ["free", "pro", "enterprise"]
+default = "free"
 
-  [[database.tables.columns]]
-  name          = "created_at"
-  type          = "timestamp"
-  default_value = "CURRENT_TIMESTAMP"
-  # Oracle: SYSTIMESTAMP; DB2: CURRENT TIMESTAMP; Snowflake: CURRENT_TIMESTAMP()
+[[tables.columns]]
+name = "settings"
+type = "json"
+nullable = true
+# MySQL/MariaDB -> JSON; PostgreSQL -> JSONB; Oracle -> CLOB;
+# DB2 -> CLOB; Snowflake -> VARIANT; MSSQL -> NVARCHAR(MAX); SQLite -> TEXT
 
-  [[database.tables.columns]]
-  name          = "updated_at"
-  type          = "timestamp"
-  default_value = "CURRENT_TIMESTAMP"
-  on_update     = "CURRENT_TIMESTAMP"
-  # on_update is MySQL/MariaDB-specific (ON UPDATE CURRENT_TIMESTAMP).
-  # PostgreSQL/Oracle/DB2/MSSQL: generator emits a BEFORE UPDATE trigger.
-  # Snowflake: use a stream + task or application-level logic.
-  # SQLite: use a trigger.
-
-  [[database.tables.constraints]]
-  type    = "PRIMARY KEY"
-  columns = ["id"]
-
-  [[database.tables.constraints]]
-  name    = "uq_tenants_slug"
-  type    = "UNIQUE"
-  columns = ["slug"]
-
-[[database.tables]]
-name    = "users"
+[[tables]]
+name = "users"
 comment = "Application user"
 
-  [database.tables.options]
-  engine  = "InnoDB"
-  charset = "utf8mb4"
-  collate = "utf8mb4_unicode_ci"
+[tables.options]
+engine = "InnoDB"
+charset = "utf8mb4"
+collate = "utf8mb4_unicode_ci"
 
-  [[database.tables.columns]]
-  name           = "id"
-  type           = "bigint"
-  primary_key    = true
-  auto_increment = true
+[tables.timestamps]
+enabled = true
 
-  [[database.tables.columns]]
-  name = "tenant_id"
-  type = "bigint"
+[[tables.columns]]
+name = "id"
+type = "bigint"
+primary_key = true
+auto_increment = true
 
-  [[database.tables.columns]]
-  name = "email"
-  type = "varchar(255)"
+# Inline FK — generates fk_users_tenants automatically
+[[tables.columns]]
+name = "tenant_id"
+type = "bigint"
+references = "tenants.id"
+on_delete = "CASCADE"
+on_update = "RESTRICT"
 
-  [[database.tables.columns]]
-  name = "password_hash"
-  type = "varbinary(60)"
-  # MySQL/MariaDB -> VARBINARY(60); PostgreSQL -> BYTEA;
-  # Oracle -> RAW(60); DB2 -> VARCHAR(60) FOR BIT DATA;
-  # MSSQL -> VARBINARY(60); Snowflake -> BINARY; SQLite -> BLOB
+# Inline UNIQUE + inline CHECK — two constraints from one column.
+[[tables.columns]]
+name = "email"
+type = "varchar(255)"
+unique = true
+check = "email LIKE '%@%'"
 
-  [[database.tables.columns]]
-  name     = "display_name"
-  type     = "varchar(120)"
-  nullable = true
+[[tables.columns]]
+name = "password_hash"
+type = "varbinary(60)"
+# MySQL/MariaDB -> VARBINARY(60); PostgreSQL -> BYTEA;
+# Oracle -> RAW(60); DB2 -> VARCHAR(60) FOR BIT DATA;
+# MSSQL -> VARBINARY(60); Snowflake -> BINARY; SQLite -> BLOB
 
-  [[database.tables.columns]]
-  name          = "is_active"
-  type          = "boolean"
-  default_value = "1"
-  # MySQL/MariaDB -> TINYINT(1) DEFAULT 1; PostgreSQL -> BOOLEAN DEFAULT TRUE;
-  # Oracle -> NUMBER(1) DEFAULT 1 CHECK (is_active IN (0,1));
-  # DB2 -> BOOLEAN DEFAULT TRUE; Snowflake -> BOOLEAN DEFAULT TRUE;
-  # MSSQL -> BIT DEFAULT 1; SQLite -> INTEGER DEFAULT 1
+[[tables.columns]]
+name = "display_name"
+type = "varchar(120)"
+nullable = true
 
-  [[database.tables.columns]]
-  name          = "created_at"
-  type          = "timestamp"
-  default_value = "CURRENT_TIMESTAMP"
+# Portable boolean default — parser converts `true` -> "TRUE", generator
+# maps to dialect-specific form (1, TRUE, etc.).
+[[tables.columns]]
+name = "is_active"
+type = "boolean"
+default = true
 
-  [[database.tables.columns]]
-  name          = "updated_at"
-  type          = "timestamp"
-  default_value = "CURRENT_TIMESTAMP"
-  on_update     = "CURRENT_TIMESTAMP"
+# Simple index: just a string array, no nesting needed.
+[[tables.indexes]]
+name = "idx_users_tenant"
+columns = ["tenant_id"]
 
-  [[database.tables.constraints]]
-  type    = "PRIMARY KEY"
-  columns = ["id"]
-
-  [[database.tables.constraints]]
-  name    = "uq_users_email"
-  type    = "UNIQUE"
-  columns = ["email"]
-
-  [[database.tables.constraints]]
-  name               = "fk_users_tenant"
-  type               = "FOREIGN KEY"
-  columns            = ["tenant_id"]
-  referenced_table   = "tenants"
-  referenced_columns = ["id"]
-  on_delete          = "CASCADE"
-  on_update          = "RESTRICT"
-  # Oracle: ON UPDATE is not supported - generator skips or emits trigger.
-  # Snowflake: FK is informational only (not enforced).
-
-  [[database.tables.constraints]]
-  name             = "chk_users_email"
-  type             = "CHECK"
-  check_expression = "email LIKE '%@%'"
-  # Snowflake: parsed but not enforced (informational).
-
-  [[database.tables.indexes]]
-  name = "idx_users_tenant"
-  # Defaults: type = "BTREE", unique = false, visibility = "VISIBLE"
-  # When type is omitted the generator picks the default for each dialect:
-  #   MySQL/MariaDB/PostgreSQL/MSSQL/DB2 -> B-tree
-  #   Oracle -> B-tree
-  #   Snowflake -> no user indexes (skipped)
-  #   SQLite -> B-tree
-
-    [[database.tables.indexes.columns]]
-    name = "tenant_id"
-
-[[database.tables]]
-name    = "roles"
+[[tables]]
+name = "roles"
 comment = "RBAC role"
 
-  [database.tables.options]
-  engine  = "InnoDB"
-  charset = "utf8mb4"
-  collate = "utf8mb4_unicode_ci"
+[tables.options]
+engine = "InnoDB"
+charset = "utf8mb4"
+collate = "utf8mb4_unicode_ci"
 
-  [[database.tables.columns]]
-  name           = "id"
-  type           = "bigint"
-  primary_key    = true
-  auto_increment = true
+[[tables.columns]]
+name = "id"
+type = "bigint"
+primary_key = true
+auto_increment = true
 
-  [[database.tables.columns]]
-  name = "tenant_id"
-  type = "bigint"
+[[tables.columns]]
+name = "tenant_id"
+type = "bigint"
+references = "tenants.id"
+on_delete = "CASCADE"
+on_update = "RESTRICT"
 
-  [[database.tables.columns]]
-  name = "name"
-  type = "varchar(64)"
+[[tables.columns]]
+name = "name"
+type = "varchar(64)"
 
-  [[database.tables.columns]]
-  name     = "description"
-  type     = "varchar(255)"
-  nullable = true
+[[tables.columns]]
+name = "description"
+type = "varchar(255)"
+nullable = true
 
-  [[database.tables.columns]]
-  name          = "created_at"
-  type          = "timestamp"
-  default_value = "CURRENT_TIMESTAMP"
+[[tables.columns]]
+name = "created_at"
+type = "timestamp"
+default = "CURRENT_TIMESTAMP"
 
-  [[database.tables.constraints]]
-  type    = "PRIMARY KEY"
-  columns = ["id"]
+# Composite UNIQUE requires the constraints section — column-level
+# `unique = true` only works for single-columns uniqueness.
 
-  [[database.tables.constraints]]
-  name    = "uq_roles_tenant_name"
-  type    = "UNIQUE"
-  columns = ["tenant_id", "name"]
+[[tables.constraints]]
+name = "uq_roles_tenant_name"
+type = "UNIQUE"
+columns = ["tenant_id", "name"]
 
-  [[database.tables.constraints]]
-  name               = "fk_roles_tenant"
-  type               = "FOREIGN KEY"
-  columns            = ["tenant_id"]
-  referenced_table   = "tenants"
-  referenced_columns = ["id"]
-  on_delete          = "CASCADE"
-  on_update          = "RESTRICT"
-
-[[database.tables]]
-name    = "user_roles"
+[[tables]]
+name = "user_roles"
 comment = "RBAC role assignments (many-to-many)"
 
-  [database.tables.options]
-  engine  = "InnoDB"
-  charset = "utf8mb4"
-  collate = "utf8mb4_unicode_ci"
+[tables.options]
+engine = "InnoDB"
+charset = "utf8mb4"
+collate = "utf8mb4_unicode_ci"
 
-  [[database.tables.columns]]
-  name = "user_id"
-  type = "bigint"
+[[tables.columns]]
+name = "user_id"
+type = "bigint"
+references = "users.id"
+on_delete = "CASCADE"
+on_update = "RESTRICT"
 
-  [[database.tables.columns]]
-  name = "role_id"
-  type = "bigint"
+[[tables.columns]]
+name = "role_id"
+type = "bigint"
+references = "roles.id"
+on_delete = "CASCADE"
+on_update = "RESTRICT"
 
-  [[database.tables.columns]]
-  name          = "granted_at"
-  type          = "timestamp"
-  default_value = "CURRENT_TIMESTAMP"
+[[tables.columns]]
+name = "granted_at"
+type = "timestamp"
+default = "CURRENT_TIMESTAMP"
 
-  [[database.tables.constraints]]
-  type    = "PRIMARY KEY"
-  columns = ["user_id", "role_id"]
+[[tables.constraints]]
+type = "PRIMARY KEY"
+columns = ["user_id", "role_id"]
 
-  [[database.tables.constraints]]
-  name               = "fk_user_roles_user"
-  type               = "FOREIGN KEY"
-  columns            = ["user_id"]
-  referenced_table   = "users"
-  referenced_columns = ["id"]
-  on_delete          = "CASCADE"
-  on_update          = "RESTRICT"
-
-  [[database.tables.constraints]]
-  name               = "fk_user_roles_role"
-  type               = "FOREIGN KEY"
-  columns            = ["role_id"]
-  referenced_table   = "roles"
-  referenced_columns = ["id"]
-  on_delete          = "CASCADE"
-  on_update          = "RESTRICT"
-
-  [[database.tables.indexes]]
-  name = "idx_user_roles_role"
-
-    [[database.tables.indexes.columns]]
-    name = "role_id"
+[[tables.indexes]]
+name = "idx_user_roles_role"
+columns = ["role_id"]
