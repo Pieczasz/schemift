@@ -68,7 +68,7 @@ func TestParseFileTenants(t *testing.T) {
 		plan := tbl.FindColumn("plan")
 		require.NotNil(t, plan)
 		assert.Equal(t, "enum('free','pro','enterprise')", plan.TypeRaw)
-		assert.Equal(t, core.DataTypeString, plan.Type)
+		assert.Equal(t, core.DataTypeEnum, plan.Type)
 		require.NotNil(t, plan.DefaultValue)
 		assert.Equal(t, "free", *plan.DefaultValue)
 
@@ -580,7 +580,7 @@ func TestParseDataTypeNormalization(t *testing.T) {
 		{"varchar(255)", core.DataTypeString},
 		{"char(10)", core.DataTypeString},
 		{"text", core.DataTypeString},
-		{"enum('a','b')", core.DataTypeString},
+		{"enum('a','b')", core.DataTypeEnum},
 		{"int", core.DataTypeInt},
 		{"bigint", core.DataTypeInt},
 		{"smallint", core.DataTypeInt},

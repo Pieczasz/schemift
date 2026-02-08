@@ -295,8 +295,10 @@ func TestNormalizeDataType(t *testing.T) {
 		{"mediumtext", "MEDIUMTEXT", DataTypeString},
 		{"tinytext", "TINYTEXT", DataTypeString},
 		{"string", "STRING", DataTypeString},
-		{"enum", "ENUM('a','b','c')", DataTypeString},
 		{"set", "SET('x','y','z')", DataTypeString},
+
+		// Enum types
+		{"enum", "ENUM('a','b','c')", DataTypeEnum},
 
 		// Boolean types
 		{"boolean", "BOOLEAN", DataTypeBoolean},
@@ -364,7 +366,114 @@ func TestDataTypeConstants(t *testing.T) {
 	assert.Equal(t, DataType("json"), DataTypeJSON)
 	assert.Equal(t, DataType("uuid"), DataTypeUUID)
 	assert.Equal(t, DataType("binary"), DataTypeBinary)
+	assert.Equal(t, DataType("enum"), DataTypeEnum)
 	assert.Equal(t, DataType("unknown"), DataTypeUnknown)
+}
+
+func TestDialectConstants(t *testing.T) {
+	assert.Equal(t, Dialect("mysql"), DialectMySQL)
+	assert.Equal(t, Dialect("mariadb"), DialectMariaDB)
+	assert.Equal(t, Dialect("postgresql"), DialectPostgreSQL)
+	assert.Equal(t, Dialect("sqlite"), DialectSQLite)
+	assert.Equal(t, Dialect("oracle"), DialectOracle)
+	assert.Equal(t, Dialect("db2"), DialectDB2)
+	assert.Equal(t, Dialect("snowflake"), DialectSnowflake)
+	assert.Equal(t, Dialect("mssql"), DialectMSSQL)
+}
+
+func TestSupportedDialects(t *testing.T) {
+	dialects := SupportedDialects()
+	assert.Len(t, dialects, 8)
+	assert.Contains(t, dialects, DialectMySQL)
+	assert.Contains(t, dialects, DialectMariaDB)
+	assert.Contains(t, dialects, DialectPostgreSQL)
+	assert.Contains(t, dialects, DialectSQLite)
+	assert.Contains(t, dialects, DialectOracle)
+	assert.Contains(t, dialects, DialectDB2)
+	assert.Contains(t, dialects, DialectSnowflake)
+	assert.Contains(t, dialects, DialectMSSQL)
+}
+
+func TestIsValidDialect(t *testing.T) {
+	t.Run("valid dialects", func(t *testing.T) {
+		for _, d := range SupportedDialects() {
+			assert.True(t, IsValidDialect(string(d)), "expected %q to be valid", d)
+		}
+	})
+
+	t.Run("case insensitive", func(t *testing.T) {
+		assert.True(t, IsValidDialect("MySQL"))
+		assert.True(t, IsValidDialect("POSTGRESQL"))
+		assert.True(t, IsValidDialect("Snowflake"))
+	})
+
+	t.Run("invalid dialects", func(t *testing.T) {
+		assert.False(t, IsValidDialect(""))
+		assert.False(t, IsValidDialect("mongo"))
+		assert.False(t, IsValidDialect("redis"))
+		assert.False(t, IsValidDialect("cassandra"))
+	})
+}
+
+func TestColumnHasTypeOverride(t *testing.T) {
+	t.Run("no override", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "bigint"}
+		assert.False(t, col.HasTypeOverride())
+	})
+
+	t.Run("empty override", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "bigint", TypeOverride: ""}
+		assert.False(t, col.HasTypeOverride())
+	})
+
+	t.Run("whitespace only override", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "bigint", TypeOverride: "   "}
+		assert.False(t, col.HasTypeOverride())
+	})
+
+	t.Run("with override", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "bigint", TypeOverride: "NUMBER(19)"}
+		assert.True(t, col.HasTypeOverride())
+	})
+}
+
+func TestColumnEffectiveType(t *testing.T) {
+	t.Run("no override returns TypeRaw", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "bigint"}
+		assert.Equal(t, "bigint", col.EffectiveType())
+	})
+
+	t.Run("override takes precedence", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "bigint", TypeOverride: "NUMBER(19)"}
+		assert.Equal(t, "NUMBER(19)", col.EffectiveType())
+	})
+
+	t.Run("whitespace override falls back to TypeRaw", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "varchar(255)", TypeOverride: "   "}
+		assert.Equal(t, "varchar(255)", col.EffectiveType())
+	})
+}
+
+func TestColumnHasIdentityOptions(t *testing.T) {
+	t.Run("no identity options", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "bigint", AutoIncrement: true}
+		assert.False(t, col.HasIdentityOptions())
+	})
+
+	t.Run("with seed only", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "bigint", AutoIncrement: true, IdentitySeed: 100}
+		assert.True(t, col.HasIdentityOptions())
+	})
+
+	t.Run("with increment only", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "bigint", AutoIncrement: true, IdentityIncrement: 5}
+		assert.True(t, col.HasIdentityOptions())
+	})
+
+	t.Run("with both seed and increment", func(t *testing.T) {
+		col := &Column{Name: "id", TypeRaw: "bigint", AutoIncrement: true, IdentitySeed: 1000, IdentityIncrement: 10}
+		assert.True(t, col.HasIdentityOptions())
+	})
 }
 
 func TestGenerationStorageConstants(t *testing.T) {

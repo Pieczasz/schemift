@@ -93,13 +93,17 @@ func runDiff(oldPath, newPath string, flags *diffFlags) error {
 	if err != nil {
 		return fmt.Errorf("failed to open old schema: %w", err)
 	}
-	defer oldFile.Close()
+	defer func(oldFile *os.File) {
+		_ = oldFile.Close()
+	}(oldFile)
 
 	newFile, err := os.Open(newPath)
 	if err != nil {
 		return fmt.Errorf("failed to open new schema: %w", err)
 	}
-	defer newFile.Close()
+	defer func(newFile *os.File) {
+		_ = newFile.Close()
+	}(newFile)
 
 	oldDB, newDB, err := parseSchemas(oldFile, newFile)
 	if err != nil {
@@ -159,13 +163,17 @@ func runMigrate(oldPath, newPath string, flags *migrateFlags) error {
 	if err != nil {
 		return fmt.Errorf("failed to open old schema: %w", err)
 	}
-	defer oldFile.Close()
+	defer func(oldFile *os.File) {
+		_ = oldFile.Close()
+	}(oldFile)
 
 	newFile, err := os.Open(newPath)
 	if err != nil {
 		return fmt.Errorf("failed to open new schema: %w", err)
 	}
-	defer newFile.Close()
+	defer func(newFile *os.File) {
+		_ = newFile.Close()
+	}(newFile)
 
 	oldDB, newDB, err := parseSchemas(oldFile, newFile)
 	if err != nil {
@@ -187,7 +195,9 @@ func runMigrate(oldPath, newPath string, flags *migrateFlags) error {
 		if err != nil {
 			return fmt.Errorf("failed to create rollback file: %w", err)
 		}
-		defer rbFile.Close()
+		defer func(rbFile *os.File) {
+			_ = rbFile.Close()
+		}(rbFile)
 
 		if err := output.WriteRollback(generatedMigration, rbFile); err != nil {
 			return fmt.Errorf("failed to write rollback output: %w", err)
@@ -239,7 +249,9 @@ func runApply(flags *applyFlags) error {
 	if err != nil {
 		return fmt.Errorf("failed to open migration file: %w", err)
 	}
-	defer f.Close()
+	defer func(f *os.File) {
+		_ = f.Close()
+	}(f)
 
 	content, err := io.ReadAll(f)
 	if err != nil {

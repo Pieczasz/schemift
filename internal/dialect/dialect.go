@@ -21,7 +21,7 @@ const (
 
 // Generator interface creates a main abstraction for SQL dialects.
 // It contains all methods to support as much as possible for each dialect.
-// NOTE: this interface can be changed later if we need more or less methods.
+// NOTE: this interface can be changed later if we need more or fewer methods.
 type Generator interface {
 	GenerateMigration(diff *diff.SchemaDiff, opts MigrationOptions) *migration.Migration
 	GenerateCreateTable(table *core.Table) (statement string, fkStatements []string)
@@ -67,7 +67,7 @@ type BreakingChangeDetector interface {
 	DetectBreakingChanges(schemaDiff *diff.SchemaDiff) []diff.BreakingChange
 }
 
-// MigrationOptions have all possible options that user can specify during migration.
+// MigrationOptions have all possible options that a user can specify during migration.
 type MigrationOptions struct {
 	Dialect              Type
 	IncludeDrops         bool
