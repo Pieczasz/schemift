@@ -140,8 +140,7 @@ type MySQLTableOptions struct {
 	Nodegroup                uint64
 }
 
-// TiDBTableOptions contains TiDB-specific table options. Since we use TIDB mysql parser,
-// it is a nice addition to mysql parser.
+// TiDBTableOptions contains TiDB-specific table options.
 type TiDBTableOptions struct {
 	AutoIDCache     uint64
 	AutoRandomBase  uint64
@@ -300,7 +299,7 @@ type Column struct {
 	// The parser auto-synthesizes a named CHECK constraint from this field.
 	Check string `json:"check,omitempty"`
 
-	// References is an inline foreign-key shorthand in "table.column" format.
+	// References are inline foreign-key shorthand in "table.column" format.
 	// The parser auto-synthesizes a named FOREIGN KEY constraint from this field.
 	References string `json:"references,omitempty"`
 
@@ -311,15 +310,18 @@ type Column struct {
 	RefOnUpdate ReferentialAction `json:"refOnUpdate,omitempty"`
 
 	// EnumValues holds the allowed values when Type is "enum".
-	// In TOML this is written as  values = ["free", "pro", "enterprise"]
+	// In TOML this is written as values = ["free", "pro", "enterprise"]
 	// which is cleaner and safer than embedding quotes in the type string.
 	EnumValues []string `json:"enumValues,omitempty"`
 
-	// TypeOverrides maps dialect name -> verbatim DDL type.
-	// Example: {"postgres": "JSONB", "mysql": "JSON"}
-	// When the target dialect has an entry here, generators MUST emit that
-	// value instead of mapping the portable TypeRaw.
-	TypeOverrides map[string]string `json:"typeOverrides,omitempty"`
+	// RawType is the dialect-specific type override (e.g. "JSONB").
+	// When set, it applies to the dialect declared in [database].
+	// For all other dialects the portable TypeRaw is used.
+	RawType string `json:"rawType,omitempty"`
+
+	// RawTypeDialect is the dialect the RawType applies to.
+	// Set automatically by the parser from [database].dialect.
+	RawTypeDialect string `json:"rawTypeDialect,omitempty"`
 
 	// IdentitySeed is the starting value for IDENTITY / auto-increment columns.
 	// Used by MSSQL (IDENTITY(seed,increment)), DB2 (START WITH), and
@@ -527,26 +529,23 @@ func (t *Table) String() string {
 }
 
 // HasTypeOverride reports whether the column has a type override for the given
-// dialect.  When dialect is empty it returns true if ANY override exists.
+// dialect.  When the dialect is empty, it returns true if ANY override exists.
 func (c *Column) HasTypeOverride(dialect string) bool {
-	if len(c.TypeOverrides) == 0 {
+	if c.RawType == "" || strings.TrimSpace(c.RawType) == "" {
 		return false
 	}
 	if dialect == "" {
-		return len(c.TypeOverrides) > 0
+		return true
 	}
-	v, ok := c.TypeOverrides[strings.ToLower(dialect)]
-	return ok && strings.TrimSpace(v) != ""
+	return strings.EqualFold(c.RawTypeDialect, dialect)
 }
 
 // EffectiveType returns the type string a generator should use for the given
-// dialect.  If the column has a dialect-specific override, it is returned
-// verbatim; otherwise TypeRaw (the portable type) is returned for mapping.
+// dialect.  If the column has a raw type override matching the dialect, it is
+// returned verbatim; otherwise TypeRaw (the portable type) is returned.
 func (c *Column) EffectiveType(dialect string) string {
-	if dialect != "" {
-		if v, ok := c.TypeOverrides[strings.ToLower(dialect)]; ok && strings.TrimSpace(v) != "" {
-			return v
-		}
+	if dialect != "" && c.RawType != "" && strings.TrimSpace(c.RawType) != "" && strings.EqualFold(c.RawTypeDialect, dialect) {
+		return c.RawType
 	}
 	return c.TypeRaw
 }
