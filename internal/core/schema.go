@@ -140,8 +140,7 @@ type MySQLTableOptions struct {
 	Nodegroup                uint64
 }
 
-// TiDBTableOptions contains TiDB-specific table options. Since we use TIDB mysql parser,
-// it is a nice addition to mysql parser.
+// TiDBTableOptions contains TiDB-specific table options.
 type TiDBTableOptions struct {
 	AutoIDCache     uint64
 	AutoRandomBase  uint64
@@ -300,7 +299,7 @@ type Column struct {
 	// The parser auto-synthesizes a named CHECK constraint from this field.
 	Check string `json:"check,omitempty"`
 
-	// References is an inline foreign-key shorthand in "table.column" format.
+	// References are inline foreign-key shorthand in "table.column" format.
 	// The parser auto-synthesizes a named FOREIGN KEY constraint from this field.
 	References string `json:"references,omitempty"`
 
@@ -311,7 +310,7 @@ type Column struct {
 	RefOnUpdate ReferentialAction `json:"refOnUpdate,omitempty"`
 
 	// EnumValues holds the allowed values when Type is "enum".
-	// In TOML this is written as  values = ["free", "pro", "enterprise"]
+	// In TOML this is written as values = ["free", "pro", "enterprise"]
 	// which is cleaner and safer than embedding quotes in the type string.
 	EnumValues []string `json:"enumValues,omitempty"`
 
@@ -527,7 +526,7 @@ func (t *Table) String() string {
 }
 
 // HasTypeOverride reports whether the column has a type override for the given
-// dialect.  When dialect is empty it returns true if ANY override exists.
+// dialect.  When the dialect is empty, it returns true if ANY override exists.
 func (c *Column) HasTypeOverride(dialect string) bool {
 	if len(c.TypeOverrides) == 0 {
 		return false

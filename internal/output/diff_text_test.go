@@ -9,43 +9,37 @@ import (
 
 	"smf/internal/core"
 	"smf/internal/diff"
-	"smf/internal/parser"
 )
 
 func TestFormatDiffText(t *testing.T) {
-	oldSQL := `CREATE TABLE users (
-		id INT PRIMARY KEY AUTO_INCREMENT,
-		name VARCHAR(255) NULL
-	);
-
-	CREATE TABLE posts (
-		id INT PRIMARY KEY
-	);`
-
-	newSQL := `CREATE TABLE users (
-		id INT PRIMARY KEY AUTO_INCREMENT,
-		name VARCHAR(255) NOT NULL,
-		email VARCHAR(255)
-	);
-
-	CREATE TABLE comments (
-		id INT PRIMARY KEY
-	);`
-
-	p := parser.NewSQLParser()
-	oldDB, err := p.ParseSchema(oldSQL)
-	require.NoError(t, err)
-	newDB, err := p.ParseSchema(newSQL)
-	require.NoError(t, err)
+	oldDB := &core.Database{
+		Tables: []*core.Table{
+			{Name: "users", Columns: []*core.Column{
+				{Name: "id", TypeRaw: "INT", Type: core.DataTypeInt},
+				{Name: "name", TypeRaw: "VARCHAR(255)", Type: core.DataTypeString, Nullable: true},
+			}},
+			{Name: "posts", Columns: []*core.Column{
+				{Name: "id", TypeRaw: "INT", Type: core.DataTypeInt},
+			}},
+		},
+	}
+	newDB := &core.Database{
+		Tables: []*core.Table{
+			{Name: "users", Columns: []*core.Column{
+				{Name: "id", TypeRaw: "INT", Type: core.DataTypeInt},
+				{Name: "name", TypeRaw: "VARCHAR(255)", Type: core.DataTypeString, Nullable: false},
+				{Name: "email", TypeRaw: "VARCHAR(255)", Type: core.DataTypeString},
+			}},
+			{Name: "comments", Columns: []*core.Column{
+				{Name: "id", TypeRaw: "INT", Type: core.DataTypeInt},
+			}},
+		},
+	}
 
 	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
 	require.NotNil(t, d)
 
-	formatter, err := NewFormatter("sql")
-	require.NoError(t, err)
-
-	s, err := formatter.FormatDiff(d)
-	require.NoError(t, err)
+	s := formatDiffText(d)
 
 	assert.Contains(t, s, "Schema differences:")
 	assert.Contains(t, s, "Added tables:")
@@ -335,7 +329,7 @@ func TestWriteTableDiffTextWithWarnings(t *testing.T) {
 	assert.Contains(t, result, "- Manual review needed")
 }
 
-func TestWriteTableDiffTextAllSections(t *testing.T) {
+func TestFormatDiffTextAllSections(t *testing.T) {
 	td := &diff.TableDiff{
 		Name:     "users",
 		Warnings: []string{"Warning message"},
@@ -390,19 +384,4 @@ func TestWriteTableDiffTextAllSections(t *testing.T) {
 	assert.Contains(t, result, "Added constraints:")
 	assert.Contains(t, result, "Removed constraints:")
 	assert.Contains(t, result, "Modified constraints:")
-}
-
-func TestSQLFormatterFormatDiffNil(t *testing.T) {
-	sf := sqlFormatter{}
-	result, err := sf.FormatDiff(nil)
-	assert.NoError(t, err)
-	assert.Equal(t, "", result)
-}
-
-func TestSQLFormatterFormatDiffEmpty(t *testing.T) {
-	sf := sqlFormatter{}
-	d := &diff.SchemaDiff{}
-	result, err := sf.FormatDiff(d)
-	assert.NoError(t, err)
-	assert.Equal(t, "No differences detected.", result)
 }

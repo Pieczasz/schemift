@@ -7,24 +7,10 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewFormatterDefaultsToSQL(t *testing.T) {
+func TestNewFormatterDefaultsToJSON(t *testing.T) {
 	f, err := NewFormatter("")
 	require.NoError(t, err)
-	_, ok := f.(sqlFormatter)
-	assert.True(t, ok)
-}
-
-func TestNewFormatterSQL(t *testing.T) {
-	f, err := NewFormatter("sql")
-	require.NoError(t, err)
-	_, ok := f.(sqlFormatter)
-	assert.True(t, ok)
-}
-
-func TestNewFormatterSQLUppercase(t *testing.T) {
-	f, err := NewFormatter("SQL")
-	require.NoError(t, err)
-	_, ok := f.(sqlFormatter)
+	_, ok := f.(jsonFormatter)
 	assert.True(t, ok)
 }
 
@@ -50,9 +36,9 @@ func TestNewFormatterSummary(t *testing.T) {
 }
 
 func TestNewFormatterWithWhitespace(t *testing.T) {
-	f, err := NewFormatter("  sql  ")
+	f, err := NewFormatter("  json  ")
 	require.NoError(t, err)
-	_, ok := f.(sqlFormatter)
+	_, ok := f.(jsonFormatter)
 	assert.True(t, ok)
 }
 
@@ -67,7 +53,7 @@ func TestNewFormatterInvalidFormatWithMessage(t *testing.T) {
 	f, err := NewFormatter("yaml")
 	assert.Error(t, err)
 	assert.Nil(t, f)
-	assert.Contains(t, err.Error(), "use 'sql', 'json', or 'summary'")
+	assert.Contains(t, err.Error(), "use 'json' or 'summary'")
 }
 
 func TestNormalizeStatementsEmpty(t *testing.T) {

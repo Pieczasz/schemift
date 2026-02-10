@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	// OptionsCount is the number of options that we support for MySQL dialect.
+	// OptionsCount is the number of table options tracked during diffing.
 	OptionsCount = 45
 )
 

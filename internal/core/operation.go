@@ -15,9 +15,7 @@ type OperationRisk string
 
 const (
 	RiskInfo     OperationRisk = "INFO"
-	RiskWarning  OperationRisk = "WARNING"
 	RiskBreaking OperationRisk = "BREAKING"
-	RiskCritical OperationRisk = "CRITICAL"
 )
 
 // Operation struct contains all information about a single operation of migration.

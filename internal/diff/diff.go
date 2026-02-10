@@ -101,14 +101,14 @@ type Options struct {
 	DetectColumnRenames bool
 }
 
-// DefaultOptions are options for mysql diffing
+// DefaultOptions returns the default diffing options.
 func DefaultOptions() Options {
 	return Options{DetectColumnRenames: true}
 }
 
 // Diff compares two database dumps and returns a SchemaDiff object.
 // NOTE: For very large schemas (100+ tables), table comparisons could be parallelized,
-// but current sequential approach is sufficient for typical use cases.
+// but the current sequential approach is enough for typical use cases.
 func Diff(oldDB, newDB *core.Database, opts Options) *SchemaDiff {
 	d := &SchemaDiff{}
 	oldTables, oldCollisions := mapTablesByName(oldDB.Tables)

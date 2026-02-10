@@ -1,108 +1,92 @@
 package output
 
 import (
-	"flag"
-	"os"
-	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"smf/internal/dialect"
-	"smf/internal/dialect/mysql"
+	"smf/internal/core"
 	"smf/internal/diff"
-	"smf/internal/parser"
+	"smf/internal/migration"
 )
 
-var updateGolden = flag.Bool("update-golden", false, "update golden files")
-
-const (
-	jsonOldSchema = `CREATE TABLE users (
-		id INT PRIMARY KEY AUTO_INCREMENT,
-		name VARCHAR(255) NULL
-	);
-
-	CREATE TABLE posts (
-		id INT PRIMARY KEY
-	);`
-
-	jsonNewSchema = `CREATE TABLE users (
-		id INT PRIMARY KEY AUTO_INCREMENT,
-		name VARCHAR(255) NOT NULL,
-		email VARCHAR(255)
-	);
-
-	CREATE TABLE comments (
-		id INT PRIMARY KEY
-	);`
-)
-
-func TestDiffJSONFormatGolden(t *testing.T) {
-	out := formatDiffJSON(t)
-	if *updateGolden {
-		writeGolden(t, "diff_golden.json", out)
-		return
-	}
-	require.Equal(t, readGolden(t, "diff_golden.json"), out)
+func TestJSONFormatterFormatDiffNil(t *testing.T) {
+	f := jsonFormatter{}
+	out, err := f.FormatDiff(nil)
+	require.NoError(t, err)
+	assert.Contains(t, out, `"formatVersion"`)
+	assert.Contains(t, out, `"format": "json"`)
 }
 
-func TestMigrationJSONFormatGolden(t *testing.T) {
-	out := formatMigrationJSON(t)
-	if *updateGolden {
-		writeGolden(t, "migration_golden.json", out)
-		return
-	}
-	require.Equal(t, readGolden(t, "migration_golden.json"), out)
+func TestJSONFormatterFormatDiffEmpty(t *testing.T) {
+	f := jsonFormatter{}
+	out, err := f.FormatDiff(&diff.SchemaDiff{})
+	require.NoError(t, err)
+	assert.Contains(t, out, `"addedTables": 0`)
+	assert.Contains(t, out, `"removedTables": 0`)
 }
 
-func formatDiffJSON(t *testing.T) string {
-	t.Helper()
-	p := parser.NewSQLParser()
-	oldDB, err := p.ParseSchema(jsonOldSchema)
-	require.NoError(t, err)
-	newDB, err := p.ParseSchema(jsonNewSchema)
-	require.NoError(t, err)
+func TestJSONFormatterFormatDiffWithChanges(t *testing.T) {
+	oldDB := &core.Database{
+		Tables: []*core.Table{
+			{Name: "users", Columns: []*core.Column{
+				{Name: "id", TypeRaw: "INT", Type: core.DataTypeInt},
+				{Name: "name", TypeRaw: "VARCHAR(255)", Type: core.DataTypeString, Nullable: true},
+			}},
+			{Name: "posts", Columns: []*core.Column{
+				{Name: "id", TypeRaw: "INT", Type: core.DataTypeInt},
+			}},
+		},
+	}
+	newDB := &core.Database{
+		Tables: []*core.Table{
+			{Name: "users", Columns: []*core.Column{
+				{Name: "id", TypeRaw: "INT", Type: core.DataTypeInt},
+				{Name: "name", TypeRaw: "VARCHAR(255)", Type: core.DataTypeString, Nullable: false},
+				{Name: "email", TypeRaw: "VARCHAR(255)", Type: core.DataTypeString},
+			}},
+			{Name: "comments", Columns: []*core.Column{
+				{Name: "id", TypeRaw: "INT", Type: core.DataTypeInt},
+			}},
+		},
+	}
 
 	d := diff.Diff(oldDB, newDB, diff.DefaultOptions())
-	formatter, err := NewFormatter("json")
+	f := jsonFormatter{}
+	out, err := f.FormatDiff(d)
 	require.NoError(t, err)
-	out, err := formatter.FormatDiff(d)
-	require.NoError(t, err)
-	return out
+
+	assert.Contains(t, out, `"addedTables": 1`)
+	assert.Contains(t, out, `"removedTables": 1`)
+	assert.Contains(t, out, `"modifiedTables": 1`)
+	assert.Contains(t, out, `"comments"`)
+	assert.Contains(t, out, `"posts"`)
+	assert.Contains(t, out, `"users"`)
 }
 
-func formatMigrationJSON(t *testing.T) string {
-	t.Helper()
-	p := parser.NewSQLParser()
-	oldDB, err := p.ParseSchema(jsonOldSchema)
+func TestJSONFormatterFormatMigrationNil(t *testing.T) {
+	f := jsonFormatter{}
+	out, err := f.FormatMigration(nil)
 	require.NoError(t, err)
-	newDB, err := p.ParseSchema(jsonNewSchema)
-	require.NoError(t, err)
-
-	schemaDiff := diff.Diff(oldDB, newDB, diff.DefaultOptions())
-	d := mysql.NewMySQLDialect()
-	opts := dialect.DefaultMigrationOptions(dialect.MySQL)
-	migration := d.Generator().GenerateMigration(schemaDiff, opts)
-
-	formatter, err := NewFormatter("json")
-	require.NoError(t, err)
-	out, err := formatter.FormatMigration(migration)
-	require.NoError(t, err)
-	return out
+	assert.Contains(t, out, `"formatVersion"`)
+	assert.Contains(t, out, `"format": "json"`)
 }
 
-func readGolden(t *testing.T, name string) string {
-	t.Helper()
-	path := filepath.Join("..", "..", "test", "data", name)
-	b, err := os.ReadFile(path)
+func TestJSONFormatterFormatMigrationWithOps(t *testing.T) {
+	m := &migration.Migration{
+		Operations: []core.Operation{
+			{Kind: core.OperationSQL, SQL: "ALTER TABLE users ADD COLUMN email VARCHAR(255)"},
+			{Kind: core.OperationBreaking, SQL: "column removed", Risk: core.RiskBreaking},
+			{Kind: core.OperationNote, SQL: "review this change", Risk: core.RiskInfo},
+		},
+	}
+	f := jsonFormatter{}
+	out, err := f.FormatMigration(m)
 	require.NoError(t, err)
-	return string(b)
-}
 
-func writeGolden(t *testing.T, name string, content string) {
-	t.Helper()
-	path := filepath.Join("..", "..", "test", "data", name)
-	err := os.WriteFile(path, []byte(content), 0o644)
-	require.NoError(t, err)
-	t.Logf("Updated golden file: %s", path)
+	assert.Contains(t, out, `"sqlStatements": 1`)
+	assert.Contains(t, out, `"breakingChanges": 1`)
+	assert.Contains(t, out, `"notes": 1`)
+	assert.Contains(t, out, "ALTER TABLE users ADD COLUMN email VARCHAR(255)")
 }

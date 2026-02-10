@@ -1,5 +1,5 @@
 // Package output provides a set of formatters for schema diffs and migrations.
-// It is extendable and for now provides two formats: SQL and JSON.
+// It is extendable and for now provides two formats: JSON and Summary.
 package output
 
 import (
@@ -14,7 +14,6 @@ import (
 type Format string
 
 const (
-	FormatSQL     Format = "sql"
 	FormatJSON    Format = "json"
 	FormatSummary Format = "summary"
 )
@@ -30,14 +29,12 @@ type Formatter interface {
 func NewFormatter(name string) (Formatter, error) {
 	format := Format(strings.ToLower(strings.TrimSpace(name)))
 	switch format {
-	case "", FormatSQL:
-		return sqlFormatter{}, nil
-	case FormatJSON:
+	case "", FormatJSON:
 		return jsonFormatter{}, nil
 	case FormatSummary:
 		return summaryFormatter{}, nil
 	default:
-		return nil, fmt.Errorf("unsupported format: %s; use 'sql', 'json', or 'summary'", name)
+		return nil, fmt.Errorf("unsupported format: %s; use 'json' or 'summary'", name)
 	}
 }
 
