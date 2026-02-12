@@ -352,9 +352,12 @@ type MariaDBTableOptions struct {
 type Column struct {
 	// Name is the column identifier as declared in the schema.
 	Name string `json:"name"`
-	// TypeRaw is the portable SQL type string (e.g. "VARCHAR(255)", "BIGINT").
-	TypeRaw string `json:"typeRaw"`
-	// Type is the normalized portable data type derived from TypeRaw.
+	// RawType is the SQL type string to use for DDL generation (e.g. "VARCHAR(255)", "JSONB").
+	// The parser resolves this once: if a dialect-specific raw_type override is
+	// declared in TOML it takes precedence, otherwise the portable type is used.
+	RawType string `json:"rawType"`
+	// Type is the normalized portable data type category (e.g. DataTypeString).
+	// Always derived from the portable TOML `type` field for consistent classification.
 	Type DataType `json:"type"`
 	// Nullable indicates whether the column allows NULL values.
 	Nullable bool `json:"nullable"`
@@ -395,15 +398,6 @@ type Column struct {
 	// In TOML this is written as values = ["free", "pro", "enterprise"]
 	// which is cleaner and safer than embedding quotes in the type string.
 	EnumValues []string `json:"enumValues,omitempty"`
-
-	// RawType is the dialect-specific type override (e.g. "JSONB").
-	// When set, it applies to the dialect declared in [database].
-	// For all other dialects the portable TypeRaw is used.
-	RawType string `json:"rawType,omitempty"`
-
-	// RawTypeDialect is the dialect the RawType applies to.
-	// Set automatically by the parser from [database].dialect.
-	RawTypeDialect string `json:"rawTypeDialect,omitempty"`
 
 	// IdentitySeed is the starting value for IDENTITY / auto-increment columns.
 	// Used by MSSQL (IDENTITY(seed,increment)), DB2 (START WITH), and
@@ -649,28 +643,6 @@ func (t *Table) String() string {
 		t.Name, len(t.Columns), len(t.Constraints), len(t.Indexes))
 }
 
-// HasTypeOverride reports whether the column has a type override for the given
-// dialect.  When the dialect is empty, it returns true if ANY override exists.
-func (c *Column) HasTypeOverride(dialect string) bool {
-	if c.RawType == "" || strings.TrimSpace(c.RawType) == "" {
-		return false
-	}
-	if dialect == "" {
-		return true
-	}
-	return strings.EqualFold(c.RawTypeDialect, dialect)
-}
-
-// EffectiveType returns the type string a generator should use for the given
-// dialect.  If the column has a raw type override matching the dialect, it is
-// returned verbatim; otherwise TypeRaw (the portable type) is returned.
-func (c *Column) EffectiveType(dialect string) string {
-	if dialect != "" && c.RawType != "" && strings.TrimSpace(c.RawType) != "" && strings.EqualFold(c.RawTypeDialect, dialect) {
-		return c.RawType
-	}
-	return c.TypeRaw
-}
-
 // HasIdentityOptions reports whether seed or increment are explicitly set.
 func (c *Column) HasIdentityOptions() bool {
 	return c.IdentitySeed != 0 || c.IdentityIncrement != 0
@@ -709,9 +681,6 @@ var normalizeDataTypeRules = []normalizeDataTypeRule{
 // on substring containment using normalizeDataTypeRules.
 func NormalizeDataType(rawType string) DataType {
 	lower := strings.ToLower(strings.TrimSpace(rawType))
-	if lower == "" {
-		return DataTypeUnknown
-	}
 	for _, rule := range normalizeDataTypeRules {
 		for _, sub := range rule.substrings {
 			if strings.Contains(lower, sub) {
@@ -720,6 +689,29 @@ func NormalizeDataType(rawType string) DataType {
 		}
 	}
 	return DataTypeUnknown
+}
+
+// AutoGenerateConstraintName produces a deterministic name for a constraint
+// that was synthesized from column-level shortcuts.
+//
+//	PK:     pk_{table}
+//	UNIQUE: uq_{table}_{column}
+//	CHECK:  chk_{table}_{column}
+//	FK:     fk_{table}_{referenced_table}
+func AutoGenerateConstraintName(ctype ConstraintType, table string, columns []string, refTable string) string {
+	t := strings.ToLower(table)
+	switch ctype {
+	case ConstraintPrimaryKey:
+		return fmt.Sprintf("pk_%s", t)
+	case ConstraintUnique:
+		return fmt.Sprintf("uq_%s_%s", t, strings.ToLower(strings.Join(columns, "_")))
+	case ConstraintCheck:
+		return fmt.Sprintf("chk_%s_%s", t, strings.ToLower(strings.Join(columns, "_")))
+	case ConstraintForeignKey:
+		return fmt.Sprintf("fk_%s_%s", t, strings.ToLower(refTable))
+	default:
+		return fmt.Sprintf("cstr_%s_%s", t, strings.ToLower(strings.Join(columns, "_")))
+	}
 }
 
 // BuildEnumTypeRaw constructs a portable enum type string from a list of
