@@ -220,7 +220,7 @@ func (c *converter) convert() (*core.Database, error) {
 }
 
 // validateDialect validates the raw dialect string.
-// Empty is allowed (dialect is optional); an unrecognised non-empty value is an error.
+// Empty is allowed (dialect is optional); an unrecognized non-empty value is an error.
 func (c *converter) validateDialect(raw string) (*core.Dialect, error) {
 	if raw == "" {
 		return nil, nil
@@ -268,29 +268,10 @@ func (c *converter) convertTable(tt *tomlTable) (*core.Table, error) {
 		Options: convertTableOptions(&tt.Options),
 	}
 
-	if tt.Timestamps != nil {
-		table.Timestamps = &core.TimestampsConfig{
-			Enabled:       tt.Timestamps.Enabled,
-			CreatedColumn: tt.Timestamps.CreatedColumn,
-			UpdatedColumn: tt.Timestamps.UpdatedColumn,
-		}
-	}
+	table.Timestamps = convertTimestamps(tt.Timestamps)
 
-	table.Columns = make([]*core.Column, 0, len(tt.Columns))
-	for i := range tt.Columns {
-		col, err := c.convertColumn(&tt.Columns[i])
-		if err != nil {
-			return nil, fmt.Errorf("column %q: %w", tt.Columns[i].Name, err)
-		}
-		table.Columns = append(table.Columns, col)
-	}
-
-	if table.Timestamps != nil && table.Timestamps.Enabled {
-		injectTimestampColumns(table)
-	}
-
-	if len(table.Columns) == 0 {
-		return nil, fmt.Errorf("table has no columns")
+	if err := c.convertTableColumns(table, tt); err != nil {
+		return nil, err
 	}
 
 	table.Constraints = make([]*core.Constraint, 0, len(tt.Constraints))
@@ -313,6 +294,40 @@ func (c *converter) convertTable(tt *tomlTable) (*core.Table, error) {
 	}
 
 	return table, nil
+}
+
+// convertTimestamps maps the optional TOML timestamps block to a core config.
+func convertTimestamps(ts *tomlTimestamps) *core.TimestampsConfig {
+	if ts == nil {
+		return nil
+	}
+	return &core.TimestampsConfig{
+		Enabled:       ts.Enabled,
+		CreatedColumn: ts.CreatedColumn,
+		UpdatedColumn: ts.UpdatedColumn,
+	}
+}
+
+// convertTableColumns populates table.Columns from the TOML column definitions,
+// injects timestamp columns when enabled, and ensures the table is non-empty.
+func (c *converter) convertTableColumns(table *core.Table, tt *tomlTable) error {
+	table.Columns = make([]*core.Column, 0, len(tt.Columns))
+	for i := range tt.Columns {
+		col, err := c.convertColumn(&tt.Columns[i])
+		if err != nil {
+			return fmt.Errorf("column %q: %w", tt.Columns[i].Name, err)
+		}
+		table.Columns = append(table.Columns, col)
+	}
+
+	if table.Timestamps != nil && table.Timestamps.Enabled {
+		injectTimestampColumns(table)
+	}
+
+	if len(table.Columns) == 0 {
+		return fmt.Errorf("table has no columns")
+	}
+	return nil
 }
 
 // validateTableName checks emptiness, duplicates, length, and pattern - all
@@ -367,6 +382,9 @@ func (c *converter) convertColumn(tc *tomlColumn) (*core.Column, error) {
 	col.Type = core.NormalizeDataType(portableType)
 
 	if tc.RawType != "" && c.dialect != nil {
+		if err := core.ValidateRawType(tc.RawType, c.dialect); err != nil {
+			return nil, fmt.Errorf("column %q: %w", tc.Name, err)
+		}
 		col.RawType = tc.RawType
 	} else {
 		col.RawType = portableType

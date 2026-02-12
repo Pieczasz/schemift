@@ -18,10 +18,6 @@ func testdataPath(file string) string {
 	return filepath.Join(dir, "..", "..", "..", "test", "data", file)
 }
 
-// ---------------------------------------------------------------------------
-// Full schema.toml integration tests
-// ---------------------------------------------------------------------------
-
 func TestParseFileSchemaToml(t *testing.T) {
 	p := NewParser()
 	db, err := p.ParseFile(testdataPath("schema.toml"))
@@ -367,10 +363,6 @@ func TestParseFileUserRoles(t *testing.T) {
 		assert.Equal(t, "role_id", idx.Columns[0].Name)
 	})
 }
-
-// ---------------------------------------------------------------------------
-// Unit-level TOML snippet tests
-// ---------------------------------------------------------------------------
 
 func TestParseMinimalSchema(t *testing.T) {
 	const schema = `
@@ -1039,10 +1031,6 @@ name = "children"
 	assert.Equal(t, core.ReferentialAction("SET NULL"), fk.OnUpdate)
 }
 
-// ---------------------------------------------------------------------------
-// Simple index columns (string array)
-// ---------------------------------------------------------------------------
-
 func TestParseIndexSimpleColumns(t *testing.T) {
 	const schema = `
 [database]
@@ -1160,10 +1148,6 @@ name = "items"
 	require.Len(t, idx.Columns, 1)
 	assert.Equal(t, core.SortAsc, idx.Columns[0].Order)
 }
-
-// ---------------------------------------------------------------------------
-// Timestamps injection
-// ---------------------------------------------------------------------------
 
 func TestParseTimestampsInjection(t *testing.T) {
 	const schema = `
@@ -1298,10 +1282,6 @@ name = "items"
 	assert.Len(t, tbl.Columns, 1, "timestamps disabled -> no injection")
 }
 
-// ---------------------------------------------------------------------------
-// Generated columns
-// ---------------------------------------------------------------------------
-
 func TestParseGeneratedColumn(t *testing.T) {
 	const schema = `
 [database]
@@ -1332,10 +1312,6 @@ name = "items"
 	assert.Equal(t, "CONCAT(first_name, ' ', last_name)", col.GenerationExpression)
 	assert.Equal(t, core.GenerationStored, col.GenerationStorage)
 }
-
-// ---------------------------------------------------------------------------
-// Table options
-// ---------------------------------------------------------------------------
 
 func TestParseTableOptions(t *testing.T) {
 	const schema = `
@@ -1375,10 +1351,6 @@ name = "items"
 	assert.Equal(t, "Y", opts.MySQL.Encryption)
 	assert.Equal(t, uint64(8), opts.MySQL.KeyBlockSize)
 }
-
-// ---------------------------------------------------------------------------
-// Data-type normalisation through the parser
-// ---------------------------------------------------------------------------
 
 func TestParseDataTypeNormalization(t *testing.T) {
 	tests := []struct {
@@ -1428,10 +1400,6 @@ name = "items"
 		})
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Error cases
-// ---------------------------------------------------------------------------
 
 func TestParseInvalidToml(t *testing.T) {
 	p := NewParser()
@@ -1650,10 +1618,6 @@ name = "items"
 	assert.Equal(t, 1, fkCount)
 }
 
-// ---------------------------------------------------------------------------
-// Edge: no PK at all (valid)
-// ---------------------------------------------------------------------------
-
 func TestParseTableWithoutPK(t *testing.T) {
 	const schema = `
 [database]
@@ -1673,10 +1637,6 @@ name = "logs"
 	tbl := db.Tables[0]
 	assert.Nil(t, tbl.PrimaryKey())
 }
-
-// ---------------------------------------------------------------------------
-// Example schema file integration test
-// ---------------------------------------------------------------------------
 
 func TestParseFileExampleSchemaToml(t *testing.T) {
 	p := NewParser()
