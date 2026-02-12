@@ -8,6 +8,15 @@ import (
 	"strings"
 )
 
+// Database represents a database in the schema.
+type Database struct {
+	Name       string
+	Dialect    *Dialect
+	Version    string
+	Tables     []*Table
+	Validation *ValidationRules
+}
+
 // Dialect identifies a supported SQL dialect.
 type Dialect string
 
@@ -44,15 +53,6 @@ func IsValidDialect(d string) bool {
 		}
 	}
 	return false
-}
-
-// Database represents a database in the schema.
-type Database struct {
-	Name       string
-	Dialect    string
-	Version    string
-	Tables     []*Table
-	Validation *ValidationRules
 }
 
 // ValidationRules configures schema-level validation constraints.

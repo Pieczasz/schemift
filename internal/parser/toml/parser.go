@@ -172,9 +172,14 @@ func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 }
 
 func convertSchemaFile(sf *schemaFile) (*core.Database, error) {
+	dialect, err := validateDialect(sf.Database.Dialect)
+	if err != nil {
+		return nil, err
+	}
+
 	db := &core.Database{
 		Name:    sf.Database.Name,
-		Dialect: sf.Database.Dialect,
+		Dialect: dialect,
 		Version: sf.Database.Version,
 		Tables:  make([]*core.Table, 0, len(sf.Tables)),
 	}
@@ -187,8 +192,6 @@ func convertSchemaFile(sf *schemaFile) (*core.Database, error) {
 			AllowedNamePattern:          sf.Validation.AllowedNamePattern,
 		}
 	}
-
-	dialect := sf.Database.Dialect
 
 	for i := range sf.Tables {
 		t, err := convertTable(&sf.Tables[i], dialect)
@@ -205,7 +208,18 @@ func convertSchemaFile(sf *schemaFile) (*core.Database, error) {
 	return db, nil
 }
 
-func convertTable(tt *tomlTable, dialect string) (*core.Table, error) {
+func validateDialect(rawDialect string) (*core.Dialect, error) {
+	if rawDialect == "" {
+		return nil, fmt.Errorf("toml: dialect is required")
+	}
+	if !core.IsValidDialect(rawDialect) {
+		return nil, fmt.Errorf("toml: unsupported dialect %q; supported: %v", rawDialect, core.SupportedDialects())
+	}
+	d := core.Dialect(strings.ToLower(rawDialect))
+	return &d, nil
+}
+
+func convertTable(tt *tomlTable, dialect *core.Dialect) (*core.Table, error) {
 	table := &core.Table{
 		Name:    tt.Name,
 		Comment: tt.Comment,
@@ -277,7 +291,7 @@ func convertTableOptions(to *tomlTableOptions) core.TableOptions {
 	return opts
 }
 
-func convertColumn(tc *tomlColumn, dialect string) (*core.Column, error) {
+func convertColumn(tc *tomlColumn, dialect *core.Dialect) (*core.Column, error) {
 	col := &core.Column{
 		Name:          tc.Name,
 		Nullable:      tc.Nullable,
@@ -295,9 +309,9 @@ func convertColumn(tc *tomlColumn, dialect string) (*core.Column, error) {
 	col.TypeRaw = resolveTypeRaw(tc)
 	col.Type = core.NormalizeDataType(col.TypeRaw)
 
-	if tc.RawType != "" && dialect != "" {
+	if tc.RawType != "" && dialect != nil {
 		col.RawType = tc.RawType
-		col.RawTypeDialect = strings.ToLower(dialect)
+		col.RawTypeDialect = string(*dialect)
 	}
 
 	if tc.DefaultValue != nil {
