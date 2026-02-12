@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -82,7 +83,7 @@ type tomlColumn struct {
 	Charset       string `toml:"charset"`
 
 	// DefaultValue accepts string, bool, or number from TOML.
-	// The converter normalises everything to a string.
+	// The converter normalizes everything to a string.
 	// In the new schema this is the `default` key (was `default_value`).
 	DefaultValue any `toml:"default"`
 
@@ -168,75 +169,115 @@ func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 	if _, err := toml.NewDecoder(r).Decode(&sf); err != nil {
 		return nil, fmt.Errorf("toml: decode error: %w", err)
 	}
-	return convertSchemaFile(&sf)
+
+	c := newConverter(&sf)
+	return c.convert()
 }
 
-func convertSchemaFile(sf *schemaFile) (*core.Database, error) {
+type converter struct {
+	sf         *schemaFile
+	dialect    *core.Dialect
+	rules      *core.ValidationRules
+	nameRe     *regexp.Regexp
+	seenTables map[string]bool
+}
+
+func newConverter(sf *schemaFile) *converter {
+	return &converter{
+		sf:         sf,
+		seenTables: make(map[string]bool, len(sf.Tables)),
+	}
+}
+
+func (c *converter) convert() (*core.Database, error) {
+	dialect, err := c.validateDialect(c.sf.Database.Dialect)
+	if err != nil {
+		return nil, err
+	}
+	c.dialect = dialect
+
+	if err := c.validateRules(); err != nil {
+		return nil, err
+	}
+
 	db := &core.Database{
-		Name:    sf.Database.Name,
-		Dialect: sf.Database.Dialect,
-		Version: sf.Database.Version,
-		Tables:  make([]*core.Table, 0, len(sf.Tables)),
+		Name:    c.sf.Database.Name,
+		Dialect: c.dialect,
+		Version: c.sf.Database.Version,
+		Tables:  make([]*core.Table, 0, len(c.sf.Tables)),
 	}
+	db.Validation = c.rules
 
-	if sf.Validation != nil {
-		db.Validation = &core.ValidationRules{
-			MaxTableNameLength:          sf.Validation.MaxTableNameLength,
-			MaxColumnNameLength:         sf.Validation.MaxColumnNameLength,
-			AutoGenerateConstraintNames: sf.Validation.AutoGenerateConstraintNames,
-			AllowedNamePattern:          sf.Validation.AllowedNamePattern,
-		}
-	}
-
-	dialect := sf.Database.Dialect
-
-	for i := range sf.Tables {
-		t, err := convertTable(&sf.Tables[i], dialect)
+	for i := range c.sf.Tables {
+		t, err := c.convertTable(&c.sf.Tables[i])
 		if err != nil {
-			return nil, fmt.Errorf("toml: table %q: %w", sf.Tables[i].Name, err)
+			return nil, fmt.Errorf("toml: table %q: %w", c.sf.Tables[i].Name, err)
 		}
 		db.Tables = append(db.Tables, t)
-	}
-
-	if err := db.Validate(); err != nil {
-		return nil, fmt.Errorf("toml: schema validation failed: %w", err)
 	}
 
 	return db, nil
 }
 
-func convertTable(tt *tomlTable, dialect string) (*core.Table, error) {
+// validateDialect validates the raw dialect string.
+// Empty is allowed (dialect is optional); an unrecognized non-empty value is an error.
+func (c *converter) validateDialect(raw string) (*core.Dialect, error) {
+	if raw == "" {
+		return nil, nil
+	}
+	if !core.IsValidDialect(raw) {
+		return nil, fmt.Errorf("toml: unsupported dialect %q; supported: %v", raw, core.SupportedDialects())
+	}
+	d := core.Dialect(strings.ToLower(raw))
+	return &d, nil
+}
+
+// validateRules converts [validation] and pre-compiles the name regex.
+func (c *converter) validateRules() error {
+	v := c.sf.Validation
+	if v == nil {
+		return nil
+	}
+
+	c.rules = &core.ValidationRules{
+		MaxTableNameLength:          v.MaxTableNameLength,
+		MaxColumnNameLength:         v.MaxColumnNameLength,
+		AutoGenerateConstraintNames: v.AutoGenerateConstraintNames,
+		AllowedNamePattern:          v.AllowedNamePattern,
+	}
+
+	if v.AllowedNamePattern != "" {
+		re, err := regexp.Compile(v.AllowedNamePattern)
+		if err != nil {
+			return fmt.Errorf("toml: invalid allowed_name_pattern %q: %w", v.AllowedNamePattern, err)
+		}
+		c.nameRe = re
+	}
+
+	return nil
+}
+
+func (c *converter) convertTable(tt *tomlTable) (*core.Table, error) {
+	if err := c.validateTableName(tt.Name); err != nil {
+		return nil, err
+	}
+
 	table := &core.Table{
 		Name:    tt.Name,
 		Comment: tt.Comment,
 		Options: convertTableOptions(&tt.Options),
 	}
 
-	if tt.Timestamps != nil {
-		table.Timestamps = &core.TimestampsConfig{
-			Enabled:       tt.Timestamps.Enabled,
-			CreatedColumn: tt.Timestamps.CreatedColumn,
-			UpdatedColumn: tt.Timestamps.UpdatedColumn,
-		}
-	}
+	table.Timestamps = convertTimestamps(tt.Timestamps)
 
-	table.Columns = make([]*core.Column, 0, len(tt.Columns))
-	for i := range tt.Columns {
-		col, err := convertColumn(&tt.Columns[i], dialect)
-		if err != nil {
-			return nil, fmt.Errorf("column %q: %w", tt.Columns[i].Name, err)
-		}
-		table.Columns = append(table.Columns, col)
-	}
-
-	if table.Timestamps != nil && table.Timestamps.Enabled {
-		injectTimestampColumns(table)
+	if err := c.convertTableColumns(table, tt); err != nil {
+		return nil, err
 	}
 
 	table.Constraints = make([]*core.Constraint, 0, len(tt.Constraints))
 	for i := range tt.Constraints {
-		c := convertConstraint(&tt.Constraints[i])
-		table.Constraints = append(table.Constraints, c)
+		con := convertConstraint(&tt.Constraints[i])
+		table.Constraints = append(table.Constraints, con)
 	}
 
 	if err := checkPKConflict(table); err != nil {
@@ -245,6 +286,7 @@ func convertTable(tt *tomlTable, dialect string) (*core.Table, error) {
 
 	synthesizeConstraints(table)
 
+	// Indexes.
 	table.Indexes = make([]*core.Index, 0, len(tt.Indexes))
 	for i := range tt.Indexes {
 		idx := convertIndex(&tt.Indexes[i])
@@ -253,6 +295,140 @@ func convertTable(tt *tomlTable, dialect string) (*core.Table, error) {
 
 	return table, nil
 }
+
+// convertTimestamps maps the optional TOML timestamps block to a core config.
+func convertTimestamps(ts *tomlTimestamps) *core.TimestampsConfig {
+	if ts == nil {
+		return nil
+	}
+	return &core.TimestampsConfig{
+		Enabled:       ts.Enabled,
+		CreatedColumn: ts.CreatedColumn,
+		UpdatedColumn: ts.UpdatedColumn,
+	}
+}
+
+// convertTableColumns populates table.Columns from the TOML column definitions,
+// injects timestamp columns when enabled, and ensures the table is non-empty.
+func (c *converter) convertTableColumns(table *core.Table, tt *tomlTable) error {
+	table.Columns = make([]*core.Column, 0, len(tt.Columns))
+	for i := range tt.Columns {
+		col, err := c.convertColumn(&tt.Columns[i])
+		if err != nil {
+			return fmt.Errorf("column %q: %w", tt.Columns[i].Name, err)
+		}
+		table.Columns = append(table.Columns, col)
+	}
+
+	if table.Timestamps != nil && table.Timestamps.Enabled {
+		injectTimestampColumns(table)
+	}
+
+	if len(table.Columns) == 0 {
+		return fmt.Errorf("table has no columns")
+	}
+	return nil
+}
+
+// validateTableName checks emptiness, duplicates, length, and pattern - all
+// before we spend any time converting columns.
+func (c *converter) validateTableName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("table name is empty")
+	}
+
+	lower := strings.ToLower(name)
+	if c.seenTables[lower] {
+		return fmt.Errorf("duplicate table name %q", name)
+	}
+	c.seenTables[lower] = true
+
+	if c.rules != nil {
+		if c.rules.MaxTableNameLength > 0 && len(name) > c.rules.MaxTableNameLength {
+			return fmt.Errorf("table %q exceeds maximum length %d", name, c.rules.MaxTableNameLength)
+		}
+		if c.nameRe != nil && !c.nameRe.MatchString(name) {
+			return fmt.Errorf("table %q does not match allowed pattern %q", name, c.nameRe.String())
+		}
+	}
+
+	return nil
+}
+
+func (c *converter) convertColumn(tc *tomlColumn) (*core.Column, error) {
+	if err := c.validateColumnName(tc.Name); err != nil {
+		return nil, err
+	}
+
+	col := &core.Column{
+		Name:          tc.Name,
+		Nullable:      tc.Nullable,
+		PrimaryKey:    tc.PrimaryKey,
+		AutoIncrement: tc.AutoIncrement,
+		Comment:       tc.Comment,
+		Collate:       tc.Collate,
+		Charset:       tc.Charset,
+		Unique:        tc.Unique,
+		Check:         tc.Check,
+		References:    tc.References,
+		EnumValues:    tc.EnumValues,
+	}
+
+	portableType := resolveTypeRaw(tc)
+	if strings.TrimSpace(portableType) == "" {
+		return nil, fmt.Errorf("type is empty")
+	}
+
+	col.Type = core.NormalizeDataType(portableType)
+
+	if tc.RawType != "" && c.dialect != nil {
+		if err := core.ValidateRawType(tc.RawType, c.dialect); err != nil {
+			return nil, fmt.Errorf("column %q: %w", tc.Name, err)
+		}
+		col.RawType = tc.RawType
+	} else {
+		col.RawType = portableType
+	}
+
+	if tc.DefaultValue != nil {
+		s := normalizeDefault(tc.DefaultValue)
+		col.DefaultValue = &s
+	}
+	if tc.References != "" {
+		col.RefOnDelete = core.ReferentialAction(tc.OnDelete)
+		col.RefOnUpdate = core.ReferentialAction(tc.OnUpdate)
+	} else if tc.OnUpdate != "" {
+		v := tc.OnUpdate
+		col.OnUpdate = &v
+	}
+
+	col.IsGenerated = tc.IsGenerated
+	col.GenerationExpression = tc.GenerationExpression
+	if tc.GenerationStorage != "" {
+		col.GenerationStorage = core.GenerationStorage(tc.GenerationStorage)
+	}
+
+	return col, nil
+}
+
+func (c *converter) validateColumnName(name string) error {
+	if strings.TrimSpace(name) == "" {
+		return fmt.Errorf("column name is empty")
+	}
+	if c.rules != nil {
+		if c.rules.MaxColumnNameLength > 0 && len(name) > c.rules.MaxColumnNameLength {
+			return fmt.Errorf("column %q exceeds maximum length %d", name, c.rules.MaxColumnNameLength)
+		}
+		if c.nameRe != nil && !c.nameRe.MatchString(name) {
+			return fmt.Errorf("column %q does not match allowed pattern %q", name, c.nameRe.String())
+		}
+	}
+	return nil
+}
+
+// ---------------------------------------------------------------------------
+// Pure conversion helpers (no validation state needed)
+// ---------------------------------------------------------------------------
 
 func convertTableOptions(to *tomlTableOptions) core.TableOptions {
 	opts := core.TableOptions{
@@ -277,50 +453,6 @@ func convertTableOptions(to *tomlTableOptions) core.TableOptions {
 	return opts
 }
 
-func convertColumn(tc *tomlColumn, dialect string) (*core.Column, error) {
-	col := &core.Column{
-		Name:          tc.Name,
-		Nullable:      tc.Nullable,
-		PrimaryKey:    tc.PrimaryKey,
-		AutoIncrement: tc.AutoIncrement,
-		Comment:       tc.Comment,
-		Collate:       tc.Collate,
-		Charset:       tc.Charset,
-		Unique:        tc.Unique,
-		Check:         tc.Check,
-		References:    tc.References,
-		EnumValues:    tc.EnumValues,
-	}
-
-	col.TypeRaw = resolveTypeRaw(tc)
-	col.Type = core.NormalizeDataType(col.TypeRaw)
-
-	if tc.RawType != "" && dialect != "" {
-		col.RawType = tc.RawType
-		col.RawTypeDialect = strings.ToLower(dialect)
-	}
-
-	if tc.DefaultValue != nil {
-		s := normaliseDefault(tc.DefaultValue)
-		col.DefaultValue = &s
-	}
-	if tc.References != "" {
-		col.RefOnDelete = core.ReferentialAction(tc.OnDelete)
-		col.RefOnUpdate = core.ReferentialAction(tc.OnUpdate)
-	} else if tc.OnUpdate != "" {
-		v := tc.OnUpdate
-		col.OnUpdate = &v
-	}
-
-	col.IsGenerated = tc.IsGenerated
-	col.GenerationExpression = tc.GenerationExpression
-	if tc.GenerationStorage != "" {
-		col.GenerationStorage = core.GenerationStorage(tc.GenerationStorage)
-	}
-
-	return col, nil
-}
-
 func resolveTypeRaw(tc *tomlColumn) string {
 	t := strings.TrimSpace(tc.Type)
 
@@ -331,7 +463,7 @@ func resolveTypeRaw(tc *tomlColumn) string {
 	return t
 }
 
-func normaliseDefault(v any) string {
+func normalizeDefault(v any) string {
 	switch val := v.(type) {
 	case bool:
 		if val {
@@ -464,7 +596,6 @@ func synthesizeFKConstraints(table *core.Table) {
 		}
 		refTable, refCol, ok := core.ParseReferences(col.References)
 		if !ok {
-			// Validation will catch this later.
 			continue
 		}
 		cols := []string{col.Name}
@@ -496,7 +627,7 @@ func injectTimestampColumns(table *core.Table) {
 		def := "CURRENT_TIMESTAMP"
 		table.Columns = append(table.Columns, &core.Column{
 			Name:         createdCol,
-			TypeRaw:      "timestamp",
+			RawType:      "timestamp",
 			Type:         core.DataTypeDatetime,
 			DefaultValue: &def,
 		})
@@ -507,7 +638,7 @@ func injectTimestampColumns(table *core.Table) {
 		upd := "CURRENT_TIMESTAMP"
 		table.Columns = append(table.Columns, &core.Column{
 			Name:         updatedCol,
-			TypeRaw:      "timestamp",
+			RawType:      "timestamp",
 			Type:         core.DataTypeDatetime,
 			DefaultValue: &def,
 			OnUpdate:     &upd,

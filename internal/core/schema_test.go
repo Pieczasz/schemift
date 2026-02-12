@@ -415,65 +415,6 @@ func TestIsValidDialect(t *testing.T) {
 	})
 }
 
-func TestColumnHasTypeOverride(t *testing.T) {
-	t.Run("no overrides", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint"}
-		assert.False(t, col.HasTypeOverride("mysql"))
-		assert.False(t, col.HasTypeOverride(""))
-	})
-
-	t.Run("empty raw type", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", RawType: "", RawTypeDialect: "mysql"}
-		assert.False(t, col.HasTypeOverride("mysql"))
-		assert.False(t, col.HasTypeOverride(""))
-	})
-
-	t.Run("override for specific dialect", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", RawType: "NUMBER(19)", RawTypeDialect: "oracle"}
-		assert.True(t, col.HasTypeOverride("oracle"))
-		assert.False(t, col.HasTypeOverride("mysql"))
-		assert.True(t, col.HasTypeOverride("")) // any override exists
-	})
-
-	t.Run("whitespace only value ignored", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", RawType: "   ", RawTypeDialect: "oracle"}
-		assert.False(t, col.HasTypeOverride("oracle"))
-	})
-
-	t.Run("case insensitive dialect lookup", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", RawType: "BIGSERIAL", RawTypeDialect: "postgresql"}
-		assert.True(t, col.HasTypeOverride("postgresql"))
-		assert.True(t, col.HasTypeOverride("PostgreSQL"))
-	})
-}
-
-func TestColumnEffectiveType(t *testing.T) {
-	t.Run("no override returns TypeRaw", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint"}
-		assert.Equal(t, "bigint", col.EffectiveType("mysql"))
-	})
-
-	t.Run("override takes precedence for matching dialect", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", RawType: "NUMBER(19)", RawTypeDialect: "oracle"}
-		assert.Equal(t, "NUMBER(19)", col.EffectiveType("oracle"))
-	})
-
-	t.Run("falls back to TypeRaw for non-matching dialect", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", RawType: "NUMBER(19)", RawTypeDialect: "oracle"}
-		assert.Equal(t, "bigint", col.EffectiveType("mysql"))
-	})
-
-	t.Run("whitespace override falls back to TypeRaw", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "varchar(255)", RawType: "   ", RawTypeDialect: "oracle"}
-		assert.Equal(t, "varchar(255)", col.EffectiveType("oracle"))
-	})
-
-	t.Run("empty dialect returns TypeRaw", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", RawType: "NUMBER(19)", RawTypeDialect: "oracle"}
-		assert.Equal(t, "bigint", col.EffectiveType(""))
-	})
-}
-
 func TestParseReferences(t *testing.T) {
 	t.Run("valid reference", func(t *testing.T) {
 		tbl, col, ok := ParseReferences("tenants.id")
@@ -573,22 +514,22 @@ func TestAutoGenerateConstraintName(t *testing.T) {
 
 func TestColumnHasIdentityOptions(t *testing.T) {
 	t.Run("no identity options", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", AutoIncrement: true}
+		col := &Column{Name: "id", RawType: "bigint", AutoIncrement: true}
 		assert.False(t, col.HasIdentityOptions())
 	})
 
 	t.Run("with seed only", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", AutoIncrement: true, IdentitySeed: 100}
+		col := &Column{Name: "id", RawType: "bigint", AutoIncrement: true, IdentitySeed: 100}
 		assert.True(t, col.HasIdentityOptions())
 	})
 
 	t.Run("with increment only", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", AutoIncrement: true, IdentityIncrement: 5}
+		col := &Column{Name: "id", RawType: "bigint", AutoIncrement: true, IdentityIncrement: 5}
 		assert.True(t, col.HasIdentityOptions())
 	})
 
 	t.Run("with both seed and increment", func(t *testing.T) {
-		col := &Column{Name: "id", TypeRaw: "bigint", AutoIncrement: true, IdentitySeed: 1000, IdentityIncrement: 10}
+		col := &Column{Name: "id", RawType: "bigint", AutoIncrement: true, IdentitySeed: 1000, IdentityIncrement: 10}
 		assert.True(t, col.HasIdentityOptions())
 	})
 }

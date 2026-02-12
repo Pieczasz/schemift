@@ -18,10 +18,6 @@ func testdataPath(file string) string {
 	return filepath.Join(dir, "..", "..", "..", "test", "data", file)
 }
 
-// ---------------------------------------------------------------------------
-// Full schema.toml integration tests
-// ---------------------------------------------------------------------------
-
 func TestParseFileSchemaToml(t *testing.T) {
 	p := NewParser()
 	db, err := p.ParseFile(testdataPath("schema.toml"))
@@ -29,7 +25,8 @@ func TestParseFileSchemaToml(t *testing.T) {
 	require.NotNil(t, db)
 
 	assert.Equal(t, "ecommerce", db.Name)
-	assert.Equal(t, "mysql", db.Dialect)
+	require.NotNil(t, db.Dialect)
+	assert.Equal(t, core.DialectMySQL, *db.Dialect)
 	assert.Len(t, db.Tables, 4)
 
 	want := []string{"tenants", "users", "roles", "user_roles"}
@@ -74,7 +71,7 @@ func testTenantColumns(t *testing.T, tbl *core.Table) {
 	t.Helper()
 	id := tbl.FindColumn("id")
 	require.NotNil(t, id)
-	assert.Equal(t, "bigint", id.TypeRaw)
+	assert.Equal(t, "bigint", id.RawType)
 	assert.Equal(t, core.DataTypeInt, id.Type)
 	assert.True(t, id.PrimaryKey)
 	assert.True(t, id.AutoIncrement)
@@ -82,18 +79,18 @@ func testTenantColumns(t *testing.T, tbl *core.Table) {
 
 	slug := tbl.FindColumn("slug")
 	require.NotNil(t, slug)
-	assert.Equal(t, "varchar(64)", slug.TypeRaw)
+	assert.Equal(t, "varchar(64)", slug.RawType)
 	assert.Equal(t, core.DataTypeString, slug.Type)
 	assert.True(t, slug.Unique, "slug should have inline unique = true")
 
 	name := tbl.FindColumn("name")
 	require.NotNil(t, name)
-	assert.Equal(t, "varchar(255)", name.TypeRaw)
+	assert.Equal(t, "varchar(255)", name.RawType)
 
 	plan := tbl.FindColumn("plan")
 	require.NotNil(t, plan)
-	// v2: type = "enum" + values = [...] -> TypeRaw built from values.
-	assert.Equal(t, "enum('free','pro','enterprise')", plan.TypeRaw)
+	// v2: type = "enum" + values = [...] -> RawType built from values.
+	assert.Equal(t, "enum('free','pro','enterprise')", plan.RawType)
 	assert.Equal(t, core.DataTypeEnum, plan.Type)
 	assert.Equal(t, []string{"free", "pro", "enterprise"}, plan.EnumValues)
 	require.NotNil(t, plan.DefaultValue)
@@ -101,14 +98,14 @@ func testTenantColumns(t *testing.T, tbl *core.Table) {
 
 	settings := tbl.FindColumn("settings")
 	require.NotNil(t, settings)
-	assert.Equal(t, "json", settings.TypeRaw)
+	assert.Equal(t, "json", settings.RawType)
 	assert.Equal(t, core.DataTypeJSON, settings.Type)
 	assert.True(t, settings.Nullable)
 
 	// Timestamps injected columns.
 	createdAt := tbl.FindColumn("created_at")
 	require.NotNil(t, createdAt)
-	assert.Equal(t, "timestamp", createdAt.TypeRaw)
+	assert.Equal(t, "timestamp", createdAt.RawType)
 	assert.Equal(t, core.DataTypeDatetime, createdAt.Type)
 	require.NotNil(t, createdAt.DefaultValue)
 	assert.Equal(t, "CURRENT_TIMESTAMP", *createdAt.DefaultValue)
@@ -229,7 +226,7 @@ func testUsersBooleanDefault(t *testing.T, tbl *core.Table) {
 	t.Helper()
 	isActive := tbl.FindColumn("is_active")
 	require.NotNil(t, isActive)
-	assert.Equal(t, "boolean", isActive.TypeRaw)
+	assert.Equal(t, "boolean", isActive.RawType)
 	assert.Equal(t, core.DataTypeBoolean, isActive.Type)
 	require.NotNil(t, isActive.DefaultValue)
 	assert.Equal(t, "TRUE", *isActive.DefaultValue, "native TOML bool should convert to portable TRUE")
@@ -239,7 +236,7 @@ func testUsersPasswordHash(t *testing.T, tbl *core.Table) {
 	t.Helper()
 	pwHash := tbl.FindColumn("password_hash")
 	require.NotNil(t, pwHash)
-	assert.Equal(t, "varbinary(60)", pwHash.TypeRaw)
+	assert.Equal(t, "varbinary(60)", pwHash.RawType)
 	assert.Equal(t, core.DataTypeBinary, pwHash.Type)
 }
 
@@ -367,10 +364,6 @@ func TestParseFileUserRoles(t *testing.T) {
 	})
 }
 
-// ---------------------------------------------------------------------------
-// Unit-level TOML snippet tests
-// ---------------------------------------------------------------------------
-
 func TestParseMinimalSchema(t *testing.T) {
 	const schema = `
 [database]
@@ -484,14 +477,8 @@ name = "items"
 
 	col := db.Tables[0].FindColumn("data")
 	require.NotNil(t, col)
-	assert.Equal(t, "json", col.TypeRaw, "TypeRaw should be the portable type")
-	require.NotEmpty(t, col.RawType)
-	assert.Equal(t, "JSONB", col.RawType)
-	assert.Equal(t, "postgresql", col.RawTypeDialect)
-
-	// EffectiveType should return override for matching dialect.
-	assert.Equal(t, "JSONB", col.EffectiveType("postgresql"))
-	assert.Equal(t, "json", col.EffectiveType("mysql"))
+	assert.Equal(t, "JSONB", col.RawType, "RawType should be the dialect-specific override")
+	assert.Equal(t, core.DataTypeJSON, col.Type, "Type should be normalized from portable type")
 }
 
 func TestParseRawTypeNoDialect(t *testing.T) {
@@ -517,10 +504,9 @@ name = "items"
 
 	col := db.Tables[0].FindColumn("data")
 	require.NotNil(t, col)
-	assert.Equal(t, "json", col.TypeRaw)
-	// raw_type should be ignored when dialect is empty.
-	assert.Empty(t, col.RawType)
-	assert.Empty(t, col.RawTypeDialect)
+	// raw_type is ignored when dialect is empty; RawType falls back to portable type.
+	assert.Equal(t, "json", col.RawType)
+	assert.Equal(t, core.DataTypeJSON, col.Type)
 }
 
 func TestParseNullableDefaultFalse(t *testing.T) {
@@ -578,8 +564,7 @@ name = "items"
 	assert.Empty(t, col.Check)
 	assert.False(t, col.Unique)
 	assert.Nil(t, col.EnumValues)
-	assert.Empty(t, col.RawType)
-	assert.Empty(t, col.RawTypeDialect)
+	assert.Equal(t, "int", col.RawType)
 }
 
 func TestParseBooleanDefaultValue(t *testing.T) {
@@ -718,7 +703,7 @@ name = "items"
 	col := db.Tables[0].FindColumn("status")
 	require.NotNil(t, col)
 	assert.Equal(t, core.DataTypeEnum, col.Type)
-	assert.Equal(t, "enum('active','paused','deleted')", col.TypeRaw)
+	assert.Equal(t, "enum('active','paused','deleted')", col.RawType)
 	assert.Equal(t, []string{"active", "paused", "deleted"}, col.EnumValues)
 	require.NotNil(t, col.DefaultValue)
 	assert.Equal(t, "active", *col.DefaultValue)
@@ -744,7 +729,7 @@ name = "items"
 
 	col := db.Tables[0].FindColumn("label")
 	require.NotNil(t, col)
-	assert.Equal(t, "enum('it''s','they''re')", col.TypeRaw, "single quotes in values should be escaped")
+	assert.Equal(t, "enum('it''s','they''re')", col.RawType, "single quotes in values should be escaped")
 }
 
 func TestParseInlineFK(t *testing.T) {
@@ -1046,10 +1031,6 @@ name = "children"
 	assert.Equal(t, core.ReferentialAction("SET NULL"), fk.OnUpdate)
 }
 
-// ---------------------------------------------------------------------------
-// Simple index columns (string array)
-// ---------------------------------------------------------------------------
-
 func TestParseIndexSimpleColumns(t *testing.T) {
 	const schema = `
 [database]
@@ -1168,10 +1149,6 @@ name = "items"
 	assert.Equal(t, core.SortAsc, idx.Columns[0].Order)
 }
 
-// ---------------------------------------------------------------------------
-// Timestamps injection
-// ---------------------------------------------------------------------------
-
 func TestParseTimestampsInjection(t *testing.T) {
 	const schema = `
 [database]
@@ -1201,13 +1178,13 @@ name = "items"
 
 	createdAt := tbl.FindColumn("created_at")
 	require.NotNil(t, createdAt)
-	assert.Equal(t, "timestamp", createdAt.TypeRaw)
+	assert.Equal(t, "timestamp", createdAt.RawType)
 	require.NotNil(t, createdAt.DefaultValue)
 	assert.Equal(t, "CURRENT_TIMESTAMP", *createdAt.DefaultValue)
 
 	updatedAt := tbl.FindColumn("updated_at")
 	require.NotNil(t, updatedAt)
-	assert.Equal(t, "timestamp", updatedAt.TypeRaw)
+	assert.Equal(t, "timestamp", updatedAt.RawType)
 	require.NotNil(t, updatedAt.DefaultValue)
 	assert.Equal(t, "CURRENT_TIMESTAMP", *updatedAt.DefaultValue)
 	require.NotNil(t, updatedAt.OnUpdate)
@@ -1305,10 +1282,6 @@ name = "items"
 	assert.Len(t, tbl.Columns, 1, "timestamps disabled -> no injection")
 }
 
-// ---------------------------------------------------------------------------
-// Generated columns
-// ---------------------------------------------------------------------------
-
 func TestParseGeneratedColumn(t *testing.T) {
 	const schema = `
 [database]
@@ -1339,10 +1312,6 @@ name = "items"
 	assert.Equal(t, "CONCAT(first_name, ' ', last_name)", col.GenerationExpression)
 	assert.Equal(t, core.GenerationStored, col.GenerationStorage)
 }
-
-// ---------------------------------------------------------------------------
-// Table options
-// ---------------------------------------------------------------------------
 
 func TestParseTableOptions(t *testing.T) {
 	const schema = `
@@ -1382,10 +1351,6 @@ name = "items"
 	assert.Equal(t, "Y", opts.MySQL.Encryption)
 	assert.Equal(t, uint64(8), opts.MySQL.KeyBlockSize)
 }
-
-// ---------------------------------------------------------------------------
-// Data-type normalisation through the parser
-// ---------------------------------------------------------------------------
 
 func TestParseDataTypeNormalization(t *testing.T) {
 	tests := []struct {
@@ -1435,10 +1400,6 @@ name = "items"
 		})
 	}
 }
-
-// ---------------------------------------------------------------------------
-// Error cases
-// ---------------------------------------------------------------------------
 
 func TestParseInvalidToml(t *testing.T) {
 	p := NewParser()
@@ -1657,10 +1618,6 @@ name = "items"
 	assert.Equal(t, 1, fkCount)
 }
 
-// ---------------------------------------------------------------------------
-// Edge: no PK at all (valid)
-// ---------------------------------------------------------------------------
-
 func TestParseTableWithoutPK(t *testing.T) {
 	const schema = `
 [database]
@@ -1681,10 +1638,6 @@ name = "logs"
 	assert.Nil(t, tbl.PrimaryKey())
 }
 
-// ---------------------------------------------------------------------------
-// Example schema file integration test
-// ---------------------------------------------------------------------------
-
 func TestParseFileExampleSchemaToml(t *testing.T) {
 	p := NewParser()
 	db, err := p.ParseFile(testdataPath("example_schema.toml"))
@@ -1692,7 +1645,8 @@ func TestParseFileExampleSchemaToml(t *testing.T) {
 	require.NotNil(t, db)
 
 	assert.Equal(t, "ecommerce", db.Name)
-	assert.Equal(t, "mysql", db.Dialect)
+	require.NotNil(t, db.Dialect)
+	assert.Equal(t, core.DialectMySQL, *db.Dialect)
 	assert.Len(t, db.Tables, 4)
 
 	// Verify all table names.
