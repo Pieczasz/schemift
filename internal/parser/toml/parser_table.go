@@ -1,6 +1,7 @@
 package toml
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -18,10 +19,7 @@ func (c *converter) convertTable(tt *tomlTable) (*core.Table, error) {
 		Options: convertTableOptions(&tt.Options),
 	}
 
-	ts := tt.Timestamps
-	if ts == nil {
-		table.Timestamps = nil
-	} else {
+	if ts := tt.Timestamps; ts != nil {
 		table.Timestamps = &core.TimestampsConfig{
 			Enabled:       ts.Enabled,
 			CreatedColumn: ts.CreatedColumn,
@@ -138,7 +136,7 @@ func (c *converter) convertTableColumns(table *core.Table, tt *tomlTable) error 
 	}
 
 	if len(table.Columns) == 0 {
-		return fmt.Errorf("table has no columns")
+		return errors.New("table has no columns")
 	}
 	return nil
 }

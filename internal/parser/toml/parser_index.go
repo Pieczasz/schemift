@@ -26,7 +26,7 @@ func convertTableIndex(ti *tomlIndex) (*core.Index, error) {
 		idx.Visibility = core.IndexVisible
 	}
 
-	idx.Columns = mergeColumnIndexs(ti)
+	idx.Columns = mergeColumnIndexes(ti)
 
 	if len(idx.Columns) == 0 {
 		name := ti.Name
@@ -39,7 +39,7 @@ func convertTableIndex(ti *tomlIndex) (*core.Index, error) {
 	return idx, nil
 }
 
-func mergeColumnIndexs(ti *tomlIndex) []core.ColumnIndex {
+func mergeColumnIndexes(ti *tomlIndex) []core.ColumnIndex {
 	if len(ti.ColumnDefs) > 0 {
 		cols := make([]core.ColumnIndex, 0, len(ti.ColumnDefs))
 		for i := range ti.ColumnDefs {

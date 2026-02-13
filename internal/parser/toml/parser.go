@@ -192,7 +192,7 @@ func newConverter(sf *schemaFile) *converter {
 }
 
 func (c *converter) convert() (*core.Database, error) {
-	dialect, err := c.validateDialect(c.sf.Database.Dialect)
+	dialect, err := validateDialect(c.sf.Database.Dialect)
 	if err != nil {
 		return nil, err
 	}
@@ -222,7 +222,7 @@ func (c *converter) convert() (*core.Database, error) {
 
 // validateDialect validates the raw dialect string.
 // Empty is allowed (dialect is optional); an unrecognized non-empty value is an error.
-func (c *converter) validateDialect(raw string) (*core.Dialect, error) {
+func validateDialect(raw string) (*core.Dialect, error) {
 	if raw == "" {
 		return nil, nil
 	}

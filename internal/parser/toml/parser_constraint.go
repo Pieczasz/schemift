@@ -1,6 +1,7 @@
 package toml
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -30,25 +31,25 @@ func convertTableConstraint(tc *tomlConstraint) *core.Constraint {
 
 func checkPKConflict(table *core.Table) error {
 	hasColumnPK := false
-	for _, c := range table.Columns {
-		if c.PrimaryKey {
+	for _, col := range table.Columns {
+		if col.PrimaryKey {
 			hasColumnPK = true
 			break
 		}
 	}
 	constraintPKCount := 0
-	for _, c := range table.Constraints {
-		if c.Type == core.ConstraintPrimaryKey {
+	for _, con := range table.Constraints {
+		if con.Type == core.ConstraintPrimaryKey {
 			constraintPKCount++
 		}
 	}
 	if constraintPKCount > 1 {
-		return fmt.Errorf(
+		return errors.New(
 			"multiple PRIMARY KEY constraints declared; a table can have at most one primary key",
 		)
 	}
 	if hasColumnPK && constraintPKCount > 0 {
-		return fmt.Errorf(
+		return errors.New(
 			"primary key declared on both column(s) and in constraints section; " +
 				"use column-level primary_key for single-column PKs or a constraint for composite PKs, not both",
 		)
@@ -64,16 +65,16 @@ func synthesizeConstraints(table *core.Table) {
 }
 
 func synthesizePK(table *core.Table) {
-	for _, c := range table.Constraints {
-		if c.Type == core.ConstraintPrimaryKey {
+	for _, con := range table.Constraints {
+		if con.Type == core.ConstraintPrimaryKey {
 			return
 		}
 	}
 
 	var pkCols []string
-	for _, c := range table.Columns {
-		if c.PrimaryKey {
-			pkCols = append(pkCols, c.Name)
+	for _, col := range table.Columns {
+		if col.PrimaryKey {
+			pkCols = append(pkCols, col.Name)
 		}
 	}
 	if len(pkCols) == 0 {

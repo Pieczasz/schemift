@@ -1,6 +1,7 @@
 package toml
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -44,7 +45,7 @@ func (c *converter) convertColumn(tc *tomlColumn) (*core.Column, error) {
 
 func (c *converter) validateColumnName(name string) error {
 	if strings.TrimSpace(name) == "" {
-		return fmt.Errorf("column name is empty")
+		return errors.New("column name is empty")
 	}
 	if c.rules != nil {
 		if c.rules.MaxColumnNameLength > 0 && len(name) > c.rules.MaxColumnNameLength {
@@ -66,8 +67,8 @@ func (c *converter) resolveColumnType(col *core.Column, tc *tomlColumn) error {
 		portableType = core.BuildEnumTypeRaw(tc.EnumValues)
 	}
 
-	if strings.TrimSpace(portableType) == "" {
-		return fmt.Errorf("type is empty")
+	if portableType == "" {
+		return errors.New("type is empty")
 	}
 
 	col.Type = core.NormalizeDataType(portableType)
