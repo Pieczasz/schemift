@@ -1301,11 +1301,13 @@ name = "testdb"
 name = "items"
 
   [tables.options]
+  tablespace     = "ts1"
+
+  [tables.options.mysql]
   engine         = "InnoDB"
   charset        = "utf8mb4"
   collate        = "utf8mb4_general_ci"
   row_format     = "COMPRESSED"
-  tablespace     = "ts1"
   compression    = "zlib"
   encryption     = "Y"
   key_block_size = 8
