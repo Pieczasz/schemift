@@ -244,133 +244,161 @@ func convertTableOptions(to *tomlTableOptions) core.TableOptions {
 	}
 
 	if to.MySQL != nil {
-		opts.MySQL = &core.MySQLTableOptions{
-			Engine:                   to.MySQL.Engine,
-			Charset:                  to.MySQL.Charset,
-			Collate:                  to.MySQL.Collate,
-			AutoIncrement:            to.MySQL.AutoIncrement,
-			RowFormat:                to.MySQL.RowFormat,
-			AvgRowLength:             to.MySQL.AvgRowLength,
-			KeyBlockSize:             to.MySQL.KeyBlockSize,
-			MaxRows:                  to.MySQL.MaxRows,
-			MinRows:                  to.MySQL.MinRows,
-			Checksum:                 to.MySQL.Checksum,
-			DelayKeyWrite:            to.MySQL.DelayKeyWrite,
-			Compression:              to.MySQL.Compression,
-			Encryption:               to.MySQL.Encryption,
-			PackKeys:                 to.MySQL.PackKeys,
-			DataDirectory:            to.MySQL.DataDirectory,
-			IndexDirectory:           to.MySQL.IndexDirectory,
-			InsertMethod:             to.MySQL.InsertMethod,
-			StorageMedia:             to.MySQL.StorageMedia,
-			StatsPersistent:          to.MySQL.StatsPersistent,
-			StatsAutoRecalc:          to.MySQL.StatsAutoRecalc,
-			StatsSamplePages:         to.MySQL.StatsSamplePages,
-			Connection:               to.MySQL.Connection,
-			Password:                 to.MySQL.Password,
-			AutoextendSize:           to.MySQL.AutoextendSize,
-			Union:                    to.MySQL.Union,
-			SecondaryEngine:          to.MySQL.SecondaryEngine,
-			TableChecksum:            to.MySQL.TableChecksum,
-			EngineAttribute:          to.MySQL.EngineAttribute,
-			SecondaryEngineAttribute: to.MySQL.SecondaryEngineAttribute,
-			PageCompressed:           to.MySQL.PageCompressed,
-			PageCompressionLevel:     to.MySQL.PageCompressionLevel,
-			IetfQuotes:               to.MySQL.IetfQuotes,
-			Nodegroup:                to.MySQL.Nodegroup,
-		}
+		opts.MySQL = convertMySQLTableOptions(to.MySQL)
 	}
-
 	if to.TiDB != nil {
-		opts.TiDB = &core.TiDBTableOptions{
-			AutoIDCache:     to.TiDB.AutoIDCache,
-			AutoRandomBase:  to.TiDB.AutoRandomBase,
-			ShardRowID:      to.TiDB.ShardRowID,
-			PreSplitRegion:  to.TiDB.PreSplitRegion,
-			TTL:             to.TiDB.TTL,
-			TTLEnable:       to.TiDB.TTLEnable,
-			TTLJobInterval:  to.TiDB.TTLJobInterval,
-			Affinity:        to.TiDB.Affinity,
-			PlacementPolicy: to.TiDB.PlacementPolicy,
-			StatsBuckets:    to.TiDB.StatsBuckets,
-			StatsTopN:       to.TiDB.StatsTopN,
-			StatsColsChoice: to.TiDB.StatsColsChoice,
-			StatsColList:    to.TiDB.StatsColList,
-			StatsSampleRate: to.TiDB.StatsSampleRate,
-			Sequence:        to.TiDB.Sequence,
-		}
+		opts.TiDB = convertTiDBTableOptions(to.TiDB)
 	}
-
 	if to.PostgreSQL != nil {
-		opts.PostgreSQL = &core.PostgreSQLTableOptions{
-			Schema:      to.PostgreSQL.Schema,
-			Unlogged:    to.PostgreSQL.Unlogged,
-			Fillfactor:  to.PostgreSQL.Fillfactor,
-			PartitionBy: to.PostgreSQL.PartitionBy,
-			Inherits:    to.PostgreSQL.Inherits,
-		}
+		opts.PostgreSQL = convertPostgreSQLTableOptions(to.PostgreSQL)
 	}
-
 	if to.Oracle != nil {
-		opts.Oracle = &core.OracleTableOptions{
-			Organization:    to.Oracle.Organization,
-			Logging:         to.Oracle.Logging,
-			Pctfree:         to.Oracle.Pctfree,
-			Pctused:         to.Oracle.Pctused,
-			InitTrans:       to.Oracle.InitTrans,
-			SegmentCreation: to.Oracle.SegmentCreation,
-		}
+		opts.Oracle = convertOracleTableOptions(to.Oracle)
 	}
-
 	if to.SQLServer != nil {
-		opts.SQLServer = &core.SQLServerTableOptions{
-			FileGroup:        to.SQLServer.FileGroup,
-			DataCompression:  to.SQLServer.DataCompression,
-			MemoryOptimized:  to.SQLServer.MemoryOptimized,
-			SystemVersioning: to.SQLServer.SystemVersioning,
-			TextImageOn:      to.SQLServer.TextImageOn,
-			LedgerTable:      to.SQLServer.LedgerTable,
-		}
+		opts.SQLServer = convertSQLServerTableOptions(to.SQLServer)
 	}
-
 	if to.DB2 != nil {
-		opts.DB2 = &core.DB2TableOptions{
-			OrganizeBy:  to.DB2.OrganizeBy,
-			Compress:    to.DB2.Compress,
-			DataCapture: to.DB2.DataCapture,
-			AppendMode:  to.DB2.AppendMode,
-			Volatile:    to.DB2.Volatile,
-		}
+		opts.DB2 = convertDB2TableOptions(to.DB2)
 	}
-
 	if to.Snowflake != nil {
-		opts.Snowflake = &core.SnowflakeTableOptions{
-			ClusterBy:         to.Snowflake.ClusterBy,
-			DataRetentionDays: to.Snowflake.DataRetentionDays,
-			ChangeTracking:    to.Snowflake.ChangeTracking,
-			CopyGrants:        to.Snowflake.CopyGrants,
-			Transient:         to.Snowflake.Transient,
-		}
+		opts.Snowflake = convertSnowflakeTableOptions(to.Snowflake)
 	}
-
 	if to.SQLite != nil {
-		opts.SQLite = &core.SQLiteTableOptions{
-			WithoutRowid: to.SQLite.WithoutRowid,
-			Strict:       to.SQLite.Strict,
-		}
+		opts.SQLite = convertSQLiteTableOptions(to.SQLite)
 	}
-
 	if to.MariaDB != nil {
-		opts.MariaDB = &core.MariaDBTableOptions{
-			PageChecksum:         to.MariaDB.PageChecksum,
-			Transactional:        to.MariaDB.Transactional,
-			EncryptionKeyID:      to.MariaDB.EncryptionKeyID,
-			Sequence:             to.MariaDB.Sequence,
-			WithSystemVersioning: to.MariaDB.WithSystemVersioning,
-		}
+		opts.MariaDB = convertMariaDBTableOptions(to.MariaDB)
 	}
 
 	return opts
+}
+
+func convertMySQLTableOptions(m *tomlMySQLTableOptions) *core.MySQLTableOptions {
+	return &core.MySQLTableOptions{
+		Engine:                   m.Engine,
+		Charset:                  m.Charset,
+		Collate:                  m.Collate,
+		AutoIncrement:            m.AutoIncrement,
+		RowFormat:                m.RowFormat,
+		AvgRowLength:             m.AvgRowLength,
+		KeyBlockSize:             m.KeyBlockSize,
+		MaxRows:                  m.MaxRows,
+		MinRows:                  m.MinRows,
+		Checksum:                 m.Checksum,
+		DelayKeyWrite:            m.DelayKeyWrite,
+		Compression:              m.Compression,
+		Encryption:               m.Encryption,
+		PackKeys:                 m.PackKeys,
+		DataDirectory:            m.DataDirectory,
+		IndexDirectory:           m.IndexDirectory,
+		InsertMethod:             m.InsertMethod,
+		StorageMedia:             m.StorageMedia,
+		StatsPersistent:          m.StatsPersistent,
+		StatsAutoRecalc:          m.StatsAutoRecalc,
+		StatsSamplePages:         m.StatsSamplePages,
+		Connection:               m.Connection,
+		Password:                 m.Password,
+		AutoextendSize:           m.AutoextendSize,
+		Union:                    m.Union,
+		SecondaryEngine:          m.SecondaryEngine,
+		TableChecksum:            m.TableChecksum,
+		EngineAttribute:          m.EngineAttribute,
+		SecondaryEngineAttribute: m.SecondaryEngineAttribute,
+		PageCompressed:           m.PageCompressed,
+		PageCompressionLevel:     m.PageCompressionLevel,
+		IetfQuotes:               m.IetfQuotes,
+		Nodegroup:                m.Nodegroup,
+	}
+}
+
+func convertTiDBTableOptions(t *tomlTiDBTableOptions) *core.TiDBTableOptions {
+	return &core.TiDBTableOptions{
+		AutoIDCache:     t.AutoIDCache,
+		AutoRandomBase:  t.AutoRandomBase,
+		ShardRowID:      t.ShardRowID,
+		PreSplitRegion:  t.PreSplitRegion,
+		TTL:             t.TTL,
+		TTLEnable:       t.TTLEnable,
+		TTLJobInterval:  t.TTLJobInterval,
+		Affinity:        t.Affinity,
+		PlacementPolicy: t.PlacementPolicy,
+		StatsBuckets:    t.StatsBuckets,
+		StatsTopN:       t.StatsTopN,
+		StatsColsChoice: t.StatsColsChoice,
+		StatsColList:    t.StatsColList,
+		StatsSampleRate: t.StatsSampleRate,
+		Sequence:        t.Sequence,
+	}
+}
+
+func convertPostgreSQLTableOptions(pg *tomlPostgreSQLTableOptions) *core.PostgreSQLTableOptions {
+	return &core.PostgreSQLTableOptions{
+		Schema:      pg.Schema,
+		Unlogged:    pg.Unlogged,
+		Fillfactor:  pg.Fillfactor,
+		PartitionBy: pg.PartitionBy,
+		Inherits:    pg.Inherits,
+	}
+}
+
+func convertOracleTableOptions(o *tomlOracleTableOptions) *core.OracleTableOptions {
+	return &core.OracleTableOptions{
+		Organization:    o.Organization,
+		Logging:         o.Logging,
+		Pctfree:         o.Pctfree,
+		Pctused:         o.Pctused,
+		InitTrans:       o.InitTrans,
+		SegmentCreation: o.SegmentCreation,
+	}
+}
+
+func convertSQLServerTableOptions(ss *tomlSQLServerTableOptions) *core.SQLServerTableOptions {
+	return &core.SQLServerTableOptions{
+		FileGroup:        ss.FileGroup,
+		DataCompression:  ss.DataCompression,
+		MemoryOptimized:  ss.MemoryOptimized,
+		SystemVersioning: ss.SystemVersioning,
+		TextImageOn:      ss.TextImageOn,
+		LedgerTable:      ss.LedgerTable,
+	}
+}
+
+func convertDB2TableOptions(d *tomlDB2TableOptions) *core.DB2TableOptions {
+	return &core.DB2TableOptions{
+		OrganizeBy:  d.OrganizeBy,
+		Compress:    d.Compress,
+		DataCapture: d.DataCapture,
+		AppendMode:  d.AppendMode,
+		Volatile:    d.Volatile,
+	}
+}
+
+func convertSnowflakeTableOptions(sf *tomlSnowflakeTableOptions) *core.SnowflakeTableOptions {
+	return &core.SnowflakeTableOptions{
+		ClusterBy:         sf.ClusterBy,
+		DataRetentionDays: sf.DataRetentionDays,
+		ChangeTracking:    sf.ChangeTracking,
+		CopyGrants:        sf.CopyGrants,
+		Transient:         sf.Transient,
+	}
+}
+
+func convertSQLiteTableOptions(sl *tomlSQLiteTableOptions) *core.SQLiteTableOptions {
+	return &core.SQLiteTableOptions{
+		WithoutRowid: sl.WithoutRowid,
+		Strict:       sl.Strict,
+	}
+}
+
+func convertMariaDBTableOptions(mdb *tomlMariaDBTableOptions) *core.MariaDBTableOptions {
+	return &core.MariaDBTableOptions{
+		PageChecksum:         mdb.PageChecksum,
+		Transactional:        mdb.Transactional,
+		EncryptionKeyID:      mdb.EncryptionKeyID,
+		Sequence:             mdb.Sequence,
+		WithSystemVersioning: mdb.WithSystemVersioning,
+	}
 }
 
 // convertTableColumns populates table.Columns from the TOML column definitions,
