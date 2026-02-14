@@ -368,9 +368,29 @@ func (c *converter) convertTableColumns(table *core.Table, tt *tomlTable) error 
 	}
 
 	if table.Timestamps != nil && table.Timestamps.Enabled {
+		if err := validateTimestampColumnNames(table.Timestamps); err != nil {
+			return err
+		}
 		injectTimestampColumns(table)
 	}
 
+	return nil
+}
+
+// validateTimestampColumnNames ensures created/updated timestamp column names
+// do not collide once defaults are resolved.
+func validateTimestampColumnNames(ts *core.TimestampsConfig) error {
+	createdCol := "created_at"
+	updatedCol := "updated_at"
+	if ts.CreatedColumn != "" {
+		createdCol = ts.CreatedColumn
+	}
+	if ts.UpdatedColumn != "" {
+		updatedCol = ts.UpdatedColumn
+	}
+	if strings.EqualFold(createdCol, updatedCol) {
+		return fmt.Errorf("timestamps created_column and updated_column resolve to the same name %q", createdCol)
+	}
 	return nil
 }
 
@@ -387,15 +407,6 @@ func injectTimestampColumns(table *core.Table) {
 	}
 
 	if strings.EqualFold(createdCol, updatedCol) {
-		if table.FindColumn(createdCol) == nil {
-			def := "CURRENT_TIMESTAMP"
-			table.Columns = append(table.Columns, &core.Column{
-				Name:         createdCol,
-				RawType:      "timestamp",
-				Type:         core.DataTypeDatetime,
-				DefaultValue: &def,
-			})
-		}
 		return
 	}
 

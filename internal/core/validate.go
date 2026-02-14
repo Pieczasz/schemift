@@ -33,10 +33,6 @@ func ValidateDatabase(db *Database) error {
 		return err
 	}
 
-	if err := validateDialectOptionCompatibility(db); err != nil {
-		return err
-	}
-
 	return nil
 }
 
@@ -84,17 +80,3 @@ func validateName(name, kind string, rules *ValidationRules, nameRe *regexp.Rege
 	}
 	return nil
 }
-
-func validateDialectOptionCompatibility(db *Database) error {
-	if db == nil || db.Dialect == nil {
-		return nil
-	}
-
-	for _, table := range db.Tables {
-		if err := validateTableDialectOptions(table, *db.Dialect); err != nil {
-			return fmt.Errorf("table %q: %w", table.Name, err)
-		}
-		if err := validateColumnDialectOptions(table, *db.Dialect); err != nil {
-			return fmt.Errorf("table %q: %w", table.Name, err)
-		}
-	
