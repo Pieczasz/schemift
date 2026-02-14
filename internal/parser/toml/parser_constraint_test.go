@@ -592,6 +592,13 @@ name = "items"
   referenced_table   = "tenants"
   referenced_columns = ["id"]
   on_delete          = "CASCADE"
+
+[[tables]]
+name = "tenants"
+  [[tables.columns]]
+  name = "id"
+  type = "int"
+  primary_key = true
 `
 	p := NewParser()
 	db, err := p.Parse(strings.NewReader(schema))

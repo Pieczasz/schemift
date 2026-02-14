@@ -447,6 +447,13 @@ name = "items"
   check      = "ref_id > 0"
   references = "other.id"
   on_delete  = "CASCADE"
+
+[[tables]]
+name = "other"
+  [[tables.columns]]
+  name = "id"
+  type = "int"
+  primary_key = true
 `
 	p := NewParser()
 	db, err := p.Parse(strings.NewReader(schema))
@@ -574,6 +581,13 @@ name = "items"
   name = "tenant_id"
   type = "int"
   references = "tenants.id"
+
+[[tables]]
+name = "tenants"
+  [[tables.columns]]
+  name = "id"
+  type = "int"
+  primary_key = true
 `
 	p := NewParser()
 	db, err := p.Parse(strings.NewReader(schema))

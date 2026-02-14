@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -42,10 +43,16 @@ func ValidateDatabase(db *Database) error {
 
 func validateDatabaseBasics(db *Database) error {
 	if db == nil {
-		return fmt.Errorf("database is nil")
+		return errors.New("database is nil")
 	}
 	if db.Dialect == nil {
 		return fmt.Errorf("dialect is required; supported dialects: %v", SupportedDialects())
+	}
+	if strings.TrimSpace(db.Name) == "" {
+		return errors.New("database name is required")
+	}
+	if len(db.Tables) == 0 {
+		return errors.New("schema is empty, declare some tables first")
 	}
 	return nil
 }

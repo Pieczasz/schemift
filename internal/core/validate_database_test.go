@@ -131,3 +131,32 @@ func TestValidateDatabaseErrorPrefixIncludesTableName(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, strings.Contains(err.Error(), `table "users":`))
 }
+
+func TestValidateDatabaseMissingName(t *testing.T) {
+	d := DialectMySQL
+	db := &Database{
+		Name:    "   ",
+		Dialect: &d,
+		Tables: []*Table{
+			{Name: "users", Columns: []*Column{{Name: "id"}}},
+		},
+	}
+
+	err := ValidateDatabase(db)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "database name is required")
+}
+
+func TestValidateDatabaseEmptyTables(t *testing.T) {
+	d := DialectMySQL
+	db := &Database{
+		Name:    "app",
+		Dialect: &d,
+		Tables:  []*Table{},
+	}
+
+	err := ValidateDatabase(db)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "schema is empty, declare some tables first")
+}
+
