@@ -8,10 +8,9 @@ import (
 )
 
 func TestValidateDatabaseTableHasNoColumns(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{Name: "users"},
 		},
@@ -23,10 +22,9 @@ func TestValidateDatabaseTableHasNoColumns(t *testing.T) {
 }
 
 func TestValidateDatabaseDuplicateColumnNamesCaseInsensitive(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name: "users",
@@ -44,10 +42,9 @@ func TestValidateDatabaseDuplicateColumnNamesCaseInsensitive(t *testing.T) {
 }
 
 func TestValidateDatabaseEmptyColumnName(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name: "users",
@@ -65,10 +62,9 @@ func TestValidateDatabaseEmptyColumnName(t *testing.T) {
 }
 
 func TestValidateDatabaseMaxColumnNameLength(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Validation: &ValidationRules{
 			MaxColumnNameLength: 3,
 		},
@@ -88,10 +84,9 @@ func TestValidateDatabaseMaxColumnNameLength(t *testing.T) {
 }
 
 func TestValidateDatabaseAllowedNamePatternForColumn(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Validation: &ValidationRules{
 			AllowedNamePattern: `^[a-z_]+$`,
 		},
@@ -111,10 +106,9 @@ func TestValidateDatabaseAllowedNamePatternForColumn(t *testing.T) {
 }
 
 func TestValidateDatabaseInvalidReferencesFormat(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name: "users",
@@ -131,10 +125,9 @@ func TestValidateDatabaseInvalidReferencesFormat(t *testing.T) {
 }
 
 func TestValidateDatabaseMultiplePrimaryKeyConstraints(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name: "users",
@@ -155,10 +148,9 @@ func TestValidateDatabaseMultiplePrimaryKeyConstraints(t *testing.T) {
 }
 
 func TestValidateDatabaseColumnAndConstraintPrimaryKeyBothPresent(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name: "users",

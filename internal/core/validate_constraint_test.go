@@ -8,10 +8,9 @@ import (
 )
 
 func TestValidateDatabaseConstraintDuplicateNamesCaseInsensitive(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name:    "users",
@@ -30,10 +29,9 @@ func TestValidateDatabaseConstraintDuplicateNamesCaseInsensitive(t *testing.T) {
 }
 
 func TestValidateDatabaseConstraintWithNoColumns(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name:    "users",
@@ -51,10 +49,9 @@ func TestValidateDatabaseConstraintWithNoColumns(t *testing.T) {
 }
 
 func TestValidateDatabaseConstraintReferencesNonexistentColumn(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name:    "users",
@@ -72,10 +69,9 @@ func TestValidateDatabaseConstraintReferencesNonexistentColumn(t *testing.T) {
 }
 
 func TestValidateDatabaseConstraintForeignKeyMissingReferencedTable(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name:    "users",
@@ -93,10 +89,9 @@ func TestValidateDatabaseConstraintForeignKeyMissingReferencedTable(t *testing.T
 }
 
 func TestValidateDatabaseConstraintForeignKeyMissingReferencedColumns(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name:    "users",
@@ -119,10 +114,9 @@ func TestValidateDatabaseConstraintForeignKeyMissingReferencedColumns(t *testing
 }
 
 func TestValidateDatabaseCheckConstraintMayHaveNoColumns(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name:    "users",

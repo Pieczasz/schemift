@@ -17,7 +17,7 @@ import (
 
 // schemaFile is the top-level TOML document.
 // In the new schema format, [database], [validation], and [[tables]]
-// are all top-level keys (tables and validation are NOT nested under database).
+// are all top-level keys (tables and validation are NOT nested under a database).
 type schemaFile struct {
 	Database   tomlDatabase    `toml:"database"`
 	Validation *tomlValidation `toml:"validation"`
@@ -57,7 +57,7 @@ func (p *Parser) ParseFile(path string) (*core.Database, error) {
 	return p.Parse(f)
 }
 
-// Parse reads TOML content from reader and returns the corresponding core.Database.
+// Parse reads TOML content from the reader and returns the corresponding core.Database.
 func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 	var sf schemaFile
 	if _, err := toml.NewDecoder(r).Decode(&sf); err != nil {
@@ -121,8 +121,7 @@ func parseDialect(raw string) (*core.Dialect, error) {
 	if !core.IsValidDialect(raw) {
 		return nil, fmt.Errorf("toml: unsupported dialect %q; supported dialects: %v", raw, core.SupportedDialects())
 	}
-	d := core.Dialect(strings.ToLower(raw))
-	return &d, nil
+	return new(core.Dialect(strings.ToLower(raw))), nil
 }
 
 // convertRules converts [validation] into core.ValidationRules.

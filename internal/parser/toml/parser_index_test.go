@@ -409,7 +409,7 @@ name = "items"
 	assert.Empty(t, db.Tables[0].Indexes[1].Name)
 }
 
-func TestParseColumnIndexsExistValid(t *testing.T) {
+func TestParseColumnIndexesExistValid(t *testing.T) {
 	const schema = `
 [database]
 name = "testdb"

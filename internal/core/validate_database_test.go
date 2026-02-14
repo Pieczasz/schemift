@@ -9,10 +9,9 @@ import (
 )
 
 func TestValidateDatabaseSuccessAndSynthesis(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name: "users",
@@ -78,10 +77,9 @@ func TestValidateDatabaseMissingDialect(t *testing.T) {
 }
 
 func TestValidateDatabaseInvalidAllowedNamePattern(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Validation: &ValidationRules{
 			AllowedNamePattern: "(",
 		},
@@ -96,10 +94,9 @@ func TestValidateDatabaseInvalidAllowedNamePattern(t *testing.T) {
 }
 
 func TestValidateDatabaseDuplicateTableNamesCaseInsensitive(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{Name: "users", Columns: []*Column{{Name: "id"}}},
 			{Name: "Users", Columns: []*Column{{Name: "id"}}},
@@ -112,10 +109,9 @@ func TestValidateDatabaseDuplicateTableNamesCaseInsensitive(t *testing.T) {
 }
 
 func TestValidateDatabaseErrorPrefixIncludesTableName(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name: "users",
@@ -133,10 +129,9 @@ func TestValidateDatabaseErrorPrefixIncludesTableName(t *testing.T) {
 }
 
 func TestValidateDatabaseMissingName(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "   ",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{Name: "users", Columns: []*Column{{Name: "id"}}},
 		},
@@ -148,10 +143,9 @@ func TestValidateDatabaseMissingName(t *testing.T) {
 }
 
 func TestValidateDatabaseEmptyTables(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables:  []*Table{},
 	}
 
@@ -159,4 +153,3 @@ func TestValidateDatabaseEmptyTables(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "schema is empty, declare some tables first")
 }
-

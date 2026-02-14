@@ -411,24 +411,21 @@ func injectTimestampColumns(table *core.Table) {
 	}
 
 	if table.FindColumn(createdCol) == nil {
-		def := "CURRENT_TIMESTAMP"
 		table.Columns = append(table.Columns, &core.Column{
 			Name:         createdCol,
 			RawType:      "timestamp",
 			Type:         core.DataTypeDatetime,
-			DefaultValue: &def,
+			DefaultValue: new("CURRENT_TIMESTAMP"),
 		})
 	}
 
 	if table.FindColumn(updatedCol) == nil {
-		def := "CURRENT_TIMESTAMP"
-		upd := "CURRENT_TIMESTAMP"
 		table.Columns = append(table.Columns, &core.Column{
 			Name:         updatedCol,
 			RawType:      "timestamp",
 			Type:         core.DataTypeDatetime,
-			DefaultValue: &def,
-			OnUpdate:     &upd,
+			DefaultValue: new("CURRENT_TIMESTAMP"),
+			OnUpdate:     new("CURRENT_TIMESTAMP"),
 		})
 	}
 }

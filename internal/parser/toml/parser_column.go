@@ -25,7 +25,7 @@ type tomlColumn struct {
 	DefaultValue any `toml:"default"`
 
 	// OnUpdate is used for MySQL ON UPDATE CURRENT_TIMESTAMP when there is
-	// no inline FK (references is empty).  When references IS set,
+	// no inline FK (references are empty).  When references ARE set,
 	// on_update is treated as a referential action (CASCADE, RESTRICT, …).
 	OnUpdate string `toml:"on_update"`
 	OnDelete string `toml:"on_delete"`
@@ -127,15 +127,13 @@ func (c *converter) resolveColumnType(col *core.Column, tc *tomlColumn) error {
 // behavior, and generated-column properties on an already-initialized column.
 func applyColumnActions(col *core.Column, tc *tomlColumn) {
 	if tc.DefaultValue != nil {
-		s := normalizeDefault(tc.DefaultValue)
-		col.DefaultValue = &s
+		col.DefaultValue = new(normalizeDefault(tc.DefaultValue))
 	}
 	if tc.References != "" {
 		col.RefOnDelete = core.ReferentialAction(tc.OnDelete)
 		col.RefOnUpdate = core.ReferentialAction(tc.OnUpdate)
 	} else if tc.OnUpdate != "" {
-		v := tc.OnUpdate
-		col.OnUpdate = &v
+		col.OnUpdate = new(tc.OnUpdate)
 	}
 
 	col.IsGenerated = tc.IsGenerated

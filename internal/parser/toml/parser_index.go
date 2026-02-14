@@ -12,7 +12,7 @@ type tomlIndex struct {
 	Comment    string `toml:"comment"`
 	Visibility string `toml:"visibility"`
 
-	// Simple form:  columns = ["tenant_id", "created_at"]
+	// Simple form: columns = ["tenant_id", "created_at"]
 	Columns []string `toml:"columns"`
 
 	// Advanced form: [[tables.indexes.column_defs]]

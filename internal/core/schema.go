@@ -197,7 +197,7 @@ type TiDBTableOptions struct {
 	AutoRandomBase uint64
 	// ShardRowID enables implicit row-ID sharding to scatter hotspot writes across TiKV regions.
 	ShardRowID uint64
-	// PreSplitRegion pre-splits the table into 2^n regions at creation time for write parallelism.
+	// PreSplitRegion pre-splits the table into 2^n regions at creation time for writing parallelism.
 	PreSplitRegion uint64
 	// TTL is the time-to-live expression for automatic row expiration (e.g. "created_at + INTERVAL 90 DAY").
 	TTL string
@@ -352,8 +352,8 @@ type Column struct {
 	// Name is the column identifier as declared in the schema.
 	Name string `json:"name"`
 	// RawType is the SQL type string to use for DDL generation (e.g. "VARCHAR(255)", "JSONB").
-	// The parser resolves this once: if a dialect-specific raw_type override is
-	// declared in TOML it takes precedence, otherwise the portable type is used.
+	// The parser resolves this at once: if a dialect-specific raw_type override is
+	// declared in TOML, it takes precedence, otherwise the portable type is used.
 	RawType string `json:"rawType"`
 	// Type is the normalized portable data type category (e.g. DataTypeString).
 	// Always derived from the portable TOML `type` field for consistent classification.
@@ -477,7 +477,7 @@ type Constraint struct {
 	Name string `json:"name,omitempty"`
 	// Type is the constraint kind: PRIMARY KEY, FOREIGN KEY, UNIQUE, or CHECK.
 	Type ConstraintType `json:"type"`
-	// Columns lists the column names that participate in this constraint.
+	// Columns list the column names that participate in this constraint.
 	Columns []string `json:"columns"`
 
 	// ReferencedTable is the target table for a FOREIGN KEY constraint.
@@ -521,7 +521,7 @@ const (
 type Index struct {
 	// Name is the index identifier.
 	Name string `json:"name,omitempty"`
-	// Columns lists the columns (with optional prefix length and sort order) covered by the index.
+	// Columns list the columns (with optional prefix length and sort order) covered by the index.
 	Columns []ColumnIndex `json:"columns"`
 	// Unique marks the index as a UNIQUE index that prevents duplicate values.
 	Unique bool `json:"unique,omitempty"`

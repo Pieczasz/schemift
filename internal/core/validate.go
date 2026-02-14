@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// ValidateDatabase runs all structural and semantic validation on a fully-built
+// ValidateDatabase runs all structural and semantic validation on a fully built
 // Database. It also synthesizes constraints from column-level shortcuts (PK,
 // UNIQUE, CHECK, FK) after verifying there are no PK conflicts. This function
 // should be called after the parser has finished converting input into core

@@ -298,7 +298,7 @@ func toSet(names ...string) map[string]bool {
 
 // normalizeRawTypeBase extracts the base type name from a raw SQL type
 // string. It removes parenthesized portions (length, precision, enum
-// values, etc.), collapses whitespace and uppercases the result.
+// values, etc.), collapses whitespace, and uppercases the result.
 //
 // Examples:
 //

@@ -8,10 +8,9 @@ import (
 )
 
 func TestValidateDatabaseIndexDuplicateNamesCaseInsensitive(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name:    "users",
@@ -30,10 +29,9 @@ func TestValidateDatabaseIndexDuplicateNamesCaseInsensitive(t *testing.T) {
 }
 
 func TestValidateDatabaseIndexHasNoColumns(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name:    "users",
@@ -51,10 +49,9 @@ func TestValidateDatabaseIndexHasNoColumns(t *testing.T) {
 }
 
 func TestValidateDatabaseUnnamedIndexHasNoColumns(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name:    "users",
@@ -72,10 +69,9 @@ func TestValidateDatabaseUnnamedIndexHasNoColumns(t *testing.T) {
 }
 
 func TestValidateDatabaseIndexReferencesNonexistentColumn(t *testing.T) {
-	d := DialectMySQL
 	db := &Database{
 		Name:    "app",
-		Dialect: &d,
+		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{
 				Name:    "users",
