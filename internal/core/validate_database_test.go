@@ -23,6 +23,12 @@ func TestValidateDatabaseSuccessAndSynthesis(t *testing.T) {
 					{Name: "role_id", References: "roles.id", RefOnDelete: "CASCADE", RefOnUpdate: "RESTRICT"},
 				},
 			},
+			{
+				Name: "roles",
+				Columns: []*Column{
+					{Name: "id", PrimaryKey: true},
+				},
+			},
 		},
 	}
 

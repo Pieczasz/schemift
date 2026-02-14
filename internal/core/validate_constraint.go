@@ -55,6 +55,36 @@ func validateConstraintColumns(table *Table, con *Constraint) error {
 	return nil
 }
 
+func validateFKColumnExistence(db *Database) error {
+	tableMap := make(map[string]*Table, len(db.Tables))
+	for _, t := range db.Tables {
+		tableMap[strings.ToLower(t.Name)] = t
+	}
+
+	for _, t := range db.Tables {
+		for _, con := range t.Constraints {
+			if con.Type != ConstraintForeignKey {
+				continue
+			}
+
+			refTable, exists := tableMap[strings.ToLower(con.ReferencedTable)]
+			if !exists {
+				return fmt.Errorf("constraint %q in table %q references non-existent table %q",
+					con.Name, t.Name, con.ReferencedTable)
+			}
+
+			for _, refColName := range con.ReferencedColumns {
+				if refTable.FindColumn(refColName) == nil {
+					return fmt.Errorf("constraint %q in table %q references non-existent column %q in table %q",
+						con.Name, t.Name, refColName, con.ReferencedTable)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // synthesizeConstraints generates constraint objects from column-level
 // shortcuts (primary_key, unique, check, references). It should be called
 // after PK conflict validation and before structural constraint validation.

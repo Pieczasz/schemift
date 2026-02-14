@@ -33,6 +33,10 @@ func ValidateDatabase(db *Database) error {
 		return err
 	}
 
+	if err := validateFKColumnExistence(db); err != nil {
+		return err
+	}
+
 	return nil
 }
 

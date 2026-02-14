@@ -137,3 +137,119 @@ func TestValidateDatabaseCheckConstraintMayHaveNoColumns(t *testing.T) {
 	err := ValidateDatabase(db)
 	require.NoError(t, err)
 }
+
+func TestValidateDatabaseForeignKeyTargetExistence(t *testing.T) {
+	d := DialectMySQL
+
+	t.Run("valid reference", func(t *testing.T) {
+		db := &Database{
+			Name:    "app",
+			Dialect: &d,
+			Tables: []*Table{
+				{
+					Name:    "users",
+					Columns: []*Column{{Name: "id"}},
+				},
+				{
+					Name:    "posts",
+					Columns: []*Column{{Name: "author_id"}},
+					Constraints: []*Constraint{
+						{
+							Name:              "fk_posts_author",
+							Type:              ConstraintForeignKey,
+							Columns:           []string{"author_id"},
+							ReferencedTable:   "users",
+							ReferencedColumns: []string{"id"},
+						},
+					},
+				},
+			},
+		}
+		require.NoError(t, ValidateDatabase(db))
+	})
+
+	t.Run("case-insensitive matching", func(t *testing.T) {
+		db := &Database{
+			Name:    "app",
+			Dialect: &d,
+			Tables: []*Table{
+				{
+					Name:    "Users",
+					Columns: []*Column{{Name: "ID"}},
+				},
+				{
+					Name:    "posts",
+					Columns: []*Column{{Name: "author_id"}},
+					Constraints: []*Constraint{
+						{
+							Name:              "fk_posts_author",
+							Type:              ConstraintForeignKey,
+							Columns:           []string{"author_id"},
+							ReferencedTable:   "users",
+							ReferencedColumns: []string{"id"},
+						},
+					},
+				},
+			},
+		}
+		require.NoError(t, ValidateDatabase(db))
+	})
+}
+
+func TestValidateDatabaseForeignKeyNotExisting(t *testing.T) {
+	d := DialectMySQL
+
+	t.Run("non-existent table", func(t *testing.T) {
+		db := &Database{
+			Name:    "app",
+			Dialect: &d,
+			Tables: []*Table{
+				{
+					Name:    "posts",
+					Columns: []*Column{{Name: "author_id"}},
+					Constraints: []*Constraint{
+						{
+							Name:              "fk_posts_author",
+							Type:              ConstraintForeignKey,
+							Columns:           []string{"author_id"},
+							ReferencedTable:   "users",
+							ReferencedColumns: []string{"id"},
+						},
+					},
+				},
+			},
+		}
+		err := ValidateDatabase(db)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `references non-existent table "users"`)
+	})
+
+	t.Run("non-existent column", func(t *testing.T) {
+		db := &Database{
+			Name:    "app",
+			Dialect: &d,
+			Tables: []*Table{
+				{
+					Name:    "users",
+					Columns: []*Column{{Name: "id"}},
+				},
+				{
+					Name:    "posts",
+					Columns: []*Column{{Name: "author_id"}},
+					Constraints: []*Constraint{
+						{
+							Name:              "fk_posts_author",
+							Type:              ConstraintForeignKey,
+							Columns:           []string{"author_id"},
+							ReferencedTable:   "users",
+							ReferencedColumns: []string{"uuid"},
+						},
+					},
+				},
+			},
+		}
+		err := ValidateDatabase(db)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `references non-existent column "uuid" in table "users"`)
+	})
+}
