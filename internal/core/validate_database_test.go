@@ -1,7 +1,6 @@
 package core
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -125,7 +124,7 @@ func TestValidateDatabaseErrorPrefixIncludesTableName(t *testing.T) {
 
 	err := ValidateDatabase(db)
 	require.Error(t, err)
-	assert.True(t, strings.Contains(err.Error(), `table "users":`))
+	assert.Contains(t, err.Error(), `table "users":`)
 }
 
 func TestValidateDatabaseMissingName(t *testing.T) {

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"sort"
@@ -263,7 +264,7 @@ func ValidateRawType(rawType string, dialect *Dialect) error {
 	}
 
 	if strings.TrimSpace(rawType) == "" {
-		return fmt.Errorf("raw_type is empty")
+		return errors.New("raw_type is empty")
 	}
 
 	types, ok := dialectRawTypes[*dialect]

@@ -701,7 +701,7 @@ func AutoGenerateConstraintName(ctype ConstraintType, table string, columns []st
 	t := strings.ToLower(table)
 	switch ctype {
 	case ConstraintPrimaryKey:
-		return fmt.Sprintf("pk_%s", t)
+		return "pk_" + t
 	case ConstraintUnique:
 		return fmt.Sprintf("uq_%s_%s", t, strings.ToLower(strings.Join(columns, "_")))
 	case ConstraintCheck:

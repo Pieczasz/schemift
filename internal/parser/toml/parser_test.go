@@ -663,7 +663,7 @@ name = "items"
 	require.NotNil(t, col.MySQL)
 	assert.Equal(t, "FIXED", col.MySQL.ColumnFormat)
 	assert.Equal(t, "DISK", col.MySQL.Storage)
-	assert.Equal(t, `{"key":"val"}`, col.MySQL.SecondaryEngineAttribute)
+	assert.JSONEq(t, `{"key":"val"}`, col.MySQL.SecondaryEngineAttribute)
 }
 
 func TestParseTiDBColumnOptions(t *testing.T) {
@@ -748,14 +748,14 @@ name = "items"
 func TestParseInvalidToml(t *testing.T) {
 	p := NewParser()
 	_, err := p.Parse(strings.NewReader(`this is not valid toml {{{`))
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "decode error")
 }
 
 func TestParseFileFileNotFound(t *testing.T) {
 	p := NewParser()
 	_, err := p.ParseFile("/nonexistent/path/schema.toml")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "open file")
 }
 

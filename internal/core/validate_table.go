@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -44,7 +45,7 @@ func validateTable(table *Table, rules *ValidationRules, nameRe *regexp.Regexp) 
 	}
 
 	if len(table.Columns) == 0 {
-		return fmt.Errorf("table has no columns")
+		return errors.New("table has no columns")
 	}
 
 	seenCols := make(map[string]bool, len(table.Columns))
@@ -96,12 +97,12 @@ func validatePKConflict(table *Table) error {
 		}
 	}
 	if constraintPKCount > 1 {
-		return fmt.Errorf(
+		return errors.New(
 			"multiple PRIMARY KEY constraints declared; a table can have at most one primary key",
 		)
 	}
 	if hasColumnPK && constraintPKCount > 0 {
-		return fmt.Errorf(
+		return errors.New(
 			"primary key declared on both column(s) and in constraints section; " +
 				"use column-level primary_key for single-column PKs or a constraint for composite PKs, not both",
 		)

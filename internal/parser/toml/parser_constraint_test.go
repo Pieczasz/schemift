@@ -259,7 +259,7 @@ name = "items"
 	require.NoError(t, err)
 
 	// Index 0 = PK, 1 = first CHECK, 2 = second CHECK.
-	require.True(t, len(db.Tables[0].Constraints) >= 3)
+	require.GreaterOrEqual(t, len(db.Tables[0].Constraints), 3)
 	assert.True(t, db.Tables[0].Constraints[1].Enforced)
 	assert.False(t, db.Tables[0].Constraints[2].Enforced)
 }
