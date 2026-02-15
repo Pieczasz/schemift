@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateEnumsColumn(t *testing.T) {
+func TestValidateEnumsColumnType(t *testing.T) {
 	tests := []struct {
 		name    string
 		db      *Database
@@ -29,6 +29,23 @@ func TestValidateEnumsColumn(t *testing.T) {
 			},
 			wantErr: "invalid type \"BANANA\"",
 		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateDatabase(tt.db)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestValidateEnumsColumnRefActions(t *testing.T) {
+	tests := []struct {
+		name    string
+		db      *Database
+		wantErr string
+	}{
 		{
 			name: "invalid ref_on_delete",
 			db: &Database{
@@ -52,6 +69,23 @@ func TestValidateEnumsColumn(t *testing.T) {
 			},
 			wantErr: "invalid ref_on_delete \"OOPS\"",
 		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateDatabase(tt.db)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestValidateEnumsColumnGeneration(t *testing.T) {
+	tests := []struct {
+		name    string
+		db      *Database
+		wantErr string
+	}{
 		{
 			name: "invalid generation_storage",
 			db: &Database{
@@ -74,6 +108,44 @@ func TestValidateEnumsColumn(t *testing.T) {
 				},
 			},
 			wantErr: "invalid generation_storage \"SIDEWAYS\"",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateDatabase(tt.db)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantErr)
+		})
+	}
+}
+
+func TestValidateEnumsColumnIdentity(t *testing.T) {
+	tests := []struct {
+		name    string
+		db      *Database
+		wantErr string
+	}{
+		{
+			name: "invalid identity_generation",
+			db: &Database{
+				Name:    "app",
+				Dialect: new(DialectMySQL),
+				Tables: []*Table{
+					{
+						Name: "users",
+						Columns: []*Column{
+							{
+								Name:               "id",
+								Type:               DataTypeInt,
+								PrimaryKey:         true,
+								IdentityGeneration: "SOMETIMES",
+							},
+						},
+					},
+				},
+			},
+			wantErr: "invalid identity_generation \"SOMETIMES\"",
 		},
 	}
 

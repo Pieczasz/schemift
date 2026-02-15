@@ -23,6 +23,11 @@ func validateSemantic(db *Database, tableMap map[string]*Table) error {
 }
 
 func validateColumnSemantic(table *Table, col *Column, dialect *Dialect) error {
+	if col.RawType != "" {
+		if err := ValidateRawType(col.RawType, dialect); err != nil {
+			return fmt.Errorf("table %q, column %q: %w", table.Name, col.Name, err)
+		}
+	}
 	if err := validateColumnAutoIncrement(table, col, dialect); err != nil {
 		return err
 	}
@@ -42,7 +47,7 @@ func validateColumnAutoIncrement(table *Table, col *Column, dialect *Dialect) er
 	if col.AutoIncrement && col.Type != DataTypeInt {
 		return fmt.Errorf("table %q, column %q: auto_increment is only allowed on integer columns", table.Name, col.Name)
 	}
-	if dialect != nil && *dialect == DialectSQLite && col.AutoIncrement && !col.PrimaryKey {
+	if *dialect == DialectSQLite && col.AutoIncrement && !col.PrimaryKey {
 		return fmt.Errorf("table %q, column %q: SQLite AUTOINCREMENT is only allowed on PRIMARY KEY columns", table.Name, col.Name)
 	}
 
@@ -71,10 +76,6 @@ func validateColumnIdentitySemantic(table *Table, col *Column) error {
 }
 
 func validateDialectSpecificColumnSemantic(table *Table, col *Column, dialect *Dialect) error {
-	if dialect == nil {
-		return nil
-	}
-
 	if *dialect == DialectTiDB {
 		if col.TiDB != nil && col.TiDB.AutoRandom > 0 {
 			if !col.PrimaryKey || col.Type != DataTypeInt {

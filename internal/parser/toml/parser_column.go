@@ -83,7 +83,7 @@ func (c *converter) convertColumn(tc *tomlColumn) (*core.Column, error) {
 		EnumValues:         tc.EnumValues,
 		IdentitySeed:       tc.IdentitySeed,
 		IdentityIncrement:  tc.IdentityIncrement,
-		IdentityGeneration: tc.IdentityGeneration,
+		IdentityGeneration: core.IdentityGeneration(tc.IdentityGeneration),
 		SequenceName:       tc.SequenceName,
 	}
 
@@ -111,13 +111,8 @@ func (c *converter) resolveColumnType(col *core.Column, tc *tomlColumn) error {
 
 	col.Type = core.NormalizeDataType(portableType)
 
-	if tc.RawType != "" && c.dialect != nil {
-		if err := core.ValidateRawType(tc.RawType, c.dialect); err != nil {
-			return fmt.Errorf("column %q: %w", tc.Name, err)
-		}
+	if tc.RawType != "" {
 		col.RawType = tc.RawType
-	} else {
-		col.RawType = portableType
 	}
 
 	return nil

@@ -274,14 +274,9 @@ var tidbTypes = toSet(
 )
 
 // ValidateRawType checks whether rawType is a valid SQL type for the
-// given dialect. It returns nil when the type is valid or the dialect
-// is nil (no validation possible without a dialect). A descriptive error
-// is returned when the type is unrecognized.
+// given dialect. It returns nil when the type is valid.
+// A descriptive error is returned when the type is unrecognized.
 func ValidateRawType(rawType string, dialect *Dialect) error {
-	if dialect == nil {
-		return nil
-	}
-
 	if strings.TrimSpace(rawType) == "" {
 		return errors.New("raw_type is empty")
 	}

@@ -39,7 +39,7 @@ func validateColumnEnums(table *Table, col *Column) error {
 	if err := validateColumnGeneration(table, col); err != nil {
 		return err
 	}
-	return nil
+	return validateColumnIdentity(table, col)
 }
 
 func validateColumnType(table *Table, col *Column) error {
@@ -72,6 +72,17 @@ func validateColumnGeneration(table *Table, col *Column) error {
 		case GenerationVirtual, GenerationStored:
 		default:
 			return fmt.Errorf("table %q, column %q: invalid generation_storage %q", table.Name, col.Name, col.GenerationStorage)
+		}
+	}
+	return nil
+}
+
+func validateColumnIdentity(table *Table, col *Column) error {
+	if col.IdentityGeneration != "" {
+		switch col.IdentityGeneration {
+		case IdentityAlways, IdentityByDefault:
+		default:
+			return fmt.Errorf("table %q, column %q: invalid identity_generation %q", table.Name, col.Name, col.IdentityGeneration)
 		}
 	}
 	return nil

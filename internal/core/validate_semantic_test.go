@@ -280,3 +280,64 @@ func TestValidateSemanticFKMismatch(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "type mismatch between referencing column \"group_id\" (string) and referenced column \"id\" (int)")
 }
+
+func TestValidateSemanticRawTypeOverride(t *testing.T) {
+	tests := []struct {
+		name    string
+		db      *Database
+		wantErr string
+	}{
+		{
+			name: "invalid RawType override",
+			db: &Database{
+				Name:    "app",
+				Dialect: new(DialectMySQL),
+				Tables: []*Table{
+					{
+						Name: "users",
+						Columns: []*Column{
+							{
+								Name:    "id",
+								Type:    DataTypeInt,
+								RawType: "JSONB", // Not in MySQL
+							},
+						},
+					},
+				},
+			},
+			wantErr: "is not a valid type for dialect \"mysql\"",
+		},
+		{
+			name: "valid RawType override",
+			db: &Database{
+				Name:    "app",
+				Dialect: new(DialectMySQL),
+				Tables: []*Table{
+					{
+						Name: "users",
+						Columns: []*Column{
+							{
+								Name:    "id",
+								Type:    DataTypeInt,
+								RawType: "BIGINT",
+							},
+						},
+					},
+				},
+			},
+			wantErr: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateDatabase(tt.db)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

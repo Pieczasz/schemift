@@ -123,7 +123,7 @@ name = "items"
 	assert.Empty(t, col.Check)
 	assert.False(t, col.Unique)
 	assert.Nil(t, col.EnumValues)
-	assert.Equal(t, "int", col.RawType)
+	assert.Empty(t, col.RawType)
 }
 
 func TestParseBooleanDefaultValue(t *testing.T) {
@@ -267,7 +267,7 @@ name = "items"
 	col := db.Tables[0].FindColumn("status")
 	require.NotNil(t, col)
 	assert.Equal(t, core.DataTypeEnum, col.Type)
-	assert.Equal(t, "enum('active','paused','deleted')", col.RawType)
+	assert.Empty(t, col.RawType)
 	assert.Equal(t, []string{"active", "paused", "deleted"}, col.EnumValues)
 	require.NotNil(t, col.DefaultValue)
 	assert.Equal(t, "active", *col.DefaultValue)
@@ -294,7 +294,7 @@ name = "items"
 
 	col := db.Tables[0].FindColumn("label")
 	require.NotNil(t, col)
-	assert.Equal(t, "enum('it''s','they''re')", col.RawType, "single quotes in values should be escaped")
+	assert.Empty(t, col.RawType, "RawType should be empty without explicit override")
 }
 
 func TestParseGeneratedColumn(t *testing.T) {

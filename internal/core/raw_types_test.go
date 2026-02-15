@@ -230,13 +230,6 @@ func TestValidateRawTypeInvalid(t *testing.T) {
 	}
 }
 
-func TestValidateRawTypeNilDialect(t *testing.T) {
-	err := ValidateRawType("COMPLETELY_INVALID_TYPE", nil)
-	if err != nil {
-		t.Errorf("ValidateRawType with nil dialect should return nil, got: %v", err)
-	}
-}
-
 func TestValidateRawTypeEmptyRawType(t *testing.T) {
 	d := DialectMySQL
 	tests := []string{"", "   ", "\t"}

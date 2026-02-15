@@ -349,13 +349,20 @@ type MariaDBTableOptions struct {
 	WithSystemVersioning bool `json:"with_system_versioning,omitempty"`
 }
 
+// IdentityGeneration controls the GENERATED clause for identity columns.
+type IdentityGeneration string
+
+const (
+	IdentityAlways    IdentityGeneration = "ALWAYS"
+	IdentityByDefault IdentityGeneration = "BY DEFAULT"
+)
+
 // Column represents a single column inside schema.
 type Column struct {
 	// Name is the column identifier as declared in the schema.
 	Name string `json:"name"`
 	// RawType is the SQL type string to use for DDL generation (e.g. "VARCHAR(255)", "JSONB").
-	// The parser resolves this at once: if a dialect-specific raw_type override is
-	// declared in TOML, it takes precedence, otherwise the portable type is used.
+	// When empty, the generator maps the portable Type to a dialect-specific default.
 	RawType string `json:"rawType"`
 	// Type is the normalized portable data type category (e.g., DataTypeString).
 	// Always derived from the portable TOML `type` field for consistent classification.
@@ -412,7 +419,7 @@ type Column struct {
 	// IdentityGeneration controls the GENERATED clause for identity columns:
 	// "ALWAYS" or "BY DEFAULT".  PostgreSQL, Oracle, and DB2 support both.
 	// Empty defaults to "ALWAYS" at generation time.
-	IdentityGeneration string `json:"identityGeneration,omitempty"`
+	IdentityGeneration IdentityGeneration `json:"identityGeneration,omitempty"`
 
 	// SequenceName allows explicit binding to a named sequence (PostgreSQL, Oracle).
 	// When empty, the generator uses auto-increment / identity syntax instead.
