@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"strings"
 )
 
 // validateIndexes checks for duplicate index names and verifies that every
@@ -13,11 +12,13 @@ func validateIndexes(table *Table) error {
 		if idx.Name == "" {
 			continue
 		}
-		lower := strings.ToLower(idx.Name)
-		if seen[lower] {
+		if err := validateName(idx.Name, "index", nil, nil, false); err != nil {
+			return err
+		}
+		if seen[idx.Name] {
 			return fmt.Errorf("duplicate index name %q", idx.Name)
 		}
-		seen[lower] = true
+		seen[idx.Name] = true
 	}
 
 	for _, idx := range table.Indexes {

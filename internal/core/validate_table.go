@@ -4,17 +4,15 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 )
 
 func validateDuplicateTableNames(tables []*Table) error {
 	seenTables := make(map[string]bool, len(tables))
 	for _, table := range tables {
-		lower := strings.ToLower(table.Name)
-		if seenTables[lower] {
+		if seenTables[table.Name] {
 			return fmt.Errorf("duplicate table name %q", table.Name)
 		}
-		seenTables[lower] = true
+		seenTables[table.Name] = true
 	}
 	return nil
 }
@@ -50,11 +48,10 @@ func validateTable(table *Table, rules *ValidationRules, nameRe *regexp.Regexp) 
 
 	seenCols := make(map[string]bool, len(table.Columns))
 	for _, col := range table.Columns {
-		lower := strings.ToLower(col.Name)
-		if seenCols[lower] {
+		if seenCols[col.Name] {
 			return fmt.Errorf("duplicate column name %q", col.Name)
 		}
-		seenCols[lower] = true
+		seenCols[col.Name] = true
 	}
 
 	for _, col := range table.Columns {
@@ -111,7 +108,7 @@ func validatePKConflict(table *Table) error {
 }
 
 // validateTimestamps checks that the created and updated timestamp columns
-// resolve to distinct names.
+// resolve to distinct names and follow naming rules.
 func validateTimestamps(table *Table) error {
 	if table.Timestamps == nil || !table.Timestamps.Enabled {
 		return nil
@@ -119,12 +116,18 @@ func validateTimestamps(table *Table) error {
 	createdCol := "created_at"
 	updatedCol := "updated_at"
 	if table.Timestamps.CreatedColumn != "" {
+		if err := validateName(table.Timestamps.CreatedColumn, "timestamp created_column", nil, nil, false); err != nil {
+			return err
+		}
 		createdCol = table.Timestamps.CreatedColumn
 	}
 	if table.Timestamps.UpdatedColumn != "" {
+		if err := validateName(table.Timestamps.UpdatedColumn, "timestamp updated_column", nil, nil, false); err != nil {
+			return err
+		}
 		updatedCol = table.Timestamps.UpdatedColumn
 	}
-	if strings.EqualFold(createdCol, updatedCol) {
+	if createdCol == updatedCol {
 		return fmt.Errorf("timestamps created_column and updated_column resolve to the same name %q", createdCol)
 	}
 	return nil

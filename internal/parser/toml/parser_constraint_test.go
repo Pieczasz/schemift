@@ -387,43 +387,6 @@ name = "items"
 	assert.Contains(t, err.Error(), "uq_code")
 }
 
-func TestParseDuplicateConstraintNameCaseInsensitive(t *testing.T) {
-	const schema = `
-[database]
-name = "testdb"
-dialect = "mysql"
-
-[[tables]]
-name = "items"
-
-  [[tables.columns]]
-  name = "id"
-  type = "int"
-  primary_key = true
-
-  [[tables.columns]]
-  name = "code"
-  type = "varchar(50)"
-
-  [[tables.columns]]
-  name = "name"
-  type = "varchar(100)"
-
-  [[tables.constraints]]
-  name    = "UQ_CODE"
-  type    = "UNIQUE"
-  columns = ["code"]
-
-  [[tables.constraints]]
-  name    = "uq_code"
-  type    = "UNIQUE"
-  columns = ["name"]
-`
-	p := NewParser()
-	_, err := p.Parse(strings.NewReader(schema))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "duplicate constraint name")
-}
 
 func TestParseConstraintReferencesNonexistentColumn(t *testing.T) {
 	const schema = `

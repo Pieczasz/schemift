@@ -92,13 +92,13 @@ func TestValidateDatabaseInvalidAllowedNamePattern(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid allowed_name_pattern")
 }
 
-func TestValidateDatabaseDuplicateTableNamesCaseInsensitive(t *testing.T) {
+func TestValidateDatabaseDuplicateTableNames(t *testing.T) {
 	db := &Database{
 		Name:    "app",
 		Dialect: new(DialectMySQL),
 		Tables: []*Table{
 			{Name: "users", Columns: []*Column{{Name: "id"}}},
-			{Name: "Users", Columns: []*Column{{Name: "id"}}},
+			{Name: "users", Columns: []*Column{{Name: "id"}}},
 		},
 	}
 

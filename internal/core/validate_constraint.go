@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"strings"
 )
 
 // validateConstraints checks for duplicate constraint names, missing columns,
@@ -13,11 +12,13 @@ func validateConstraints(table *Table) error {
 		if con.Name == "" {
 			continue
 		}
-		lower := strings.ToLower(con.Name)
-		if seen[lower] {
+		if err := validateName(con.Name, "constraint", nil, nil, false); err != nil {
+			return err
+		}
+		if seen[con.Name] {
 			return fmt.Errorf("duplicate constraint name %q", con.Name)
 		}
-		seen[lower] = true
+		seen[con.Name] = true
 	}
 
 	for _, con := range table.Constraints {
@@ -62,7 +63,7 @@ func validateFKColumnExistence(db *Database, tableMap map[string]*Table) error {
 				continue
 			}
 
-			refTable, exists := tableMap[strings.ToLower(con.ReferencedTable)]
+			refTable, exists := tableMap[con.ReferencedTable]
 			if !exists {
 				return fmt.Errorf("constraint %q in table %q references non-existent table %q",
 					con.Name, t.Name, con.ReferencedTable)

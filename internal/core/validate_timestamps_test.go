@@ -44,7 +44,7 @@ func TestValidateDatabaseTimestampsValidation(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("same timestamps names case insensitive", func(t *testing.T) {
+	t.Run("same timestamps names", func(t *testing.T) {
 		db := &Database{
 			Name:    "app",
 			Dialect: &d,
@@ -55,7 +55,7 @@ func TestValidateDatabaseTimestampsValidation(t *testing.T) {
 					Timestamps: &TimestampsConfig{
 						Enabled:       true,
 						CreatedColumn: "created_at",
-						UpdatedColumn: "CREATED_AT",
+						UpdatedColumn: "created_at",
 					},
 				},
 			},

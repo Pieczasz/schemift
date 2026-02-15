@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateDatabaseConstraintDuplicateNamesCaseInsensitive(t *testing.T) {
+func TestValidateDatabaseConstraintDuplicateNames(t *testing.T) {
 	db := &Database{
 		Name:    "app",
 		Dialect: new(DialectMySQL),
@@ -17,7 +17,7 @@ func TestValidateDatabaseConstraintDuplicateNamesCaseInsensitive(t *testing.T) {
 				Columns: []*Column{{Name: "id"}},
 				Constraints: []*Constraint{
 					{Name: "uq_email", Type: ConstraintUnique, Columns: []string{"id"}},
-					{Name: "UQ_EMAIL", Type: ConstraintUnique, Columns: []string{"id"}},
+					{Name: "uq_email", Type: ConstraintUnique, Columns: []string{"id"}},
 				},
 			},
 		},
@@ -37,7 +37,7 @@ func TestValidateDatabaseConstraintWithNoColumns(t *testing.T) {
 				Name:    "users",
 				Columns: []*Column{{Name: "id"}},
 				Constraints: []*Constraint{
-					{Name: "uq_users_id", Type: ConstraintUnique},
+					{Name: "uq_users_id", Type: ConstraintUnique, Columns: []string{}},
 				},
 			},
 		},
@@ -143,33 +143,6 @@ func TestValidateDatabaseForeignKeyTargetExistence(t *testing.T) {
 				{
 					Name:    "users",
 					Columns: []*Column{{Name: "id"}},
-				},
-				{
-					Name:    "posts",
-					Columns: []*Column{{Name: "author_id"}},
-					Constraints: []*Constraint{
-						{
-							Name:              "fk_posts_author",
-							Type:              ConstraintForeignKey,
-							Columns:           []string{"author_id"},
-							ReferencedTable:   "users",
-							ReferencedColumns: []string{"id"},
-						},
-					},
-				},
-			},
-		}
-		require.NoError(t, ValidateDatabase(db))
-	})
-
-	t.Run("case-insensitive matching", func(t *testing.T) {
-		db := &Database{
-			Name:    "app",
-			Dialect: &d,
-			Tables: []*Table{
-				{
-					Name:    "Users",
-					Columns: []*Column{{Name: "ID"}},
 				},
 				{
 					Name:    "posts",

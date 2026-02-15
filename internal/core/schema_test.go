@@ -32,7 +32,7 @@ func TestDatabaseFindTable(t *testing.T) {
 		Tables: []*Table{
 			{Name: "users"},
 			{Name: "orders"},
-			{Name: "Products"},
+			{Name: "products"},
 		},
 	}
 
@@ -40,18 +40,6 @@ func TestDatabaseFindTable(t *testing.T) {
 		table := db.FindTable("users")
 		assert.NotNil(t, table)
 		assert.Equal(t, "users", table.Name)
-	})
-
-	t.Run("find existing table case insensitive", func(t *testing.T) {
-		table := db.FindTable("USERS")
-		assert.NotNil(t, table)
-		assert.Equal(t, "users", table.Name)
-	})
-
-	t.Run("find existing table mixed case", func(t *testing.T) {
-		table := db.FindTable("products")
-		assert.NotNil(t, table)
-		assert.Equal(t, "Products", table.Name)
 	})
 
 	t.Run("table not found", func(t *testing.T) {
@@ -71,7 +59,7 @@ func TestTableFindColumn(t *testing.T) {
 		Name: "users",
 		Columns: []*Column{
 			{Name: "id"},
-			{Name: "Email"},
+			{Name: "email"},
 			{Name: "created_at"},
 		},
 	}
@@ -80,18 +68,6 @@ func TestTableFindColumn(t *testing.T) {
 		col := table.FindColumn("id")
 		assert.NotNil(t, col)
 		assert.Equal(t, "id", col.Name)
-	})
-
-	t.Run("find existing column case insensitive", func(t *testing.T) {
-		col := table.FindColumn("ID")
-		assert.NotNil(t, col)
-		assert.Equal(t, "id", col.Name)
-	})
-
-	t.Run("find existing column mixed case", func(t *testing.T) {
-		col := table.FindColumn("email")
-		assert.NotNil(t, col)
-		assert.Equal(t, "Email", col.Name)
 	})
 
 	t.Run("column not found", func(t *testing.T) {
@@ -111,7 +87,7 @@ func TestTableFindConstraint(t *testing.T) {
 		Name: "users",
 		Constraints: []*Constraint{
 			{Name: "pk_users", Type: ConstraintPrimaryKey},
-			{Name: "FK_Orders", Type: ConstraintForeignKey},
+			{Name: "fk_orders", Type: ConstraintForeignKey},
 			{Name: "uq_email", Type: ConstraintUnique},
 		},
 	}
@@ -120,18 +96,6 @@ func TestTableFindConstraint(t *testing.T) {
 		c := table.FindConstraint("pk_users")
 		assert.NotNil(t, c)
 		assert.Equal(t, "pk_users", c.Name)
-	})
-
-	t.Run("find existing constraint case insensitive", func(t *testing.T) {
-		c := table.FindConstraint("PK_USERS")
-		assert.NotNil(t, c)
-		assert.Equal(t, "pk_users", c.Name)
-	})
-
-	t.Run("find existing constraint mixed case", func(t *testing.T) {
-		c := table.FindConstraint("fk_orders")
-		assert.NotNil(t, c)
-		assert.Equal(t, "FK_Orders", c.Name)
 	})
 
 	t.Run("constraint not found", func(t *testing.T) {
@@ -151,7 +115,7 @@ func TestTableFindIndex(t *testing.T) {
 		Name: "users",
 		Indexes: []*Index{
 			{Name: "idx_email"},
-			{Name: "IDX_Name"},
+			{Name: "idx_name"},
 			{Name: "idx_created"},
 		},
 	}
@@ -160,18 +124,6 @@ func TestTableFindIndex(t *testing.T) {
 		idx := table.FindIndex("idx_email")
 		assert.NotNil(t, idx)
 		assert.Equal(t, "idx_email", idx.Name)
-	})
-
-	t.Run("find existing index case insensitive", func(t *testing.T) {
-		idx := table.FindIndex("IDX_EMAIL")
-		assert.NotNil(t, idx)
-		assert.Equal(t, "idx_email", idx.Name)
-	})
-
-	t.Run("find existing index mixed case", func(t *testing.T) {
-		idx := table.FindIndex("idx_name")
-		assert.NotNil(t, idx)
-		assert.Equal(t, "IDX_Name", idx.Name)
 	})
 
 	t.Run("index not found", func(t *testing.T) {

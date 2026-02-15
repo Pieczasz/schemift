@@ -61,10 +61,11 @@ type ValidationRules struct {
 	MaxTableNameLength          int    `json:"maxTableNameLength,omitempty"`
 	MaxColumnNameLength         int    `json:"maxColumnNameLength,omitempty"`
 	AutoGenerateConstraintNames bool   `json:"autoGenerateConstraintNames,omitempty"`
-	AllowedNamePattern          string `json:"allowedNamePattern,omitempty"` // Regex pattern for identifiers.
+	AllowedNamePattern          string `json:"allowedNamePattern,omitempty"`
 }
 
 // Table represents a table in the schema.
+// All table names must be in snake_case.
 type Table struct {
 	Name        string            `json:"name"`
 	Columns     []*Column         `json:"columns"`
@@ -589,7 +590,7 @@ func (i *Index) GetName() string      { return i.Name }
 // FindTable looks for a table by name inside a database.
 func (db *Database) FindTable(name string) *Table {
 	for _, t := range db.Tables {
-		if strings.EqualFold(t.Name, name) {
+		if t.Name == name {
 			return t
 		}
 	}
@@ -599,7 +600,7 @@ func (db *Database) FindTable(name string) *Table {
 // FindColumn looks for a column by name inside a table.
 func (t *Table) FindColumn(name string) *Column {
 	for _, c := range t.Columns {
-		if strings.EqualFold(c.Name, name) {
+		if c.Name == name {
 			return c
 		}
 	}
@@ -609,7 +610,7 @@ func (t *Table) FindColumn(name string) *Column {
 // FindConstraint looks for a constraint by name inside a table.
 func (t *Table) FindConstraint(name string) *Constraint {
 	for _, c := range t.Constraints {
-		if strings.EqualFold(c.Name, name) {
+		if c.Name == name {
 			return c
 		}
 	}
@@ -619,7 +620,7 @@ func (t *Table) FindConstraint(name string) *Constraint {
 // FindIndex looks for an index by name inside a table.
 func (t *Table) FindIndex(name string) *Index {
 	for _, i := range t.Indexes {
-		if strings.EqualFold(i.Name, name) {
+		if i.Name == name {
 			return i
 		}
 	}

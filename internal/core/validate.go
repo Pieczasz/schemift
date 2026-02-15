@@ -28,7 +28,7 @@ func ValidateDatabase(db *Database) error {
 
 	tableMap := make(map[string]*Table, len(db.Tables))
 	for _, t := range db.Tables {
-		tableMap[strings.ToLower(t.Name)] = t
+		tableMap[t.Name] = t
 	}
 
 	if err := prevalidateAndSynthesizeTables(db.Tables); err != nil {
@@ -81,13 +81,24 @@ func compileAllowedNamePattern(rules *ValidationRules) (*regexp.Regexp, error) {
 	return re, nil
 }
 
-// validateName checks that a name is non-empty and satisfies the optional
-// length and pattern rules. useTableLength selects which max-length field to
-// use from the validation rules.
+var snakeCaseRe = regexp.MustCompile(`^[a-z][a-z0-9_]*$`)
+
+func snakeCase(s string) bool {
+	return snakeCaseRe.MatchString(s)
+}
+
+// validateName checks that a name is non-empty, satisfies the optional
+// length and pattern rules, and follows snake_case convention.
+// useTableLength selects which max-length field to use from the validation rules.
 func validateName(name, kind string, rules *ValidationRules, nameRe *regexp.Regexp, useTableLength bool) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("%s name is empty", kind)
 	}
+
+	if !snakeCase(name) {
+		return fmt.Errorf("%s %q must be in snake_case", kind, name)
+	}
+
 	if rules == nil {
 		return nil
 	}
