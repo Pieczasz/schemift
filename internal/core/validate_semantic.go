@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"strings"
 )
 
 // validateSemantic validates dialect-specific and logical rules that are not
@@ -94,7 +93,7 @@ func validateFKTypeMismatch(table *Table, tableMap map[string]*Table) error {
 			continue
 		}
 
-		refTable, ok := tableMap[strings.ToLower(con.ReferencedTable)]
+		refTable, ok := tableMap[con.ReferencedTable]
 		if !ok {
 			continue
 		}
@@ -125,7 +124,7 @@ func tableIsPartOfPK(table *Table, colName string) bool {
 	for _, con := range table.Constraints {
 		if con.Type == ConstraintPrimaryKey {
 			for _, c := range con.Columns {
-				if strings.EqualFold(c, colName) {
+				if c == colName {
 					return true
 				}
 			}

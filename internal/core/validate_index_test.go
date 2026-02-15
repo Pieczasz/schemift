@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestValidateDatabaseIndexDuplicateNamesCaseInsensitive(t *testing.T) {
+func TestValidateDatabaseIndexDuplicateNames(t *testing.T) {
 	db := &Database{
 		Name:    "app",
 		Dialect: new(DialectMySQL),
@@ -17,7 +17,7 @@ func TestValidateDatabaseIndexDuplicateNamesCaseInsensitive(t *testing.T) {
 				Columns: []*Column{{Name: "email"}},
 				Indexes: []*Index{
 					{Name: "idx_email", Columns: []ColumnIndex{{Name: "email"}}},
-					{Name: "IDX_EMAIL", Columns: []ColumnIndex{{Name: "email"}}},
+					{Name: "idx_email", Columns: []ColumnIndex{{Name: "email"}}},
 				},
 			},
 		},

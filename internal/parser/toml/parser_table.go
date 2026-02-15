@@ -2,7 +2,6 @@ package toml
 
 import (
 	"fmt"
-	"strings"
 
 	"smf/internal/core"
 )
@@ -388,7 +387,7 @@ func validateTimestampColumnNames(ts *core.TimestampsConfig) error {
 	if ts.UpdatedColumn != "" {
 		updatedCol = ts.UpdatedColumn
 	}
-	if strings.EqualFold(createdCol, updatedCol) {
+	if createdCol == updatedCol {
 		return fmt.Errorf("timestamps created_column and updated_column resolve to the same name %q", createdCol)
 	}
 	return nil
@@ -406,7 +405,7 @@ func injectTimestampColumns(table *core.Table) {
 		updatedCol = table.Timestamps.UpdatedColumn
 	}
 
-	if strings.EqualFold(createdCol, updatedCol) {
+	if createdCol == updatedCol {
 		return
 	}
 

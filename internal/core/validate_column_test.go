@@ -21,7 +21,7 @@ func TestValidateDatabaseTableHasNoColumns(t *testing.T) {
 	assert.Contains(t, err.Error(), "table has no columns")
 }
 
-func TestValidateDatabaseDuplicateColumnNamesCaseInsensitive(t *testing.T) {
+func TestValidateDatabaseDuplicateColumnNames(t *testing.T) {
 	db := &Database{
 		Name:    "app",
 		Dialect: new(DialectMySQL),
@@ -30,7 +30,7 @@ func TestValidateDatabaseDuplicateColumnNamesCaseInsensitive(t *testing.T) {
 				Name: "users",
 				Columns: []*Column{
 					{Name: "email"},
-					{Name: "Email"},
+					{Name: "email"},
 				},
 			},
 		},
@@ -88,13 +88,13 @@ func TestValidateDatabaseAllowedNamePatternForColumn(t *testing.T) {
 		Name:    "app",
 		Dialect: new(DialectMySQL),
 		Validation: &ValidationRules{
-			AllowedNamePattern: `^[a-z_]+$`,
+			AllowedNamePattern: `^u[a-z]+$`,
 		},
 		Tables: []*Table{
 			{
 				Name: "users",
 				Columns: []*Column{
-					{Name: "Email"},
+					{Name: "email"},
 				},
 			},
 		},

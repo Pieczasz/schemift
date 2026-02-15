@@ -214,41 +214,6 @@ name = "items"
 	assert.Contains(t, err.Error(), "idx_code")
 }
 
-func TestParseDuplicateIndexNameCaseInsensitive(t *testing.T) {
-	const schema = `
-[database]
-name = "testdb"
-dialect = "mysql"
-
-[[tables]]
-name = "items"
-
-  [[tables.columns]]
-  name = "id"
-  type = "int"
-  primary_key = true
-
-  [[tables.columns]]
-  name = "code"
-  type = "varchar(50)"
-
-  [[tables.columns]]
-  name = "name"
-  type = "varchar(100)"
-
-  [[tables.indexes]]
-  name    = "IDX_CODE"
-  columns = ["code"]
-
-  [[tables.indexes]]
-  name    = "idx_code"
-  columns = ["name"]
-`
-	p := NewParser()
-	_, err := p.Parse(strings.NewReader(schema))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "duplicate index name")
-}
 
 func TestParseIndexReferencesNonexistentColumn(t *testing.T) {
 	const schema = `

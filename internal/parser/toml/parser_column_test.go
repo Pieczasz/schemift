@@ -636,26 +636,3 @@ name = "items"
 	assert.Contains(t, err.Error(), "id")
 }
 
-func TestParseDuplicateColumnNameCaseInsensitive(t *testing.T) {
-	const schema = `
-[database]
-name = "testdb"
-dialect = "mysql"
-
-[[tables]]
-name = "items"
-
-  [[tables.columns]]
-  name = "Email"
-  type = "varchar(255)"
-  primary_key = true
-
-  [[tables.columns]]
-  name = "email"
-  type = "text"
-`
-	p := NewParser()
-	_, err := p.Parse(strings.NewReader(schema))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "duplicate column name")
-}

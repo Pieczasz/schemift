@@ -491,7 +491,7 @@ dialect = "mysql"
 allowed_name_pattern = "^[a-z_]+$"
 
 [[tables]]
-name = "Items"
+name = "items123"
 
   [[tables.columns]]
   name = "id"
@@ -601,7 +601,7 @@ allowed_name_pattern = "^[a-z_]+$"
 name = "items"
 
   [[tables.columns]]
-  name = "BadColumn"
+  name = "col123"
   type = "int"
   primary_key = true
 `
@@ -609,7 +609,7 @@ name = "items"
 	_, err := p.Parse(strings.NewReader(schema))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "does not match allowed pattern")
-	assert.Contains(t, err.Error(), "BadColumn")
+	assert.Contains(t, err.Error(), "col123")
 }
 
 func TestParseInvalidRawTypeForDialect(t *testing.T) {
