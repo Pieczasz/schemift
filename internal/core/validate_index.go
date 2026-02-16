@@ -19,6 +19,9 @@ func validateIndexes(table *Table) error {
 			return fmt.Errorf("duplicate index name %q", idx.Name)
 		}
 		seen[idx.Name] = true
+
+		// TODO: validate this field (idx.Comment)
+		// TODO: validate this field (idx.Unique)
 	}
 
 	for _, idx := range table.Indexes {
@@ -30,6 +33,7 @@ func validateIndexes(table *Table) error {
 			return fmt.Errorf("index %s has no columns", name)
 		}
 		for _, ic := range idx.Columns {
+			// TODO: validate this field (ic.Length)
 			if table.FindColumn(ic.Name) == nil {
 				return fmt.Errorf("index %q references nonexistent column %q", idx.Name, ic.Name)
 			}

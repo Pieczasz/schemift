@@ -26,17 +26,17 @@ func ValidateDatabase(db *Database) error {
 		return err
 	}
 
-	tableMap := make(map[string]*Table, len(db.Tables))
-	for _, t := range db.Tables {
-		tableMap[t.Name] = t
-	}
-
 	if err := prevalidateAndSynthesizeTables(db.Tables); err != nil {
 		return err
 	}
 
 	if err := validateAllTables(db.Tables, db.Validation, nameRe); err != nil {
 		return err
+	}
+
+	tableMap := make(map[string]*Table, len(db.Tables))
+	for _, t := range db.Tables {
+		tableMap[t.Name] = t
 	}
 
 	if err := validateFKColumnExistence(db, tableMap); err != nil {
@@ -60,6 +60,10 @@ func validateDatabaseBasics(db *Database) error {
 	}
 	if db.Dialect == nil {
 		return fmt.Errorf("dialect is required; supported dialects: %v", SupportedDialects())
+	}
+	// TODO: validate this field (db.Validation)
+	if db.Validation != nil {
+		// TODO: validate this field (db.Validation.AutoGenerateConstraintNames)
 	}
 	if strings.TrimSpace(db.Name) == "" {
 		return errors.New("database name is required")

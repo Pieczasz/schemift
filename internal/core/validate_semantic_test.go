@@ -215,7 +215,7 @@ func TestValidateSemanticIdentity(t *testing.T) {
 							{
 								Name: "id",
 								Type: DataTypeInt,
-								TiDB: &TiDBColumnOptions{AutoRandom: 5},
+								TiDB: &TiDBColumnOptions{ShardBits: 5},
 							},
 						},
 					},
@@ -236,7 +236,7 @@ func TestValidateSemanticIdentity(t *testing.T) {
 								Name:       "id",
 								Type:       DataTypeString,
 								PrimaryKey: true,
-								TiDB:       &TiDBColumnOptions{AutoRandom: 5},
+								TiDB:       &TiDBColumnOptions{ShardBits: 5},
 							},
 						},
 					},

@@ -35,6 +35,8 @@ func validateConstraints(table *Table) error {
 // referenced_columns.
 func validateConstraintColumns(table *Table, con *Constraint) error {
 	if con.Type == ConstraintCheck {
+		// TODO: validate this field (con.CheckExpression)
+		// TODO: validate this field (con.Enforced)
 		return nil
 	}
 	if len(con.Columns) == 0 {

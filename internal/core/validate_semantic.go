@@ -28,6 +28,9 @@ func validateColumnSemantic(table *Table, col *Column, dialect *Dialect) error {
 			return fmt.Errorf("table %q, column %q: %w", table.Name, col.Name, err)
 		}
 	}
+	// TODO: validate this field (col.Nullable)
+	// TODO: validate this field (col.Unique)
+	// TODO: validate this field (col.DefaultValue)
 	if err := validateColumnAutoIncrement(table, col, dialect); err != nil {
 		return err
 	}
@@ -77,7 +80,7 @@ func validateColumnIdentitySemantic(table *Table, col *Column) error {
 
 func validateDialectSpecificColumnSemantic(table *Table, col *Column, dialect *Dialect) error {
 	if *dialect == DialectTiDB {
-		if col.TiDB != nil && col.TiDB.AutoRandom > 0 {
+		if col.TiDB != nil && col.TiDB.ShardBits > 0 {
 			if !col.PrimaryKey || col.Type != DataTypeInt {
 				return fmt.Errorf("table %q, column %q: TiDB AUTO_RANDOM can only be applied to BIGINT PRIMARY KEY columns", table.Name, col.Name)
 			}
