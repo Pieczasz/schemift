@@ -109,13 +109,13 @@ var postgresqlTypes = toSet(
 	"BIT", "BIT VARYING", "VARBIT",
 
 	// Text search
-	"TSVECTOR", "TSQUERY",
+	"TSVECTOR", "TSQUERY", "GTSVECTOR",
 
 	// UUID
 	"UUID",
 
 	// JSON
-	"JSON", "JSONB",
+	"JSON", "JSONB", "JSONPATH",
 
 	// XML
 	"XML",
@@ -128,11 +128,18 @@ var postgresqlTypes = toSet(
 	"INT4MULTIRANGE", "INT8MULTIRANGE", "NUMMULTIRANGE",
 	"TSMULTIRANGE", "TSTZMULTIRANGE", "DATEMULTIRANGE",
 
-	// Others
+	// Object identifiers
 	"OID", "REGCLASS", "REGTYPE",
-	"HSTORE",
-	"LTREE",
+	"REGPROC", "REGPROCEDURE", "REGOPER", "REGOPERATOR",
+	"REGCONFIG", "REGDICTIONARY", "REGROLE", "REGNAMESPACE",
+
+	// Special types
+	"PG_LSN", "PG_SNAPSHOT", "TXID_SNAPSHOT",
+
+	// Other
+	"HSTORE", "LTREE",
 	"GEOGRAPHY", "GEOMETRY",
+	"RECORD", "CSTRING",
 )
 
 var sqliteTypes = toSet(
@@ -145,6 +152,7 @@ var sqliteTypes = toSet(
 	"TINYINT", "SMALLINT", "MEDIUMINT", "BIGINT",
 	"INT2", "INT8",
 	"JSON",
+	"ANY",
 )
 
 var oracleTypes = toSet(
@@ -169,8 +177,20 @@ var oracleTypes = toSet(
 	// Other
 	"ROWID", "UROWID",
 	"XMLTYPE", "JSON",
-	"SDO_GEOMETRY",
+	"SDO_GEOMETRY", "SDO_TOPO_GEOMETRY", "SDO_GEORASTER",
 	"BOOLEAN", // Oracle 23c+
+
+	// Collection types
+	"VARRAY", "NESTED TABLE",
+
+	// Object types
+	"OBJECT", "REF",
+
+	// Any types
+	"ANYDATA", "ANYTYPE", "ANYDATASET",
+
+	// URI types
+	"URITYPE",
 )
 
 var db2Types = toSet(
@@ -195,7 +215,10 @@ var db2Types = toSet(
 	"XML", "JSON",
 
 	// Row types
-	"ROWID",
+	"ROWID", "DATALINK",
+
+	// Special types
+	"CURSOR", "REFERENCE",
 )
 
 var snowflakeTypes = toSet(
@@ -218,11 +241,20 @@ var snowflakeTypes = toSet(
 	// Semi-structured
 	"VARIANT", "OBJECT", "ARRAY",
 
+	// Structured
+	"MAP",
+
+	// UUID
+	"UUID",
+
 	// Geospatial
 	"GEOGRAPHY", "GEOMETRY",
 
 	// Vector
 	"VECTOR",
+
+	// Other
+	"DECFLOAT",
 )
 
 var mssqlTypes = toSet(
@@ -252,7 +284,7 @@ var mssqlTypes = toSet(
 	"GEOGRAPHY", "GEOMETRY",
 	"HIERARCHYID",
 	"ROWVERSION", "TIMESTAMP",
-	"CURSOR", "TABLE",
+	"CURSOR", "TABLE", "SYSNAME",
 )
 
 var tidbTypes = toSet(
