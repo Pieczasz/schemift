@@ -23,7 +23,7 @@ func TestValidateDatabaseTimestampsValidation(t *testing.T) {
 			},
 		}
 
-		err := ValidateDatabase(db)
+		err := db.Validate()
 		require.NoError(t, err)
 	})
 
@@ -40,7 +40,7 @@ func TestValidateDatabaseTimestampsValidation(t *testing.T) {
 			},
 		}
 
-		err := ValidateDatabase(db)
+		err := db.Validate()
 		require.NoError(t, err)
 	})
 
@@ -61,7 +61,7 @@ func TestValidateDatabaseTimestampsValidation(t *testing.T) {
 			},
 		}
 
-		err := ValidateDatabase(db)
+		err := db.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "resolve to the same name")
 	})

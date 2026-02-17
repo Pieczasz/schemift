@@ -23,7 +23,7 @@ func TestValidateDatabaseConstraintDuplicateNames(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate constraint name")
 }
@@ -43,7 +43,7 @@ func TestValidateDatabaseConstraintWithNoColumns(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "has no columns")
 }
@@ -63,7 +63,7 @@ func TestValidateDatabaseConstraintReferencesNonexistentColumn(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "references nonexistent column")
 }
@@ -83,7 +83,7 @@ func TestValidateDatabaseConstraintForeignKeyMissingReferencedTable(t *testing.T
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing referenced_table")
 }
@@ -108,7 +108,7 @@ func TestValidateDatabaseConstraintForeignKeyMissingReferencedColumns(t *testing
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing referenced_columns")
 }
@@ -128,7 +128,7 @@ func TestValidateDatabaseCheckConstraintMayHaveNoColumns(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.NoError(t, err)
 }
 
@@ -159,7 +159,7 @@ func TestValidateDatabaseForeignKeyTargetExistence(t *testing.T) {
 				},
 			},
 		}
-		require.NoError(t, ValidateDatabase(db))
+		require.NoError(t, db.Validate())
 	})
 }
 
@@ -186,7 +186,7 @@ func TestValidateDatabaseForeignKeyNotExisting(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateDatabase(db)
+		err := db.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `references non-existent table "users"`)
 	})
@@ -215,7 +215,7 @@ func TestValidateDatabaseForeignKeyNotExisting(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateDatabase(db)
+		err := db.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `references non-existent column "uuid" in table "users"`)
 	})

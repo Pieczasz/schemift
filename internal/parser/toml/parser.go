@@ -69,7 +69,7 @@ func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 		return nil, err
 	}
 
-	if err := core.ValidateDatabase(db); err != nil {
+	if err := db.Validate(); err != nil {
 		return nil, fmt.Errorf("toml: %w", err)
 	}
 
@@ -111,7 +111,7 @@ func (c *converter) convert() (*core.Database, error) {
 }
 
 // parseDialect converts the raw dialect string into a *core.Dialect.
-// Returns nil when the string is empty (core.ValidateDatabase will flag it).
+// Returns nil when the string is empty (db.Validate() will flag it).
 // Returns an error when the string is non-empty but unrecognized — this is a
 // genuine parse error because the input cannot be mapped to a known type.
 func parseDialect(raw string) (*core.Dialect, error) {
@@ -125,7 +125,7 @@ func parseDialect(raw string) (*core.Dialect, error) {
 }
 
 // convertRules converts [validation] into core.ValidationRules.
-// No validation is performed here — that happens in core.ValidateDatabase.
+// No validation is performed here — that happens in db.Validate().
 func convertRules(v *tomlValidation) *core.ValidationRules {
 	if v == nil {
 		return nil

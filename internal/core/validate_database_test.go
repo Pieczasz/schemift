@@ -30,7 +30,7 @@ func TestValidateDatabaseSuccessAndSynthesis(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.NoError(t, err)
 
 	users := db.Tables[0]
@@ -56,12 +56,6 @@ func TestValidateDatabaseSuccessAndSynthesis(t *testing.T) {
 	assert.Equal(t, 1, fkCount)
 }
 
-func TestValidateDatabaseNilDatabase(t *testing.T) {
-	err := ValidateDatabase(nil)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "database is nil")
-}
-
 func TestValidateDatabaseMissingDialect(t *testing.T) {
 	db := &Database{
 		Name: "app",
@@ -70,7 +64,7 @@ func TestValidateDatabaseMissingDialect(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "dialect is required")
 }
@@ -87,7 +81,7 @@ func TestValidateDatabaseInvalidAllowedNamePattern(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid allowed_name_pattern")
 }
@@ -102,7 +96,7 @@ func TestValidateDatabaseDuplicateTableNames(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate table name")
 }
@@ -122,7 +116,7 @@ func TestValidateDatabaseErrorPrefixIncludesTableName(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `table "users":`)
 }
@@ -136,7 +130,7 @@ func TestValidateDatabaseMissingName(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "database name is required")
 }
@@ -148,7 +142,7 @@ func TestValidateDatabaseEmptyTables(t *testing.T) {
 		Tables:  []*Table{},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "schema is empty, declare some tables first")
 }

@@ -33,7 +33,7 @@ func TestValidateEnumsColumnType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -73,7 +73,7 @@ func TestValidateEnumsColumnRefActions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -113,7 +113,7 @@ func TestValidateEnumsColumnGeneration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -151,7 +151,7 @@ func TestValidateEnumsColumnIdentity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -191,7 +191,7 @@ func TestValidateEnumsConstraint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -231,7 +231,7 @@ func TestValidateEnumsIndexType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -293,7 +293,7 @@ func TestValidateEnumsIndexVisibilityAndOrder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})

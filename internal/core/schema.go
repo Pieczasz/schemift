@@ -733,14 +733,11 @@ const (
 	SortDesc SortOrder = "DESC"
 )
 
-// GetName methods allow these types to be used with generic Named interface.
-func (t *Table) GetName() string      { return t.Name }
-func (c *Column) GetName() string     { return c.Name }
-func (c *Constraint) GetName() string { return c.Name }
-func (i *Index) GetName() string      { return i.Name }
-
 // FindTable looks for a table by name inside a database.
 func (db *Database) FindTable(name string) *Table {
+	if db == nil {
+		return nil
+	}
 	for _, t := range db.Tables {
 		if t.Name == name {
 			return t

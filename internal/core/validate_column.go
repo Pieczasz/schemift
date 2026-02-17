@@ -5,10 +5,10 @@ import (
 	"regexp"
 )
 
-// validateColumn checks a single column for structural correctness.
-func validateColumn(col *Column, rules *ValidationRules, nameRe *regexp.Regexp) error {
-	if err := validateName(col.Name, "column", rules, nameRe, false); err != nil {
-		return err
+// Validate checks a single column for structural correctness.
+func (c *Column) Validate(rules *ValidationRules, nameRe *regexp.Regexp) error {
+	if err := validateName(c.Name, rules, nameRe, false); err != nil {
+		return fmt.Errorf("column %w", err)
 	}
 
 	// TODO: validate this field (col.DefaultValue)
@@ -20,24 +20,19 @@ func validateColumn(col *Column, rules *ValidationRules, nameRe *regexp.Regexp) 
 	// TODO: validate this field (col.IdentitySeed)
 	// TODO: validate this field (col.IdentityIncrement)
 	// TODO: validate this field (col.SequenceName)
-	if err := validateColumnOptions(col); err != nil {
-		return err
+	if err := c.validateOptions(); err != nil {
+		return fmt.Errorf("column %q: %w", c.Name, err)
 	}
 
-	if col.References != "" {
-		if _, _, ok := ParseReferences(col.References); !ok {
-			return fmt.Errorf("invalid references %q: expected format \"table.column\"", col.References)
+	if c.References != "" {
+		if _, _, ok := ParseReferences(c.References); !ok {
+			return fmt.Errorf("column %q: invalid references %q: expected format \"table.column\"", c.Name, c.References)
 		}
 	}
 
 	return nil
 }
 
-func validateColumnOptions(col *Column) error {
-	if col.MySQL != nil {
-		// TODO: validate this field (col.MySQL.ColumnFormat)
-		// TODO: validate this field (col.MySQL.Storage)
-		// TODO: validate this field (col.MySQL.SecondaryEngineAttribute)
-	}
+func (c *Column) validateOptions() error {
 	return nil
 }

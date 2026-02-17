@@ -23,7 +23,7 @@ func TestValidateDatabaseIndexDuplicateNames(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate index name")
 }
@@ -43,7 +43,7 @@ func TestValidateDatabaseIndexHasNoColumns(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "index idx_email has no columns")
 }
@@ -63,7 +63,7 @@ func TestValidateDatabaseUnnamedIndexHasNoColumns(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "index (unnamed) has no columns")
 }
@@ -83,7 +83,7 @@ func TestValidateDatabaseIndexReferencesNonexistentColumn(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `index "idx_missing" references nonexistent column "missing"`)
 }

@@ -395,6 +395,7 @@ func validateTimestampColumnNames(ts *core.TimestampsConfig) error {
 
 // injectTimestampColumns resolves the created/updated column names and appends
 // the columns when not already present.
+// Note: validateTimestampColumnNames must be called first to ensure created_col != updated_col.
 func injectTimestampColumns(table *core.Table) {
 	createdCol := "created_at"
 	updatedCol := "updated_at"
@@ -405,11 +406,24 @@ func injectTimestampColumns(table *core.Table) {
 		updatedCol = table.Timestamps.UpdatedColumn
 	}
 
-	if createdCol == updatedCol {
-		return
+	hasCreatedCol := func() bool {
+		for _, c := range table.Columns {
+			if c.Name == createdCol {
+				return true
+			}
+		}
+		return false
+	}
+	hasUpdatedCol := func() bool {
+		for _, c := range table.Columns {
+			if c.Name == updatedCol {
+				return true
+			}
+		}
+		return false
 	}
 
-	if table.FindColumn(createdCol) == nil {
+	if !hasCreatedCol() {
 		table.Columns = append(table.Columns, &core.Column{
 			Name:         createdCol,
 			RawType:      "timestamp",
@@ -418,7 +432,7 @@ func injectTimestampColumns(table *core.Table) {
 		})
 	}
 
-	if table.FindColumn(updatedCol) == nil {
+	if !hasUpdatedCol() {
 		table.Columns = append(table.Columns, &core.Column{
 			Name:         updatedCol,
 			RawType:      "timestamp",

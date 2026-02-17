@@ -49,7 +49,7 @@ func TestValidateSemanticAutoIncrement(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -99,7 +99,7 @@ func TestValidateSemanticAutoIncrementValidTypes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			assert.NoError(t, err)
 		})
 	}
@@ -170,7 +170,7 @@ func TestValidateSemanticPKAndGenerated(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
@@ -248,7 +248,7 @@ func TestValidateSemanticIdentity(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
 		})
@@ -276,7 +276,7 @@ func TestValidateSemanticFKMismatch(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "type mismatch between referencing column \"group_id\" (string) and referenced column \"id\" (int)")
 }
@@ -331,7 +331,7 @@ func TestValidateSemanticRawTypeOverride(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateDatabase(tt.db)
+			err := tt.db.Validate()
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)

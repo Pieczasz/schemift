@@ -6,26 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTableGetName(t *testing.T) {
-	table := &Table{Name: "users"}
-	assert.Equal(t, "users", table.GetName())
-}
-
-func TestColumnGetName(t *testing.T) {
-	column := &Column{Name: "id"}
-	assert.Equal(t, "id", column.GetName())
-}
-
-func TestConstraintGetName(t *testing.T) {
-	constraint := &Constraint{Name: "pk_users"}
-	assert.Equal(t, "pk_users", constraint.GetName())
-}
-
-func TestIndexGetName(t *testing.T) {
-	index := &Index{Name: "idx_users_email"}
-	assert.Equal(t, "idx_users_email", index.GetName())
-}
-
 func TestDatabaseFindTable(t *testing.T) {
 	db := &Database{
 		Name: "testdb",
