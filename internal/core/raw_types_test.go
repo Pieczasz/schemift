@@ -74,7 +74,7 @@ func assertValidRawTypes(t *testing.T, dialect Dialect, rawTypes []string) {
 	t.Helper()
 	for _, rt := range rawTypes {
 		t.Run(rt, func(t *testing.T) {
-			if err := ValidateRawType(rt, new(dialect)); err != nil {
+			if err := ValidateRawType(rt, dialect); err != nil {
 				t.Errorf("ValidateRawType(%q, %q) returned error: %v", rt, dialect, err)
 			}
 		})
@@ -214,7 +214,7 @@ func TestValidateRawTypeInvalid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(string(tt.dialect)+"/"+tt.rawType, func(t *testing.T) {
-			err := ValidateRawType(tt.rawType, new(tt.dialect))
+			err := ValidateRawType(tt.rawType, tt.dialect)
 			if err == nil {
 				t.Errorf("ValidateRawType(%q, %q) returned nil, want error", tt.rawType, tt.dialect)
 			}
@@ -235,7 +235,7 @@ func TestValidateRawTypeEmptyRawType(t *testing.T) {
 	tests := []string{"", "   ", "\t"}
 	for _, rt := range tests {
 		t.Run("empty_"+rt, func(t *testing.T) {
-			err := ValidateRawType(rt, &d)
+			err := ValidateRawType(rt, d)
 			if err == nil {
 				t.Errorf("ValidateRawType(%q, mysql) should return error for empty input", rt)
 			}

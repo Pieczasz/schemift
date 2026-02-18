@@ -447,13 +447,13 @@ type Column struct {
 	Invisible bool `json:"invisible,omitempty"`
 
 	// Dialect-specific column option groups.
-	MySQL      *MySQLColumnOptions    `json:"mysqlColumn,omitempty"`
-	TiDB       *TiDBColumnOptions     `json:"tidbColumn,omitempty"`
-	PostgreSQL *PostgresColumnOptions `json:"psqlColumn,omitempty"`
-	Oracle     *OracleColumnOptions   `json:"oracleColumn,omitempty"`
-	MSSQL      *MSSQLColumnOptions    `json:"mssqlColumn,omitempty"`
-	DB2        *DB2ColumnOptions      `json:"db2Column,omitempty"`
-	SQLite     *SQLiteColumnOptions   `json:"sqliteColumn,omitempty"`
+	MySQL      *MySQLColumnOptions    `json:"mysql,omitempty"`
+	TiDB       *TiDBColumnOptions     `json:"tidb,omitempty"`
+	PostgreSQL *PostgresColumnOptions `json:"postgresql,omitempty"`
+	Oracle     *OracleColumnOptions   `json:"oracle,omitempty"`
+	MSSQL      *MSSQLColumnOptions    `json:"mssql,omitempty"`
+	DB2        *DB2ColumnOptions      `json:"db2,omitempty"`
+	SQLite     *SQLiteColumnOptions   `json:"sqlite,omitempty"`
 }
 
 // MySQLColumnOptions contains MySQL-specific column-level options.
@@ -824,14 +824,15 @@ type normalizeDataTypeRule struct {
 
 var normalizeDataTypeRules = []normalizeDataTypeRule{
 	{dataType: DataTypeEnum, substrings: []string{"enum"}},
-	{dataType: DataTypeString, substrings: []string{"char", "text", "string", "set"}},
-	{dataType: DataTypeBoolean, substrings: []string{"bool", "tinyint(1)"}},
-	{dataType: DataTypeInt, substrings: []string{"int"}},
-	{dataType: DataTypeFloat, substrings: []string{"float", "double", "decimal", "numeric", "real"}},
-	{dataType: DataTypeDatetime, substrings: []string{"timestamp", "date", "time"}},
+	{dataType: DataTypeBinary, substrings: []string{"varbinary", "binary", "blob"}},
+	{dataType: DataTypeDatetime, substrings: []string{"timestamp", "datetime"}},
+	{dataType: DataTypeFloat, substrings: []string{"double", "double precision", "numeric", "decimal", "real", "float"}},
+	{dataType: DataTypeBoolean, substrings: []string{"bool", "boolean", "tinyint(1)"}},
+	{dataType: DataTypeString, substrings: []string{"character varying", "varchar", "char", "text", "string", "set"}},
+	{dataType: DataTypeInt, substrings: []string{"bigint", "smallint", "tinyint", "mediumint", "int"}},
+	{dataType: DataTypeDatetime, substrings: []string{"date", "time"}},
 	{dataType: DataTypeJSON, substrings: []string{"json"}},
 	{dataType: DataTypeUUID, substrings: []string{"uuid"}},
-	{dataType: DataTypeBinary, substrings: []string{"blob", "binary", "varbinary"}},
 }
 
 // NormalizeDataType maps a raw SQL type string (e.g. "VARCHAR(255)") to one of

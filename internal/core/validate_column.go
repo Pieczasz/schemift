@@ -8,7 +8,7 @@ import (
 // Validate checks a single column for structural correctness.
 func (c *Column) Validate(rules *ValidationRules, nameRe *regexp.Regexp) error {
 	if err := validateName(c.Name, rules, nameRe, false); err != nil {
-		return fmt.Errorf("column %w", err)
+		return fmt.Errorf("column %q: %w", c.Name, err)
 	}
 
 	if c.Type == "" && c.RawType == "" || c.Type == DataTypeUnknown {

@@ -82,7 +82,7 @@ func TestValidateDatabaseMaxColumnNameLength(t *testing.T) {
 
 	err := db.Validate()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `column "email" exceeds maximum length 3`)
+	assert.Contains(t, err.Error(), `table "users": column "email": "email" exceeds maximum length 3`)
 }
 
 func TestValidateDatabaseAllowedNamePatternForColumn(t *testing.T) {

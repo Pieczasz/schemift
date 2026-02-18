@@ -20,7 +20,7 @@ func (t *Table) validateIndexNames() error {
 			continue
 		}
 		if err := validateName(idx.Name, nil, nil, false); err != nil {
-			return fmt.Errorf("index %w", err)
+			return fmt.Errorf("index %q: %w", idx.Name, err)
 		}
 		if seen[idx.Name] {
 			return fmt.Errorf("duplicate index name %q", idx.Name)

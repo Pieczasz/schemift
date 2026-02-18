@@ -13,7 +13,7 @@ func (t *Table) validateConstraints() error {
 			continue
 		}
 		if err := validateName(con.Name, nil, nil, false); err != nil {
-			return fmt.Errorf("constraint %w", err)
+			return fmt.Errorf("constraint %q: %w", con.Name, err)
 		}
 		if seen[con.Name] {
 			return fmt.Errorf("duplicate constraint name %q", con.Name)

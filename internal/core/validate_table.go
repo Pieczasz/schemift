@@ -55,7 +55,7 @@ func (t *Table) Validate(rules *ValidationRules, nameRe *regexp.Regexp) error {
 
 func (t *Table) validateNameAndOptions(rules *ValidationRules, nameRe *regexp.Regexp) error {
 	if err := validateName(t.Name, rules, nameRe, true); err != nil {
-		return fmt.Errorf("table %w", err)
+		return fmt.Errorf("table %q: %w", t.Name, err)
 	}
 	if err := t.Options.Validate(); err != nil {
 		return fmt.Errorf("table %q: %w", t.Name, err)
@@ -122,13 +122,13 @@ func (t *Table) validateTimestamps() error {
 	updatedCol := "updated_at"
 	if t.Timestamps.CreatedColumn != "" {
 		if err := validateName(t.Timestamps.CreatedColumn, nil, nil, false); err != nil {
-			return fmt.Errorf("timestamp created_column %w", err)
+			return fmt.Errorf("timestamp created_column: %w", err)
 		}
 		createdCol = t.Timestamps.CreatedColumn
 	}
 	if t.Timestamps.UpdatedColumn != "" {
 		if err := validateName(t.Timestamps.UpdatedColumn, nil, nil, false); err != nil {
-			return fmt.Errorf("timestamp updated_column %w", err)
+			return fmt.Errorf("timestamp updated_column: %w", err)
 		}
 		updatedCol = t.Timestamps.UpdatedColumn
 	}

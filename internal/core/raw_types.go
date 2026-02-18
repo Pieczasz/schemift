@@ -16,9 +16,16 @@ var parenRe = regexp.MustCompile(`\([^)]*\)`)
 // parenthesized parts have been removed.
 var wsRe = regexp.MustCompile(`\s+`)
 
+// modifierRe patterns for stripping SQL type modifiers.
+var (
+	modifierUnsignedRe = regexp.MustCompile(`(?i)\bUNSIGNED\b`)
+	modifierSignedRe   = regexp.MustCompile(`(?i)\bSIGNED\b`)
+	modifierZerofillRe = regexp.MustCompile(`(?i)\bZEROFILL\b`)
+)
+
 // dialectRawTypes maps each supported dialect to its set of valid base
 // type keywords (upper-cased).
-var dialectRawTypes = map[Dialect]map[string]bool{
+var dialectRawTypes = map[Dialect]map[string]struct{}{
 	DialectMySQL:      mysqlTypes,
 	DialectMariaDB:    mariadbTypes,
 	DialectPostgreSQL: postgresqlTypes,
@@ -308,12 +315,12 @@ var tidbTypes = toSet(
 // ValidateRawType checks whether rawType is a valid SQL type for the
 // given dialect. It returns nil when the type is valid.
 // A descriptive error is returned when the type is unrecognized.
-func ValidateRawType(rawType string, dialect *Dialect) error {
+func ValidateRawType(rawType string, dialect Dialect) error {
 	if strings.TrimSpace(rawType) == "" {
 		return errors.New("raw_type is empty")
 	}
 
-	types, ok := dialectRawTypes[*dialect]
+	types, ok := dialectRawTypes[dialect]
 	if !ok {
 		return nil
 	}
@@ -323,22 +330,22 @@ func ValidateRawType(rawType string, dialect *Dialect) error {
 		return fmt.Errorf("raw_type %q could not be normalized to a base type", rawType)
 	}
 
-	if types[base] {
+	if _, ok := types[base]; ok {
 		return nil
 	}
 
 	return fmt.Errorf(
 		"raw_type %q (resolved base: %q) is not a valid type for dialect %q; valid types: %s",
-		rawType, base, string(*dialect), validTypesList(*dialect),
+		rawType, base, string(dialect), validTypesList(dialect),
 	)
 }
 
 // toSet builds a case-insensitive lookup set from a variadic list of
 // upper-cased type names.
-func toSet(names ...string) map[string]bool {
-	m := make(map[string]bool, len(names))
+func toSet(names ...string) map[string]struct{} {
+	m := make(map[string]struct{}, len(names))
 	for _, n := range names {
-		m[strings.ToUpper(n)] = true
+		m[strings.ToUpper(n)] = struct{}{}
 	}
 	return m
 }
@@ -371,11 +378,9 @@ func normalizeRawTypeBase(rawType string) string {
 func stripModifiers(s string) string {
 	upper := strings.ToUpper(s)
 
-	for _, mod := range []string{"UNSIGNED", "SIGNED", "ZEROFILL"} {
-		// Replace only whole-word occurrences
-		re := regexp.MustCompile(`(?i)\b` + mod + `\b`)
-		upper = re.ReplaceAllString(upper, "")
-	}
+	upper = modifierUnsignedRe.ReplaceAllString(upper, "")
+	upper = modifierSignedRe.ReplaceAllString(upper, "")
+	upper = modifierZerofillRe.ReplaceAllString(upper, "")
 
 	return strings.TrimSpace(upper)
 }

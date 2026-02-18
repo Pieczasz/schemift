@@ -8,20 +8,21 @@ import (
 // validateLogicalRules validates dialect-specific and logical rules that are not
 // strictly structural.
 func (db *Database) validateLogicalRules() error {
+	dialect := *db.Dialect
 	for _, table := range db.Tables {
 		for _, col := range table.Columns {
-			if err := col.validateLogicalRules(table, db.Dialect); err != nil {
+			if err := col.validateLogicalRules(table, dialect); err != nil {
 				return err
 			}
 		}
-		if err := table.validateForeignKeyTypeMismatch(db); err != nil {
+		if err := table.validateForeignKeyTypeCompatibility(db); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (c *Column) validateLogicalRules(table *Table, dialect *Dialect) error {
+func (c *Column) validateLogicalRules(table *Table, dialect Dialect) error {
 	if c.RawType != "" {
 		if err := ValidateRawType(c.RawType, dialect); err != nil {
 			return fmt.Errorf("table %q, column %q: %w", table.Name, c.Name, err)
@@ -45,11 +46,11 @@ func (c *Column) validateLogicalRules(table *Table, dialect *Dialect) error {
 	return c.validateDialectSpecificSemantic(table, dialect)
 }
 
-func (c *Column) validateAutoIncrement(table *Table, dialect *Dialect) error {
+func (c *Column) validateAutoIncrement(table *Table, dialect Dialect) error {
 	if c.AutoIncrement && c.Type != DataTypeInt {
 		return fmt.Errorf("table %q, column %q: auto_increment is only allowed on integer columns", table.Name, c.Name)
 	}
-	if *dialect == DialectSQLite && c.AutoIncrement && !c.PrimaryKey {
+	if dialect == DialectSQLite && c.AutoIncrement && !c.PrimaryKey {
 		return fmt.Errorf("table %q, column %q: SQLite AUTOINCREMENT is only allowed on PRIMARY KEY columns", table.Name, c.Name)
 	}
 
@@ -77,8 +78,8 @@ func (c *Column) validateIdentitySemantic(table *Table) error {
 	return nil
 }
 
-func (c *Column) validateDialectSpecificSemantic(table *Table, dialect *Dialect) error {
-	if *dialect == DialectTiDB {
+func (c *Column) validateDialectSpecificSemantic(table *Table, dialect Dialect) error {
+	if dialect == DialectTiDB {
 		if c.TiDB != nil && c.TiDB.ShardBits > 0 {
 			if !c.PrimaryKey || c.Type != DataTypeInt {
 				return fmt.Errorf("table %q, column %q: TiDB AUTO_RANDOM can only be applied to BIGINT PRIMARY KEY columns", table.Name, c.Name)
@@ -88,9 +89,9 @@ func (c *Column) validateDialectSpecificSemantic(table *Table, dialect *Dialect)
 	return nil
 }
 
-// validateForeignKeyTypeMismatch ensures that referencing and referenced columns in a
+// validateForeignKeyTypeCompatibility ensures that referencing and referenced columns in a
 // Foreign Key have compatible types.
-func (t *Table) validateForeignKeyTypeMismatch(db *Database) error {
+func (t *Table) validateForeignKeyTypeCompatibility(db *Database) error {
 	for _, con := range t.Constraints {
 		if con.Type != ConstraintForeignKey {
 			continue
