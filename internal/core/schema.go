@@ -46,8 +46,8 @@ func SupportedDialects() []Dialect {
 	}
 }
 
-// IsValidDialect reports whether d is a recognized dialect string.
-func IsValidDialect(d string) bool {
+// ValidDialect reports whether d is a recognized dialect string.
+func ValidDialect(d string) bool {
 	for _, supported := range SupportedDialects() {
 		if strings.EqualFold(string(supported), d) {
 			return true
@@ -244,6 +244,15 @@ type PostgreSQLTableOptions struct {
 	Inherits []string `json:"inherits,omitempty"`
 }
 
+type PostgresColumnOptions struct {
+	// Storage is the per-attribute storage mode: "PLAIN", "MAIN",
+	// "EXTERNAL", "EXTENDED", or "DEFAULT".
+	Storage string `json:"storage,omitempty"`
+
+	// Compression sets the TOAST compression method: "pglz" or "lz4".
+	Compression string `json:"compression,omitempty"`
+}
+
 // OracleTableOptions contains Oracle-specific table options.
 //
 // Oracle uses tablespace placement, heap/IOT organization, PCT parameters
@@ -433,28 +442,171 @@ type Column struct {
 	// GenerationStorage controls whether the generated column is VIRTUAL or STORED.
 	GenerationStorage GenerationStorage `json:"generationStorage,omitempty"`
 
+	// Invisible hides the column from SELECT * and some metadata views
+	// in dialects that support invisible/hidden columns (Oracle, MySQL 8+).
+	Invisible bool `json:"invisible,omitempty"`
+
 	// Dialect-specific column option groups.
-	MySQL *MySQLColumnOptions `json:"mysqlColumn,omitempty"`
-	TiDB  *TiDBColumnOptions  `json:"tidbColumn,omitempty"`
+	MySQL      *MySQLColumnOptions    `json:"mysql,omitempty"`
+	TiDB       *TiDBColumnOptions     `json:"tidb,omitempty"`
+	PostgreSQL *PostgresColumnOptions `json:"postgresql,omitempty"`
+	Oracle     *OracleColumnOptions   `json:"oracle,omitempty"`
+	MSSQL      *MSSQLColumnOptions    `json:"mssql,omitempty"`
+	DB2        *DB2ColumnOptions      `json:"db2,omitempty"`
+	SQLite     *SQLiteColumnOptions   `json:"sqlite,omitempty"`
 }
 
 // MySQLColumnOptions contains MySQL-specific column-level options.
 //
 // These options cover NDB Cluster storage hints and HeatWave secondary
 // engine attributes.
+// TODO: move ColumnFormat and Storage to "enums".
 type MySQLColumnOptions struct {
 	// ColumnFormat sets the column storage format hint: "FIXED", "DYNAMIC", or "DEFAULT" (NDB Cluster).
 	ColumnFormat string `json:"columnFormat,omitempty"`
 	// Storage specifies the storage medium for the column: "DISK" or "MEMORY" (NDB Cluster).
 	Storage string `json:"storage,omitempty"`
+	// PrimaryEngineAttribute is an opaque JSON string passed to the primary storage engine (e.g., InnoDB).
+	PrimaryEngineAttribute string `json:"primaryEngineAttribute,omitempty"`
 	// SecondaryEngineAttribute is an opaque JSON string passed to the secondary engine for this column.
 	SecondaryEngineAttribute string `json:"secondaryEngineAttribute,omitempty"`
 }
 
 // TiDBColumnOptions contains TiDB-specific column-level options.
 type TiDBColumnOptions struct {
-	// AutoRandom sets the shard-bits count for TiDB AUTO_RANDOM primary-key columns.
-	AutoRandom uint64 `json:"autoRandom,omitempty"`
+	// ShardBits is the number of bits used for shard ID in AUTO_RANDOM.
+	// This is the first argument: AUTO_RANDOM(ShardBits) or AUTO_RANDOM(ShardBits, RangeBits).
+	ShardBits uint64 `json:"shardBits,omitempty"`
+
+	// RangeBits is the number of bits used for the incremental part (optional, second argument).
+	// When nil, TiDB uses the default (64 - ShardBits - 1 for sign bit).
+	RangeBits *uint64 `json:"rangeBits,omitempty"`
+}
+
+// OracleColumnOptions contains Oracle-specific column-level options.
+//
+// Oracle supports transparent data encryption (TDE) at the column level,
+// invisible columns (hidden from SELECT *), and DEFAULT ON NULL for
+// columns that should use the default value when NULL is explicitly inserted.
+type OracleColumnOptions struct {
+	// Encrypt enables Transparent Data Encryption (TDE) for this column.
+	Encrypt bool `json:"encrypt,omitempty"`
+
+	// EncryptionAlgorithm specifies the encryption algorithm (e.g., "AES256", "AES192", "AES128", "3DES168").
+	// Only used when Encrypt is true.
+	EncryptionAlgorithm string `json:"encryptionAlgorithm,omitempty"`
+
+	// Salt controls whether the encrypted column uses SALT (true) or NO SALT (false).
+	// nil means use Oracle's default (SALT enabled).
+	// SALT adds random data to encryption, making identical values encrypt differently.
+	Salt *bool `json:"salt,omitempty"`
+
+	// DefaultOnNull causes the column to use its DEFAULT value when NULL is explicitly
+	// inserted (Oracle 12c+). This is distinct from NOT NULL.
+	DefaultOnNull bool `json:"defaultOnNull,omitempty"`
+}
+
+// MSSQLColumnOptions contains Microsoft SQL Server-specific column-level options.
+//
+// SQL Server supports specialized column storage (FILESTREAM, SPARSE),
+// security features (Always Encrypted, Dynamic Data Masking), and
+// replication/synchronization controls.
+type MSSQLColumnOptions struct {
+	// FileStream enables FILESTREAM storage for VARBINARY(MAX) columns,
+	// storing data in the NTFS file system while maintaining transactional consistency.
+	FileStream bool `json:"fileStream,omitempty"`
+
+	// Sparse optimizes storage for columns that are mostly NULL.
+	// NULL values consume no space, but non-NULL values have a small overhead.
+	// Most effective when 40%+ of values are NULL.
+	Sparse bool `json:"sparse,omitempty"`
+
+	// RowGUIDCol marks a UNIQUEIDENTIFIER column as the row's GUID.
+	// Used for merge replication and distributed scenarios.
+	RowGUIDCol bool `json:"rowGuidCol,omitempty"`
+
+	// IdentityNotForReplication prevents identity values from being
+	// incremented during replication operations.
+	IdentityNotForReplication bool `json:"identityNotForReplication,omitempty"`
+
+	// Persisted stores a computed column's value physically in the table
+	// (equivalent to STORED for generated columns). When false and IsGenerated
+	// is true, the column is computed on-the-fly (VIRTUAL).
+	Persisted bool `json:"persisted,omitempty"`
+
+	// AlwaysEncrypted configures Always Encrypted for this column.
+	AlwaysEncrypted *MSSQLAlwaysEncryptedOptions `json:"alwaysEncrypted,omitempty"`
+
+	// DataMasking configures Dynamic Data Masking for this column.
+	DataMasking *MSSQLDataMaskingOptions `json:"dataMasking,omitempty"`
+}
+
+// MSSQLAlwaysEncryptedOptions configures Always Encrypted column encryption.
+//
+// Always Encrypted protects sensitive data by encrypting it on the client side.
+// The database engine never sees the plaintext data or encryption keys.
+type MSSQLAlwaysEncryptedOptions struct {
+	// ColumnEncryptionKey is the name of the column encryption key (CEK) to use.
+	ColumnEncryptionKey string `json:"columnEncryptionKey,omitempty"`
+
+	// EncryptionType specifies the encryption mode:
+	// - "DETERMINISTIC": Same plaintext always encrypts to same ciphertext (allows equality searches, joins, grouping)
+	// - "RANDOMIZED": Same plaintext encrypts to different ciphertext each time (more secure, but no operations allowed)
+	EncryptionType string `json:"encryptionType,omitempty"`
+
+	// Algorithm is the encryption algorithm, typically "AEAD_AES_256_CBC_HMAC_SHA_256".
+	Algorithm string `json:"algorithm,omitempty"`
+}
+
+// MSSQLDataMaskingOptions configures Dynamic Data Masking.
+//
+// Dynamic Data Masking obfuscates sensitive data in query results for
+// non-privileged users without changing the actual data in the database.
+type MSSQLDataMaskingOptions struct {
+	// Function is the masking function to apply:
+	// - "default()": Full masking (XXXX for strings, 0 for numbers, 01-01-1900 for dates)
+	// - "email()": Masks email addresses (aXXX @XXXX.com)
+	// - "partial(prefix, padding, suffix)": Shows first/last N chars (e.g., "partial(1,\"XXXX\",2)")
+	// - "random(start, end)": Replaces numeric values with random number in range
+	Function string `json:"function,omitempty"`
+}
+
+// DB2ColumnOptions contains IBM DB2-specific column-level options.
+//
+// DB2 supports inline length specifications for LOB and structured types,
+// column-level compression, and implicitly hidden columns.
+type DB2ColumnOptions struct {
+	// InlineLength specifies the maximum length (in bytes) stored inline
+	// for LOB or structured type columns. Data exceeding this length is
+	// stored separately.
+	InlineLength *int `json:"inlineLength,omitempty"`
+
+	// Compress enables compression for this column (LOB columns).
+	// true = COMPRESS YES, false = COMPRESS NO, nil = use table default.
+	Compress *bool `json:"compress,omitempty"`
+
+	// ImplicitlyHidden marks the column as IMPLICITLY HIDDEN (DB2 10.1+).
+	// Similar to Oracle's INVISIBLE: excluded from SELECT * but can be
+	// explicitly referenced.
+	ImplicitlyHidden bool `json:"implicitlyHidden,omitempty"`
+}
+
+// SQLiteColumnOptions contains SQLite-specific column-level options.
+//
+// SQLite's column options are minimal. The main distinguishing feature
+// is the AUTOINCREMENT keyword which provides stricter guarantees than
+// the default INTEGER PRIMARY KEY behavior.
+type SQLiteColumnOptions struct {
+	// StrictAutoincrement forces use of the AUTOINCREMENT keyword.
+	// When true, generates "INTEGER PRIMARY KEY AUTOINCREMENT" instead of
+	// just "INTEGER PRIMARY KEY".
+	//
+	// Differences:
+	// - Regular: rowid values may be reused after DELETE
+	// - AUTOINCREMENT: rowid values are strictly monotonic and never reused
+	//
+	// Trade-off: AUTOINCREMENT requires additional bookkeeping overhead.
+	StrictAutoincrement bool `json:"strictAutoincrement,omitempty"`
 }
 
 // DataType is an ENUM with all possible column data types.
@@ -581,14 +733,11 @@ const (
 	SortDesc SortOrder = "DESC"
 )
 
-// GetName methods allow these types to be used with generic Named interface.
-func (t *Table) GetName() string      { return t.Name }
-func (c *Column) GetName() string     { return c.Name }
-func (c *Constraint) GetName() string { return c.Name }
-func (i *Index) GetName() string      { return i.Name }
-
 // FindTable looks for a table by name inside a database.
 func (db *Database) FindTable(name string) *Table {
+	if db == nil {
+		return nil
+	}
 	for _, t := range db.Tables {
 		if t.Name == name {
 			return t
@@ -675,14 +824,15 @@ type normalizeDataTypeRule struct {
 
 var normalizeDataTypeRules = []normalizeDataTypeRule{
 	{dataType: DataTypeEnum, substrings: []string{"enum"}},
-	{dataType: DataTypeString, substrings: []string{"char", "text", "string", "set"}},
-	{dataType: DataTypeBoolean, substrings: []string{"bool", "tinyint(1)"}},
-	{dataType: DataTypeInt, substrings: []string{"int"}},
-	{dataType: DataTypeFloat, substrings: []string{"float", "double", "decimal", "numeric", "real"}},
-	{dataType: DataTypeDatetime, substrings: []string{"timestamp", "date", "time"}},
+	{dataType: DataTypeBinary, substrings: []string{"varbinary", "binary", "blob"}},
+	{dataType: DataTypeDatetime, substrings: []string{"timestamp", "datetime"}},
+	{dataType: DataTypeFloat, substrings: []string{"double", "double precision", "numeric", "decimal", "real", "float"}},
+	{dataType: DataTypeBoolean, substrings: []string{"bool", "boolean", "tinyint(1)"}},
+	{dataType: DataTypeString, substrings: []string{"character varying", "varchar", "char", "text", "string", "set"}},
+	{dataType: DataTypeInt, substrings: []string{"bigint", "smallint", "tinyint", "mediumint", "int"}},
+	{dataType: DataTypeDatetime, substrings: []string{"date", "time"}},
 	{dataType: DataTypeJSON, substrings: []string{"json"}},
 	{dataType: DataTypeUUID, substrings: []string{"uuid"}},
-	{dataType: DataTypeBinary, substrings: []string{"blob", "binary", "varbinary"}},
 }
 
 // NormalizeDataType maps a raw SQL type string (e.g. "VARCHAR(255)") to one of

@@ -6,22 +6,22 @@ import (
 
 // validateEnums ensures that all fields using fixed string-based enums
 // contain valid values.
-func validateEnums(db *Database) error {
+func (db *Database) validateEnums() error {
 	for _, table := range db.Tables {
 		for _, col := range table.Columns {
-			if err := validateColumnEnums(table, col); err != nil {
+			if err := col.validateEnums(table); err != nil {
 				return err
 			}
 		}
 
 		for _, con := range table.Constraints {
-			if err := validateConstraintEnums(table, con); err != nil {
+			if err := con.validateEnums(table); err != nil {
 				return err
 			}
 		}
 
 		for _, idx := range table.Indexes {
-			if err := validateIndexEnums(table, idx); err != nil {
+			if err := idx.validateEnums(table); err != nil {
 				return err
 			}
 		}
@@ -29,66 +29,66 @@ func validateEnums(db *Database) error {
 	return nil
 }
 
-func validateColumnEnums(table *Table, col *Column) error {
-	if err := validateColumnType(table, col); err != nil {
+func (c *Column) validateEnums(table *Table) error {
+	if err := c.validateType(table); err != nil {
 		return err
 	}
-	if err := validateColumnRefActions(table, col); err != nil {
+	if err := c.validateRefActions(table); err != nil {
 		return err
 	}
-	if err := validateColumnGeneration(table, col); err != nil {
+	if err := c.validateGeneration(table); err != nil {
 		return err
 	}
-	return validateColumnIdentity(table, col)
+	return c.validateIdentity(table)
 }
 
-func validateColumnType(table *Table, col *Column) error {
-	if col.Type == "" {
+func (c *Column) validateType(table *Table) error {
+	if c.Type == "" {
 		return nil
 	}
-	switch col.Type {
+	switch c.Type {
 	case DataTypeString, DataTypeInt, DataTypeFloat, DataTypeBoolean,
 		DataTypeDatetime, DataTypeJSON, DataTypeUUID, DataTypeBinary,
 		DataTypeEnum, DataTypeUnknown:
 		return nil
 	default:
-		return fmt.Errorf("table %q, column %q: invalid type %q", table.Name, col.Name, col.Type)
+		return fmt.Errorf("table %q, column %q: invalid type %q", table.Name, c.Name, c.Type)
 	}
 }
 
-func validateColumnRefActions(table *Table, col *Column) error {
-	if col.RefOnDelete != "" && !isValidReferentialAction(col.RefOnDelete) {
-		return fmt.Errorf("table %q, column %q: invalid ref_on_delete %q", table.Name, col.Name, col.RefOnDelete)
+func (c *Column) validateRefActions(table *Table) error {
+	if c.RefOnDelete != "" && !isValidReferentialAction(c.RefOnDelete) {
+		return fmt.Errorf("table %q, column %q: invalid ref_on_delete %q", table.Name, c.Name, c.RefOnDelete)
 	}
-	if col.RefOnUpdate != "" && !isValidReferentialAction(col.RefOnUpdate) {
-		return fmt.Errorf("table %q, column %q: invalid ref_on_update %q", table.Name, col.Name, col.RefOnUpdate)
+	if c.RefOnUpdate != "" && !isValidReferentialAction(c.RefOnUpdate) {
+		return fmt.Errorf("table %q, column %q: invalid ref_on_update %q", table.Name, c.Name, c.RefOnUpdate)
 	}
 	return nil
 }
 
-func validateColumnGeneration(table *Table, col *Column) error {
-	if col.IsGenerated && col.GenerationStorage != "" {
-		switch col.GenerationStorage {
+func (c *Column) validateGeneration(table *Table) error {
+	if c.IsGenerated && c.GenerationStorage != "" {
+		switch c.GenerationStorage {
 		case GenerationVirtual, GenerationStored:
 		default:
-			return fmt.Errorf("table %q, column %q: invalid generation_storage %q", table.Name, col.Name, col.GenerationStorage)
+			return fmt.Errorf("table %q, column %q: invalid generation_storage %q", table.Name, c.Name, c.GenerationStorage)
 		}
 	}
 	return nil
 }
 
-func validateColumnIdentity(table *Table, col *Column) error {
-	if col.IdentityGeneration != "" {
-		switch col.IdentityGeneration {
+func (c *Column) validateIdentity(table *Table) error {
+	if c.IdentityGeneration != "" {
+		switch c.IdentityGeneration {
 		case IdentityAlways, IdentityByDefault:
 		default:
-			return fmt.Errorf("table %q, column %q: invalid identity_generation %q", table.Name, col.Name, col.IdentityGeneration)
+			return fmt.Errorf("table %q, column %q: invalid identity_generation %q", table.Name, c.Name, c.IdentityGeneration)
 		}
 	}
 	return nil
 }
 
-func validateConstraintEnums(table *Table, con *Constraint) error {
+func (con *Constraint) validateEnums(table *Table) error {
 	switch con.Type {
 	case ConstraintPrimaryKey, ConstraintForeignKey, ConstraintUnique, ConstraintCheck:
 	default:
@@ -111,17 +111,17 @@ func validateConstraintEnums(table *Table, con *Constraint) error {
 	return nil
 }
 
-func validateIndexEnums(table *Table, idx *Index) error {
-	if err := validateIndexType(table, idx); err != nil {
+func (idx *Index) validateEnums(table *Table) error {
+	if err := idx.validateType(table); err != nil {
 		return err
 	}
-	if err := validateIndexVisibility(table, idx); err != nil {
+	if err := idx.validateVisibility(table); err != nil {
 		return err
 	}
-	return validateIndexColumnsOrder(table, idx)
+	return idx.validateColumnsOrder(table)
 }
 
-func validateIndexType(table *Table, idx *Index) error {
+func (idx *Index) validateType(table *Table) error {
 	if idx.Type == "" {
 		return nil
 	}
@@ -133,7 +133,7 @@ func validateIndexType(table *Table, idx *Index) error {
 	}
 }
 
-func validateIndexVisibility(table *Table, idx *Index) error {
+func (idx *Index) validateVisibility(table *Table) error {
 	if idx.Visibility == "" {
 		return nil
 	}
@@ -145,7 +145,7 @@ func validateIndexVisibility(table *Table, idx *Index) error {
 	}
 }
 
-func validateIndexColumnsOrder(table *Table, idx *Index) error {
+func (idx *Index) validateColumnsOrder(table *Table) error {
 	for _, ic := range idx.Columns {
 		if ic.Order != "" {
 			switch ic.Order {

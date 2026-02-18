@@ -14,7 +14,7 @@ func TestValidateDatabaseConstraintDuplicateNames(t *testing.T) {
 		Tables: []*Table{
 			{
 				Name:    "users",
-				Columns: []*Column{{Name: "id"}},
+				Columns: []*Column{{Name: "id", Type: DataTypeInt}},
 				Constraints: []*Constraint{
 					{Name: "uq_email", Type: ConstraintUnique, Columns: []string{"id"}},
 					{Name: "uq_email", Type: ConstraintUnique, Columns: []string{"id"}},
@@ -23,7 +23,7 @@ func TestValidateDatabaseConstraintDuplicateNames(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate constraint name")
 }
@@ -35,7 +35,7 @@ func TestValidateDatabaseConstraintWithNoColumns(t *testing.T) {
 		Tables: []*Table{
 			{
 				Name:    "users",
-				Columns: []*Column{{Name: "id"}},
+				Columns: []*Column{{Name: "id", Type: DataTypeInt}},
 				Constraints: []*Constraint{
 					{Name: "uq_users_id", Type: ConstraintUnique, Columns: []string{}},
 				},
@@ -43,7 +43,7 @@ func TestValidateDatabaseConstraintWithNoColumns(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "has no columns")
 }
@@ -55,7 +55,7 @@ func TestValidateDatabaseConstraintReferencesNonexistentColumn(t *testing.T) {
 		Tables: []*Table{
 			{
 				Name:    "users",
-				Columns: []*Column{{Name: "id"}},
+				Columns: []*Column{{Name: "id", Type: DataTypeInt}},
 				Constraints: []*Constraint{
 					{Name: "uq_users_email", Type: ConstraintUnique, Columns: []string{"email"}},
 				},
@@ -63,7 +63,7 @@ func TestValidateDatabaseConstraintReferencesNonexistentColumn(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "references nonexistent column")
 }
@@ -75,7 +75,7 @@ func TestValidateDatabaseConstraintForeignKeyMissingReferencedTable(t *testing.T
 		Tables: []*Table{
 			{
 				Name:    "users",
-				Columns: []*Column{{Name: "role_id"}},
+				Columns: []*Column{{Name: "role_id", Type: DataTypeInt}},
 				Constraints: []*Constraint{
 					{Name: "fk_users_role", Type: ConstraintForeignKey, Columns: []string{"role_id"}},
 				},
@@ -83,7 +83,7 @@ func TestValidateDatabaseConstraintForeignKeyMissingReferencedTable(t *testing.T
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing referenced_table")
 }
@@ -95,7 +95,7 @@ func TestValidateDatabaseConstraintForeignKeyMissingReferencedColumns(t *testing
 		Tables: []*Table{
 			{
 				Name:    "users",
-				Columns: []*Column{{Name: "role_id"}},
+				Columns: []*Column{{Name: "role_id", Type: DataTypeInt}},
 				Constraints: []*Constraint{
 					{
 						Name:            "fk_users_role",
@@ -108,7 +108,7 @@ func TestValidateDatabaseConstraintForeignKeyMissingReferencedColumns(t *testing
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "missing referenced_columns")
 }
@@ -120,7 +120,7 @@ func TestValidateDatabaseCheckConstraintMayHaveNoColumns(t *testing.T) {
 		Tables: []*Table{
 			{
 				Name:    "users",
-				Columns: []*Column{{Name: "age"}},
+				Columns: []*Column{{Name: "age", Type: DataTypeInt}},
 				Constraints: []*Constraint{
 					{Name: "chk_age", Type: ConstraintCheck, CheckExpression: "age >= 0"},
 				},
@@ -128,7 +128,7 @@ func TestValidateDatabaseCheckConstraintMayHaveNoColumns(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.NoError(t, err)
 }
 
@@ -142,11 +142,11 @@ func TestValidateDatabaseForeignKeyTargetExistence(t *testing.T) {
 			Tables: []*Table{
 				{
 					Name:    "users",
-					Columns: []*Column{{Name: "id"}},
+					Columns: []*Column{{Name: "id", Type: DataTypeInt}},
 				},
 				{
 					Name:    "posts",
-					Columns: []*Column{{Name: "author_id"}},
+					Columns: []*Column{{Name: "author_id", Type: DataTypeInt}},
 					Constraints: []*Constraint{
 						{
 							Name:              "fk_posts_author",
@@ -159,7 +159,7 @@ func TestValidateDatabaseForeignKeyTargetExistence(t *testing.T) {
 				},
 			},
 		}
-		require.NoError(t, ValidateDatabase(db))
+		require.NoError(t, db.Validate())
 	})
 }
 
@@ -173,7 +173,7 @@ func TestValidateDatabaseForeignKeyNotExisting(t *testing.T) {
 			Tables: []*Table{
 				{
 					Name:    "posts",
-					Columns: []*Column{{Name: "author_id"}},
+					Columns: []*Column{{Name: "author_id", Type: DataTypeInt}},
 					Constraints: []*Constraint{
 						{
 							Name:              "fk_posts_author",
@@ -186,7 +186,7 @@ func TestValidateDatabaseForeignKeyNotExisting(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateDatabase(db)
+		err := db.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `references non-existent table "users"`)
 	})
@@ -198,11 +198,11 @@ func TestValidateDatabaseForeignKeyNotExisting(t *testing.T) {
 			Tables: []*Table{
 				{
 					Name:    "users",
-					Columns: []*Column{{Name: "id"}},
+					Columns: []*Column{{Name: "id", Type: DataTypeInt}},
 				},
 				{
 					Name:    "posts",
-					Columns: []*Column{{Name: "author_id"}},
+					Columns: []*Column{{Name: "author_id", Type: DataTypeInt}},
 					Constraints: []*Constraint{
 						{
 							Name:              "fk_posts_author",
@@ -215,7 +215,7 @@ func TestValidateDatabaseForeignKeyNotExisting(t *testing.T) {
 				},
 			},
 		}
-		err := ValidateDatabase(db)
+		err := db.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), `references non-existent column "uuid" in table "users"`)
 	})

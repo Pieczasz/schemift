@@ -682,7 +682,7 @@ name = "items"
   primary_key = true
 
     [tables.columns.tidb]
-    auto_random = 5
+    shard_bits = 5
 `
 	p := NewParser()
 	db, err := p.Parse(strings.NewReader(schema))
@@ -691,7 +691,7 @@ name = "items"
 	col := db.Tables[0].FindColumn("id")
 	require.NotNil(t, col)
 	require.NotNil(t, col.TiDB)
-	assert.Equal(t, uint64(5), col.TiDB.AutoRandom)
+	assert.Equal(t, uint64(5), col.TiDB.ShardBits)
 }
 
 func TestParseFloatDefaultValue(t *testing.T) {

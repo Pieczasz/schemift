@@ -723,7 +723,7 @@ name = "items"
 	p := NewParser()
 	_, err := p.Parse(strings.NewReader(schema))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "same name")
+	assert.Contains(t, err.Error(), "duplicate")
 	assert.Contains(t, err.Error(), "ts")
 }
 
@@ -749,7 +749,7 @@ name = "items"
 	p := NewParser()
 	_, err := p.Parse(strings.NewReader(schema))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "same name")
+	assert.Contains(t, err.Error(), "duplicate")
 }
 
 func TestParseTimestampsDistinctColumnsValid(t *testing.T) {

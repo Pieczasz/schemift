@@ -6,14 +6,14 @@ import (
 
 // validateConstraints checks for duplicate constraint names, missing columns,
 // and incomplete FK definitions.
-func validateConstraints(table *Table) error {
-	seen := make(map[string]bool, len(table.Constraints))
-	for _, con := range table.Constraints {
+func (t *Table) validateConstraints() error {
+	seen := make(map[string]bool, len(t.Constraints))
+	for _, con := range t.Constraints {
 		if con.Name == "" {
 			continue
 		}
-		if err := validateName(con.Name, "constraint", nil, nil, false); err != nil {
-			return err
+		if err := validateName(con.Name, nil, nil, false); err != nil {
+			return fmt.Errorf("constraint %q: %w", con.Name, err)
 		}
 		if seen[con.Name] {
 			return fmt.Errorf("duplicate constraint name %q", con.Name)
@@ -21,8 +21,8 @@ func validateConstraints(table *Table) error {
 		seen[con.Name] = true
 	}
 
-	for _, con := range table.Constraints {
-		if err := validateConstraintColumns(table, con); err != nil {
+	for _, con := range t.Constraints {
+		if err := t.validateConstraintColumns(con); err != nil {
 			return err
 		}
 	}
@@ -33,7 +33,7 @@ func validateConstraints(table *Table) error {
 // validateConstraintColumns verifies a single constraint's columns exist, are
 // non-empty (except CHECK), and that FK constraints have referenced_table and
 // referenced_columns.
-func validateConstraintColumns(table *Table, con *Constraint) error {
+func (t *Table) validateConstraintColumns(con *Constraint) error {
 	if con.Type == ConstraintCheck {
 		return nil
 	}
@@ -41,7 +41,7 @@ func validateConstraintColumns(table *Table, con *Constraint) error {
 		return fmt.Errorf("constraint %q (%s) has no columns", con.Name, con.Type)
 	}
 	for _, colName := range con.Columns {
-		if table.FindColumn(colName) == nil {
+		if t.FindColumn(colName) == nil {
 			return fmt.Errorf("constraint %q references nonexistent column %q", con.Name, colName)
 		}
 	}
@@ -56,50 +56,52 @@ func validateConstraintColumns(table *Table, con *Constraint) error {
 	return nil
 }
 
-func validateFKColumnExistence(db *Database, tableMap map[string]*Table) error {
+func (db *Database) validateForeignKeys() error {
 	for _, t := range db.Tables {
 		for _, con := range t.Constraints {
 			if con.Type != ConstraintForeignKey {
 				continue
 			}
-
-			refTable, exists := tableMap[con.ReferencedTable]
-			if !exists {
-				return fmt.Errorf("constraint %q in table %q references non-existent table %q",
-					con.Name, t.Name, con.ReferencedTable)
+			refTable := db.FindTable(con.ReferencedTable)
+			if refTable == nil {
+				return fmt.Errorf("table %q, constraint %q: references non-existent table %q",
+					t.Name, con.Name, con.ReferencedTable)
 			}
-
 			for _, refColName := range con.ReferencedColumns {
 				if refTable.FindColumn(refColName) == nil {
-					return fmt.Errorf("constraint %q in table %q references non-existent column %q in table %q",
-						con.Name, t.Name, refColName, con.ReferencedTable)
+					return fmt.Errorf("table %q, constraint %q: references non-existent column %q in table %q",
+						t.Name, con.Name, refColName, con.ReferencedTable)
+				}
+			}
+			for _, colName := range con.Columns {
+				if t.FindColumn(colName) == nil {
+					return fmt.Errorf("table %q, constraint %q: references non-existent column %q",
+						t.Name, con.Name, colName)
 				}
 			}
 		}
 	}
-
 	return nil
 }
 
 // synthesizeConstraints generates constraint objects from column-level
-// shortcuts (primary_key, unique, check, references). It should be called
-// after PK conflict validation and before structural constraint validation.
-func synthesizeConstraints(table *Table) {
-	synthesizePK(table)
-	synthesizeUniqueConstraints(table)
-	synthesizeCheckConstraints(table)
-	synthesizeFKConstraints(table)
+// shortcuts (primary_key, unique, check, references).
+func (t *Table) synthesizeConstraints() {
+	t.synthesizePrimaryKey()
+	t.synthesizeUniqueConstraints()
+	t.synthesizeCheckConstraints()
+	t.synthesizeForeignKeyConstraints()
 }
 
-func synthesizePK(table *Table) {
-	for _, con := range table.Constraints {
+func (t *Table) synthesizePrimaryKey() {
+	for _, con := range t.Constraints {
 		if con.Type == ConstraintPrimaryKey {
 			return
 		}
 	}
 
 	var pkCols []string
-	for _, col := range table.Columns {
+	for _, col := range t.Columns {
 		if col.PrimaryKey {
 			pkCols = append(pkCols, col.Name)
 		}
@@ -108,22 +110,22 @@ func synthesizePK(table *Table) {
 		return
 	}
 
-	name := AutoGenerateConstraintName(ConstraintPrimaryKey, table.Name, pkCols, "")
-	table.Constraints = append(table.Constraints, &Constraint{
+	name := AutoGenerateConstraintName(ConstraintPrimaryKey, t.Name, pkCols, "")
+	t.Constraints = append(t.Constraints, &Constraint{
 		Name:    name,
 		Type:    ConstraintPrimaryKey,
 		Columns: pkCols,
 	})
 }
 
-func synthesizeUniqueConstraints(table *Table) {
-	for _, col := range table.Columns {
+func (t *Table) synthesizeUniqueConstraints() {
+	for _, col := range t.Columns {
 		if !col.Unique {
 			continue
 		}
 		cols := []string{col.Name}
-		name := AutoGenerateConstraintName(ConstraintUnique, table.Name, cols, "")
-		table.Constraints = append(table.Constraints, &Constraint{
+		name := AutoGenerateConstraintName(ConstraintUnique, t.Name, cols, "")
+		t.Constraints = append(t.Constraints, &Constraint{
 			Name:    name,
 			Type:    ConstraintUnique,
 			Columns: cols,
@@ -131,14 +133,14 @@ func synthesizeUniqueConstraints(table *Table) {
 	}
 }
 
-func synthesizeCheckConstraints(table *Table) {
-	for _, col := range table.Columns {
+func (t *Table) synthesizeCheckConstraints() {
+	for _, col := range t.Columns {
 		if col.Check == "" {
 			continue
 		}
 		cols := []string{col.Name}
-		name := AutoGenerateConstraintName(ConstraintCheck, table.Name, cols, "")
-		table.Constraints = append(table.Constraints, &Constraint{
+		name := AutoGenerateConstraintName(ConstraintCheck, t.Name, cols, "")
+		t.Constraints = append(t.Constraints, &Constraint{
 			Name:            name,
 			Type:            ConstraintCheck,
 			CheckExpression: col.Check,
@@ -147,8 +149,8 @@ func synthesizeCheckConstraints(table *Table) {
 	}
 }
 
-func synthesizeFKConstraints(table *Table) {
-	for _, col := range table.Columns {
+func (t *Table) synthesizeForeignKeyConstraints() {
+	for _, col := range t.Columns {
 		if col.References == "" {
 			continue
 		}
@@ -157,8 +159,8 @@ func synthesizeFKConstraints(table *Table) {
 			continue
 		}
 		cols := []string{col.Name}
-		name := AutoGenerateConstraintName(ConstraintForeignKey, table.Name, cols, refTable)
-		table.Constraints = append(table.Constraints, &Constraint{
+		name := AutoGenerateConstraintName(ConstraintForeignKey, t.Name, cols, refTable)
+		t.Constraints = append(t.Constraints, &Constraint{
 			Name:              name,
 			Type:              ConstraintForeignKey,
 			Columns:           cols,

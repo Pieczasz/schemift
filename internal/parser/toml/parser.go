@@ -64,71 +64,34 @@ func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 		return nil, fmt.Errorf("toml: decode error: %w", err)
 	}
 
-	db, err := newConverter(&sf).convert()
-	if err != nil {
-		return nil, err
+	dialect := core.Dialect(strings.ToLower(sf.Database.Dialect))
+	db := &core.Database{
+		Name:    sf.Database.Name,
+		Dialect: &dialect,
+		Tables:  make([]*core.Table, 0, len(sf.Tables)),
+	}
+	db.Validation = parseRules(sf.Validation)
+
+	for i := range sf.Tables {
+		t, err := p.parseTable(&sf.Tables[i], i)
+		if err != nil {
+			return nil, fmt.Errorf("toml: table %d (%q): %w", i, sf.Tables[i].Name, err)
+		}
+		db.Tables = append(db.Tables, t)
 	}
 
-	if err := core.ValidateDatabase(db); err != nil {
+	if err := db.Validate(); err != nil {
 		return nil, fmt.Errorf("toml: %w", err)
 	}
 
 	return db, nil
 }
 
-type converter struct {
-	sf      *schemaFile
-	dialect *core.Dialect
-}
-
-func newConverter(sf *schemaFile) *converter {
-	return &converter{sf: sf}
-}
-
-func (c *converter) convert() (*core.Database, error) {
-	dialect, err := parseDialect(c.sf.Database.Dialect)
-	if err != nil {
-		return nil, err
-	}
-	c.dialect = dialect
-
-	db := &core.Database{
-		Name:    c.sf.Database.Name,
-		Dialect: c.dialect,
-		Tables:  make([]*core.Table, 0, len(c.sf.Tables)),
-	}
-	db.Validation = convertRules(c.sf.Validation)
-
-	for i := range c.sf.Tables {
-		t, err := c.convertTable(&c.sf.Tables[i])
-		if err != nil {
-			return nil, fmt.Errorf("toml: table %q: %w", c.sf.Tables[i].Name, err)
-		}
-		db.Tables = append(db.Tables, t)
-	}
-
-	return db, nil
-}
-
-// parseDialect converts the raw dialect string into a *core.Dialect.
-// Returns nil when the string is empty (core.ValidateDatabase will flag it).
-// Returns an error when the string is non-empty but unrecognized — this is a
-// genuine parse error because the input cannot be mapped to a known type.
-func parseDialect(raw string) (*core.Dialect, error) {
-	if raw == "" {
-		return nil, nil
-	}
-	if !core.IsValidDialect(raw) {
-		return nil, fmt.Errorf("toml: unsupported dialect %q; supported dialects: %v", raw, core.SupportedDialects())
-	}
-	return new(core.Dialect(strings.ToLower(raw))), nil
-}
-
-// convertRules converts [validation] into core.ValidationRules.
-// No validation is performed here — that happens in core.ValidateDatabase.
-func convertRules(v *tomlValidation) *core.ValidationRules {
+// parseRules parses [validation] into core.ValidationRules.
+// No validation is performed here — that happens in db.Validate().
+func parseRules(v *tomlValidation) *core.ValidationRules {
 	if v == nil {
-		return nil
+		return &core.ValidationRules{}
 	}
 	return &core.ValidationRules{
 		MaxTableNameLength:          v.MaxTableNameLength,

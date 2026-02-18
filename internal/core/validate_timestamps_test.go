@@ -17,13 +17,13 @@ func TestValidateDatabaseTimestampsValidation(t *testing.T) {
 			Tables: []*Table{
 				{
 					Name:       "users",
-					Columns:    []*Column{{Name: "id"}},
+					Columns:    []*Column{{Name: "id", Type: DataTypeInt}},
 					Timestamps: &TimestampsConfig{Enabled: false},
 				},
 			},
 		}
 
-		err := ValidateDatabase(db)
+		err := db.Validate()
 		require.NoError(t, err)
 	})
 
@@ -34,13 +34,13 @@ func TestValidateDatabaseTimestampsValidation(t *testing.T) {
 			Tables: []*Table{
 				{
 					Name:       "users",
-					Columns:    []*Column{{Name: "id"}},
+					Columns:    []*Column{{Name: "id", Type: DataTypeInt}},
 					Timestamps: &TimestampsConfig{Enabled: true},
 				},
 			},
 		}
 
-		err := ValidateDatabase(db)
+		err := db.Validate()
 		require.NoError(t, err)
 	})
 
@@ -51,7 +51,7 @@ func TestValidateDatabaseTimestampsValidation(t *testing.T) {
 			Tables: []*Table{
 				{
 					Name:    "users",
-					Columns: []*Column{{Name: "id"}},
+					Columns: []*Column{{Name: "id", Type: DataTypeInt}},
 					Timestamps: &TimestampsConfig{
 						Enabled:       true,
 						CreatedColumn: "created_at",
@@ -61,7 +61,7 @@ func TestValidateDatabaseTimestampsValidation(t *testing.T) {
 			},
 		}
 
-		err := ValidateDatabase(db)
+		err := db.Validate()
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "resolve to the same name")
 	})

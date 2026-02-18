@@ -14,7 +14,7 @@ func TestValidateDatabaseIndexDuplicateNames(t *testing.T) {
 		Tables: []*Table{
 			{
 				Name:    "users",
-				Columns: []*Column{{Name: "email"}},
+				Columns: []*Column{{Name: "email", Type: DataTypeString}},
 				Indexes: []*Index{
 					{Name: "idx_email", Columns: []ColumnIndex{{Name: "email"}}},
 					{Name: "idx_email", Columns: []ColumnIndex{{Name: "email"}}},
@@ -23,7 +23,7 @@ func TestValidateDatabaseIndexDuplicateNames(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "duplicate index name")
 }
@@ -35,7 +35,7 @@ func TestValidateDatabaseIndexHasNoColumns(t *testing.T) {
 		Tables: []*Table{
 			{
 				Name:    "users",
-				Columns: []*Column{{Name: "email"}},
+				Columns: []*Column{{Name: "email", Type: DataTypeString}},
 				Indexes: []*Index{
 					{Name: "idx_email"},
 				},
@@ -43,7 +43,7 @@ func TestValidateDatabaseIndexHasNoColumns(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "index idx_email has no columns")
 }
@@ -55,7 +55,7 @@ func TestValidateDatabaseUnnamedIndexHasNoColumns(t *testing.T) {
 		Tables: []*Table{
 			{
 				Name:    "users",
-				Columns: []*Column{{Name: "email"}},
+				Columns: []*Column{{Name: "email", Type: DataTypeString}},
 				Indexes: []*Index{
 					{},
 				},
@@ -63,7 +63,7 @@ func TestValidateDatabaseUnnamedIndexHasNoColumns(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "index (unnamed) has no columns")
 }
@@ -75,7 +75,7 @@ func TestValidateDatabaseIndexReferencesNonexistentColumn(t *testing.T) {
 		Tables: []*Table{
 			{
 				Name:    "users",
-				Columns: []*Column{{Name: "email"}},
+				Columns: []*Column{{Name: "email", Type: DataTypeString}},
 				Indexes: []*Index{
 					{Name: "idx_missing", Columns: []ColumnIndex{{Name: "missing"}}},
 				},
@@ -83,7 +83,7 @@ func TestValidateDatabaseIndexReferencesNonexistentColumn(t *testing.T) {
 		},
 	}
 
-	err := ValidateDatabase(db)
+	err := db.Validate()
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `index "idx_missing" references nonexistent column "missing"`)
 }

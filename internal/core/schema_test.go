@@ -6,26 +6,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTableGetName(t *testing.T) {
-	table := &Table{Name: "users"}
-	assert.Equal(t, "users", table.GetName())
-}
-
-func TestColumnGetName(t *testing.T) {
-	column := &Column{Name: "id"}
-	assert.Equal(t, "id", column.GetName())
-}
-
-func TestConstraintGetName(t *testing.T) {
-	constraint := &Constraint{Name: "pk_users"}
-	assert.Equal(t, "pk_users", constraint.GetName())
-}
-
-func TestIndexGetName(t *testing.T) {
-	index := &Index{Name: "idx_users_email"}
-	assert.Equal(t, "idx_users_email", index.GetName())
-}
-
 func TestDatabaseFindTable(t *testing.T) {
 	db := &Database{
 		Name: "testdb",
@@ -346,24 +326,24 @@ func TestSupportedDialects(t *testing.T) {
 	assert.Contains(t, dialects, DialectMSSQL)
 }
 
-func TestIsValidDialect(t *testing.T) {
+func TestValidDialect(t *testing.T) {
 	t.Run("valid dialects", func(t *testing.T) {
 		for _, d := range SupportedDialects() {
-			assert.True(t, IsValidDialect(string(d)), "expected %q to be valid", d)
+			assert.True(t, ValidDialect(string(d)), "expected %q to be valid", d)
 		}
 	})
 
 	t.Run("case insensitive", func(t *testing.T) {
-		assert.True(t, IsValidDialect("MySQL"))
-		assert.True(t, IsValidDialect("POSTGRESQL"))
-		assert.True(t, IsValidDialect("Snowflake"))
+		assert.True(t, ValidDialect("MySQL"))
+		assert.True(t, ValidDialect("POSTGRESQL"))
+		assert.True(t, ValidDialect("Snowflake"))
 	})
 
 	t.Run("invalid dialects", func(t *testing.T) {
-		assert.False(t, IsValidDialect(""))
-		assert.False(t, IsValidDialect("mongo"))
-		assert.False(t, IsValidDialect("redis"))
-		assert.False(t, IsValidDialect("cassandra"))
+		assert.False(t, ValidDialect(""))
+		assert.False(t, ValidDialect("mongo"))
+		assert.False(t, ValidDialect("redis"))
+		assert.False(t, ValidDialect("cassandra"))
 	})
 }
 
