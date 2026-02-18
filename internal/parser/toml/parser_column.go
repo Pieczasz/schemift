@@ -138,7 +138,7 @@ func (p *Parser) parseColumn(tc *tomlColumn) (*core.Column, error) {
 		Invisible:          tc.Invisible,
 	}
 
-	if err := p.resolveColumnType(col, tc); err != nil {
+	if err := resolveColumnType(col, tc); err != nil {
 		return nil, err
 	}
 
@@ -149,7 +149,7 @@ func (p *Parser) parseColumn(tc *tomlColumn) (*core.Column, error) {
 }
 
 // resolveColumnType populates col.Type and col.RawType from the TOML column.
-func (p *Parser) resolveColumnType(col *core.Column, tc *tomlColumn) error {
+func resolveColumnType(col *core.Column, tc *tomlColumn) error {
 	portableType := strings.TrimSpace(tc.Type)
 
 	if strings.EqualFold(portableType, "enum") && len(tc.EnumValues) > 0 {

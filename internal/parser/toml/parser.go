@@ -70,12 +70,12 @@ func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 		Dialect: &dialect,
 		Tables:  make([]*core.Table, 0, len(sf.Tables)),
 	}
-	db.Validation = p.parseRules(sf.Validation)
+	db.Validation = parseRules(sf.Validation)
 
 	for i := range sf.Tables {
-		t, err := p.parseTable(&sf.Tables[i])
+		t, err := p.parseTable(&sf.Tables[i], i)
 		if err != nil {
-			return nil, fmt.Errorf("toml: table %q: %w", sf.Tables[i].Name, err)
+			return nil, fmt.Errorf("toml: table %d (%q): %w", i, sf.Tables[i].Name, err)
 		}
 		db.Tables = append(db.Tables, t)
 	}
@@ -89,9 +89,9 @@ func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 
 // parseRules parses [validation] into core.ValidationRules.
 // No validation is performed here — that happens in db.Validate().
-func (p *Parser) parseRules(v *tomlValidation) *core.ValidationRules {
+func parseRules(v *tomlValidation) *core.ValidationRules {
 	if v == nil {
-		return nil
+		return &core.ValidationRules{}
 	}
 	return &core.ValidationRules{
 		MaxTableNameLength:          v.MaxTableNameLength,

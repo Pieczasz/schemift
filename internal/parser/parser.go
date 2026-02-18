@@ -13,7 +13,6 @@ import (
 
 type Parser interface {
 	Parse(r io.Reader) (*core.Database, error)
-	ParseFile(path string) (*core.Database, error)
 }
 
 func ParseFile(path string) (*core.Database, error) {

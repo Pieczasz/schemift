@@ -6,6 +6,13 @@ import (
 	"smf/internal/core"
 )
 
+const (
+	defaultCreatedColumn  = "created_at"
+	defaultUpdatedColumn  = "updated_at"
+	defaultTimestampType  = "timestamp"
+	defaultTimestampValue = "CURRENT_TIMESTAMP"
+)
+
 // tomlTable maps [[tables]].
 type tomlTable struct {
 	Name        string           `toml:"name"`
@@ -157,7 +164,7 @@ type tomlMariaDBTableOptions struct {
 	WithSystemVersioning bool   `toml:"with_system_versioning"`
 }
 
-func (p *Parser) parseTable(tt *tomlTable) (*core.Table, error) {
+func (p *Parser) parseTable(tt *tomlTable, idx int) (*core.Table, error) {
 	table := &core.Table{
 		Name:    tt.Name,
 		Comment: tt.Comment,
@@ -172,7 +179,7 @@ func (p *Parser) parseTable(tt *tomlTable) (*core.Table, error) {
 		}
 	}
 
-	if err := p.parseTableColumns(table, tt); err != nil {
+	if err := p.parseTableColumns(table, tt, idx); err != nil {
 		return nil, err
 	}
 
@@ -356,12 +363,12 @@ func parseMariaDBTableOptions(mdb *tomlMariaDBTableOptions) *core.MariaDBTableOp
 
 // parseTableColumns populates table.Columns from the TOML column definitions
 // and injects timestamp columns when enabled.
-func (p *Parser) parseTableColumns(table *core.Table, tt *tomlTable) error {
+func (p *Parser) parseTableColumns(table *core.Table, tt *tomlTable, tableIdx int) error {
 	table.Columns = make([]*core.Column, 0, len(tt.Columns))
 	for i := range tt.Columns {
 		col, err := p.parseColumn(&tt.Columns[i])
 		if err != nil {
-			return fmt.Errorf("column %q: %w", tt.Columns[i].Name, err)
+			return fmt.Errorf("toml: table %d column %d (%q): %w", tableIdx, i, tt.Columns[i].Name, err)
 		}
 		table.Columns = append(table.Columns, col)
 	}
@@ -377,8 +384,8 @@ func (p *Parser) parseTableColumns(table *core.Table, tt *tomlTable) error {
 // the columns when not already present.
 // Note: Validation of distinct column names is done in core.Validate().
 func injectTimestampColumns(table *core.Table) {
-	createdCol := "created_at"
-	updatedCol := "updated_at"
+	createdCol := defaultCreatedColumn
+	updatedCol := defaultUpdatedColumn
 	if table.Timestamps.CreatedColumn != "" {
 		createdCol = table.Timestamps.CreatedColumn
 	}
@@ -386,39 +393,27 @@ func injectTimestampColumns(table *core.Table) {
 		updatedCol = table.Timestamps.UpdatedColumn
 	}
 
-	hasCreatedCol := func() bool {
-		for _, c := range table.Columns {
-			if c.Name == createdCol {
-				return true
-			}
-		}
-		return false
-	}
-	hasUpdatedCol := func() bool {
-		for _, c := range table.Columns {
-			if c.Name == updatedCol {
-				return true
-			}
-		}
-		return false
+	columnNames := make(map[string]bool, len(table.Columns))
+	for _, c := range table.Columns {
+		columnNames[c.Name] = true
 	}
 
-	if !hasCreatedCol() {
+	if !columnNames[createdCol] {
 		table.Columns = append(table.Columns, &core.Column{
 			Name:         createdCol,
-			RawType:      "timestamp",
+			RawType:      defaultTimestampType,
 			Type:         core.DataTypeDatetime,
-			DefaultValue: new("CURRENT_TIMESTAMP"),
+			DefaultValue: new(defaultTimestampValue),
 		})
 	}
 
-	if !hasUpdatedCol() {
+	if !columnNames[updatedCol] {
 		table.Columns = append(table.Columns, &core.Column{
 			Name:         updatedCol,
-			RawType:      "timestamp",
+			RawType:      defaultTimestampType,
 			Type:         core.DataTypeDatetime,
-			DefaultValue: new("CURRENT_TIMESTAMP"),
-			OnUpdate:     new("CURRENT_TIMESTAMP"),
+			DefaultValue: new(defaultTimestampValue),
+			OnUpdate:     new(defaultTimestampValue),
 		})
 	}
 }
