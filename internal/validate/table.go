@@ -1,14 +1,16 @@
-package core
+package validate
 
 import (
 	"errors"
 	"fmt"
 	"regexp"
+
+	"smf/internal/core"
 )
 
-func (db *Database) validateTableUniqueness() error {
-	seenTables := make(map[string]bool, len(db.Tables))
-	for _, table := range db.Tables {
+func TableUniqueness(tables []*core.Table) error {
+	seenTables := make(map[string]bool, len(tables))
+	for _, table := range tables {
 		if seenTables[table.Name] {
 			return fmt.Errorf("duplicate table name %q", table.Name)
 		}
@@ -17,53 +19,52 @@ func (db *Database) validateTableUniqueness() error {
 	return nil
 }
 
-func (db *Database) validateAndSynthesizeConstraints() error {
-	for _, table := range db.Tables {
-		if err := table.validatePrimaryKeyConflict(); err != nil {
+func SynthesizeConstraints(tables []*core.Table) error {
+	for _, table := range tables {
+		if err := PrimaryKeyConflict(table); err != nil {
 			return fmt.Errorf("table %q: %w", table.Name, err)
 		}
-		table.synthesizeConstraints()
+		Synthesize(table)
 	}
 	return nil
 }
 
-func (db *Database) validateTableStructures(nameRe *regexp.Regexp) error {
-	for _, table := range db.Tables {
-		if err := table.Validate(db.Validation, nameRe); err != nil {
+func TableStructures(tables []*core.Table, rules *core.ValidationRules, nameRe *regexp.Regexp) error {
+	for _, table := range tables {
+		if err := Table(table, rules, nameRe); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// Validate checks a single table for structural correctness.
-func (t *Table) Validate(rules *ValidationRules, nameRe *regexp.Regexp) error {
-	if err := t.validateNameAndOptions(rules, nameRe); err != nil {
+func Table(t *core.Table, rules *core.ValidationRules, nameRe *regexp.Regexp) error {
+	if err := TableNameAndOptions(t, rules, nameRe); err != nil {
 		return err
 	}
-	if err := t.validateColumns(rules, nameRe); err != nil {
+	if err := Columns(t, rules, nameRe); err != nil {
 		return err
 	}
-	if err := t.validateConstraints(); err != nil {
+	if err := Constraints(t); err != nil {
 		return err
 	}
-	if err := t.validateTimestamps(); err != nil {
+	if err := Timestamps(t); err != nil {
 		return err
 	}
-	return t.validateIndexes()
+	return Indexes(t)
 }
 
-func (t *Table) validateNameAndOptions(rules *ValidationRules, nameRe *regexp.Regexp) error {
-	if err := validateName(t.Name, rules, nameRe, true); err != nil {
+func TableNameAndOptions(t *core.Table, rules *core.ValidationRules, nameRe *regexp.Regexp) error {
+	if err := Name(t.Name, rules, nameRe, true); err != nil {
 		return fmt.Errorf("table %q: %w", t.Name, err)
 	}
-	if err := t.Options.Validate(); err != nil {
+	if err := TableOptions(&t.Options); err != nil {
 		return fmt.Errorf("table %q: %w", t.Name, err)
 	}
 	return nil
 }
 
-func (t *Table) validateColumns(rules *ValidationRules, nameRe *regexp.Regexp) error {
+func Columns(t *core.Table, rules *core.ValidationRules, nameRe *regexp.Regexp) error {
 	if len(t.Columns) == 0 {
 		return fmt.Errorf("table %q has no columns", t.Name)
 	}
@@ -75,21 +76,18 @@ func (t *Table) validateColumns(rules *ValidationRules, nameRe *regexp.Regexp) e
 		seenCols[col.Name] = true
 	}
 	for _, col := range t.Columns {
-		if err := col.Validate(rules, nameRe); err != nil {
+		if err := Column(col, rules, nameRe); err != nil {
 			return fmt.Errorf("table %q: %w", t.Name, err)
 		}
 	}
 	return nil
 }
 
-func (opt *TableOptions) Validate() error {
-	// Dialect-specific validations can be added here as needed.
+func TableOptions(_ *core.TableOptions) error {
 	return nil
 }
 
-// validatePKConflict ensures a table doesn't define primary keys both at the
-// column level (primary_key = true) and in the constraints section.
-func (t *Table) validatePrimaryKeyConflict() error {
+func PrimaryKeyConflict(t *core.Table) error {
 	hasColumnPK := false
 	for _, col := range t.Columns {
 		if col.PrimaryKey {
@@ -99,7 +97,7 @@ func (t *Table) validatePrimaryKeyConflict() error {
 	}
 	constraintPKCount := 0
 	for _, con := range t.Constraints {
-		if con.Type == ConstraintPrimaryKey {
+		if con.Type == core.ConstraintPrimaryKey {
 			constraintPKCount++
 		}
 	}
@@ -112,22 +110,20 @@ func (t *Table) validatePrimaryKeyConflict() error {
 	return nil
 }
 
-// validateTimestamps checks that the created and updated timestamp columns
-// resolve to distinct names and follow naming rules.
-func (t *Table) validateTimestamps() error {
+func Timestamps(t *core.Table) error {
 	if t.Timestamps == nil || !t.Timestamps.Enabled {
 		return nil
 	}
 	createdCol := "created_at"
 	updatedCol := "updated_at"
 	if t.Timestamps.CreatedColumn != "" {
-		if err := validateName(t.Timestamps.CreatedColumn, nil, nil, false); err != nil {
+		if err := Name(t.Timestamps.CreatedColumn, nil, nil, false); err != nil {
 			return fmt.Errorf("timestamp created_column: %w", err)
 		}
 		createdCol = t.Timestamps.CreatedColumn
 	}
 	if t.Timestamps.UpdatedColumn != "" {
-		if err := validateName(t.Timestamps.UpdatedColumn, nil, nil, false); err != nil {
+		if err := Name(t.Timestamps.UpdatedColumn, nil, nil, false); err != nil {
 			return fmt.Errorf("timestamp updated_column: %w", err)
 		}
 		updatedCol = t.Timestamps.UpdatedColumn

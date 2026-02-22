@@ -1,18 +1,25 @@
-package core
+package validate
 
 import (
 	"fmt"
+
+	"smf/internal/core"
 )
 
-// validateConstraints checks for duplicate constraint names, missing columns,
-// and incomplete FK definitions.
-func (t *Table) validateConstraints() error {
+func Constraints(t *core.Table) error {
+	if err := ConstraintNames(t); err != nil {
+		return err
+	}
+	return ConstraintColumns(t)
+}
+
+func ConstraintNames(t *core.Table) error {
 	seen := make(map[string]bool, len(t.Constraints))
 	for _, con := range t.Constraints {
 		if con.Name == "" {
 			continue
 		}
-		if err := validateName(con.Name, nil, nil, false); err != nil {
+		if err := Name(con.Name, nil, nil, false); err != nil {
 			return fmt.Errorf("constraint %q: %w", con.Name, err)
 		}
 		if seen[con.Name] {
@@ -20,21 +27,20 @@ func (t *Table) validateConstraints() error {
 		}
 		seen[con.Name] = true
 	}
-
-	for _, con := range t.Constraints {
-		if err := t.validateConstraintColumns(con); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-// validateConstraintColumns verifies a single constraint's columns exist, are
-// non-empty (except CHECK), and that FK constraints have referenced_table and
-// referenced_columns.
-func (t *Table) validateConstraintColumns(con *Constraint) error {
-	if con.Type == ConstraintCheck {
+func ConstraintColumns(t *core.Table) error {
+	for _, con := range t.Constraints {
+		if err := SingleConstraintColumns(t, con); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func SingleConstraintColumns(t *core.Table, con *core.Constraint) error {
+	if con.Type == core.ConstraintCheck {
 		return nil
 	}
 	if len(con.Columns) == 0 {
@@ -45,7 +51,7 @@ func (t *Table) validateConstraintColumns(con *Constraint) error {
 			return fmt.Errorf("constraint %q references nonexistent column %q", con.Name, colName)
 		}
 	}
-	if con.Type == ConstraintForeignKey {
+	if con.Type == core.ConstraintForeignKey {
 		if con.ReferencedTable == "" {
 			return fmt.Errorf("foreign key constraint %q is missing referenced_table", con.Name)
 		}
@@ -56,13 +62,13 @@ func (t *Table) validateConstraintColumns(con *Constraint) error {
 	return nil
 }
 
-func (db *Database) validateForeignKeys() error {
-	for _, t := range db.Tables {
+func ForeignKeys(tables []*core.Table) error {
+	for _, t := range tables {
 		for _, con := range t.Constraints {
-			if con.Type != ConstraintForeignKey {
+			if con.Type != core.ConstraintForeignKey {
 				continue
 			}
-			refTable := db.FindTable(con.ReferencedTable)
+			refTable := FindTable(tables, con.ReferencedTable)
 			if refTable == nil {
 				return fmt.Errorf("table %q, constraint %q: references non-existent table %q",
 					t.Name, con.Name, con.ReferencedTable)
@@ -84,18 +90,25 @@ func (db *Database) validateForeignKeys() error {
 	return nil
 }
 
-// synthesizeConstraints generates constraint objects from column-level
-// shortcuts (primary_key, unique, check, references).
-func (t *Table) synthesizeConstraints() {
-	t.synthesizePrimaryKey()
-	t.synthesizeUniqueConstraints()
-	t.synthesizeCheckConstraints()
-	t.synthesizeForeignKeyConstraints()
+func FindTable(tables []*core.Table, name string) *core.Table {
+	for _, t := range tables {
+		if t.Name == name {
+			return t
+		}
+	}
+	return nil
 }
 
-func (t *Table) synthesizePrimaryKey() {
+func Synthesize(t *core.Table) {
+	SynthesizePrimaryKey(t)
+	SynthesizeUniqueConstraints(t)
+	SynthesizeCheckConstraints(t)
+	SynthesizeForeignKeyConstraints(t)
+}
+
+func SynthesizePrimaryKey(t *core.Table) {
 	for _, con := range t.Constraints {
-		if con.Type == ConstraintPrimaryKey {
+		if con.Type == core.ConstraintPrimaryKey {
 			return
 		}
 	}
@@ -110,59 +123,59 @@ func (t *Table) synthesizePrimaryKey() {
 		return
 	}
 
-	name := AutoGenerateConstraintName(ConstraintPrimaryKey, t.Name, pkCols, "")
-	t.Constraints = append(t.Constraints, &Constraint{
+	name := core.AutoGenerateConstraintName(core.ConstraintPrimaryKey, t.Name, pkCols, "")
+	t.Constraints = append(t.Constraints, &core.Constraint{
 		Name:    name,
-		Type:    ConstraintPrimaryKey,
+		Type:    core.ConstraintPrimaryKey,
 		Columns: pkCols,
 	})
 }
 
-func (t *Table) synthesizeUniqueConstraints() {
+func SynthesizeUniqueConstraints(t *core.Table) {
 	for _, col := range t.Columns {
 		if !col.Unique {
 			continue
 		}
 		cols := []string{col.Name}
-		name := AutoGenerateConstraintName(ConstraintUnique, t.Name, cols, "")
-		t.Constraints = append(t.Constraints, &Constraint{
+		name := core.AutoGenerateConstraintName(core.ConstraintUnique, t.Name, cols, "")
+		t.Constraints = append(t.Constraints, &core.Constraint{
 			Name:    name,
-			Type:    ConstraintUnique,
+			Type:    core.ConstraintUnique,
 			Columns: cols,
 		})
 	}
 }
 
-func (t *Table) synthesizeCheckConstraints() {
+func SynthesizeCheckConstraints(t *core.Table) {
 	for _, col := range t.Columns {
 		if col.Check == "" {
 			continue
 		}
 		cols := []string{col.Name}
-		name := AutoGenerateConstraintName(ConstraintCheck, t.Name, cols, "")
-		t.Constraints = append(t.Constraints, &Constraint{
+		name := core.AutoGenerateConstraintName(core.ConstraintCheck, t.Name, cols, "")
+		t.Constraints = append(t.Constraints, &core.Constraint{
 			Name:            name,
-			Type:            ConstraintCheck,
+			Type:            core.ConstraintCheck,
 			CheckExpression: col.Check,
 			Enforced:        true,
 		})
 	}
 }
 
-func (t *Table) synthesizeForeignKeyConstraints() {
+func SynthesizeForeignKeyConstraints(t *core.Table) {
 	for _, col := range t.Columns {
 		if col.References == "" {
 			continue
 		}
-		refTable, refCol, ok := ParseReferences(col.References)
+		refTable, refCol, ok := core.ParseReferences(col.References)
 		if !ok {
 			continue
 		}
 		cols := []string{col.Name}
-		name := AutoGenerateConstraintName(ConstraintForeignKey, t.Name, cols, refTable)
-		t.Constraints = append(t.Constraints, &Constraint{
+		name := core.AutoGenerateConstraintName(core.ConstraintForeignKey, t.Name, cols, refTable)
+		t.Constraints = append(t.Constraints, &core.Constraint{
 			Name:              name,
-			Type:              ConstraintForeignKey,
+			Type:              core.ConstraintForeignKey,
 			Columns:           cols,
 			ReferencedTable:   refTable,
 			ReferencedColumns: []string{refCol},

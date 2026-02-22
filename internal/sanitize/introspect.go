@@ -1,25 +1,28 @@
+// Package sanitize contains logic for sanitizing various user inputs e.g. table/column names.
 package sanitize
 
 import "strings"
 
-func SanitizeIdentifier(name string) string {
+func Identifier(name string) string {
 	name = strings.TrimSpace(name)
 
 	var result strings.Builder
 	for i, r := range name {
-		if i == 0 {
-			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '_' {
-				result.WriteRune(r)
-			} else {
-				result.WriteRune('_')
-			}
+		if IdentifierChar(r, i == 0) {
+			result.WriteRune(r)
 		} else {
-			if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_' || r == '$' {
-				result.WriteRune(r)
-			} else {
-				result.WriteRune('_')
-			}
+			result.WriteRune('_')
 		}
 	}
 	return result.String()
+}
+
+func IdentifierChar(r rune, isFirst bool) bool {
+	isLetter := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z')
+	isUnderscore := r == '_'
+	if isFirst {
+		return isLetter || isUnderscore
+	}
+	isDigit := (r >= '0' && r <= '9')
+	return isLetter || isDigit || isUnderscore || r == '$'
 }

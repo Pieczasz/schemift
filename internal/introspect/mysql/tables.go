@@ -17,66 +17,97 @@ func introspectTables(ic *introspectCtx, db *core.Database) error {
 		return nil
 	}
 
-	tableOptions, err := queryAllTableOptions(ic, tableNames)
-	if err != nil {
-		return err
-	}
-
-	columns, err := queryAllColumns(ic, tableNames)
-	if err != nil {
-		return err
-	}
-
-	indexes, err := queryAllIndexes(ic, tableNames)
-	if err != nil {
-		return err
-	}
-
-	constraints, err := queryAllConstraints(ic, tableNames)
-	if err != nil {
-		return err
-	}
-
-	checkConstraints, err := queryAllCheckConstraints(ic, tableNames)
+	tableData, err := gatherTableData(ic, tableNames)
 	if err != nil {
 		return err
 	}
 
 	for _, tableName := range tableNames {
-		t := &core.Table{
-			Name:        tableName,
-			Comment:     tableOptions[tableName].comment,
-			Options:     core.TableOptions{},
-			Columns:     []*core.Column{},
-			Constraints: []*core.Constraint{},
-			Indexes:     []*core.Index{},
-		}
-
-		opts := tableOptions[tableName]
-		t.Options.MySQL = &core.MySQLTableOptions{
-			Engine:        opts.engine,
-			Charset:       opts.charset,
-			Collate:       opts.collate,
-			AutoIncrement: opts.autoIncrement,
-		}
-
-		t.Columns = append(t.Columns, columns[tableName]...)
-
-		t.Indexes = append(t.Indexes, indexes[tableName]...)
-
-		for _, c := range constraints[tableName] {
-			if c.checkExpression.Valid {
-				if expr, ok := checkConstraints[c.name]; ok {
-					c.checkExpression = sql.NullString{String: expr, Valid: true}
-				}
-			}
-			t.Constraints = append(t.Constraints, convertToCoreConstraint(c))
-		}
-
+		t := buildTable(tableName, tableData[tableName])
 		db.Tables = append(db.Tables, t)
 	}
 
 	return nil
+}
+
+type tableData struct {
+	tableOptions     tableOptions
+	columns          []*core.Column
+	indexes          []*core.Index
+	constraints      map[string]*sqlRawConstraint
+	checkConstraints map[string]string
+}
+
+func gatherTableData(ic *introspectCtx, tableNames []string) (map[string]tableData, error) {
+	tableOptions, err := queryAllTableOptions(ic, tableNames)
+	if err != nil {
+		return nil, err
+	}
+
+	columns, err := queryAllColumns(ic, tableNames)
+	if err != nil {
+		return nil, err
+	}
+
+	indexes, err := queryAllIndexes(ic, tableNames)
+	if err != nil {
+		return nil, err
+	}
+
+	constraints, err := queryAllConstraints(ic, tableNames)
+	if err != nil {
+		return nil, err
+	}
+
+	checkConstraints, err := queryAllCheckConstraints(ic, tableNames)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]tableData)
+	for _, tableName := range tableNames {
+		result[tableName] = tableData{
+			tableOptions:     tableOptions[tableName],
+			columns:          columns[tableName],
+			indexes:          indexes[tableName],
+			constraints:      constraints[tableName],
+			checkConstraints: checkConstraints,
+		}
+	}
+	return result, nil
+}
+
+func buildTable(tableName string, data tableData) *core.Table {
+	t := &core.Table{
+		Name:        tableName,
+		Comment:     data.tableOptions.comment,
+		Options:     core.TableOptions{},
+		Columns:     []*core.Column{},
+		Constraints: []*core.Constraint{},
+		Indexes:     []*core.Index{},
+	}
+
+	opts := data.tableOptions
+	t.Options.MySQL = &core.MySQLTableOptions{
+		Engine:        opts.engine,
+		Charset:       opts.charset,
+		Collate:       opts.collate,
+		AutoIncrement: opts.autoIncrement,
+	}
+
+	t.Columns = append(t.Columns, data.columns...)
+	t.Indexes = append(t.Indexes, data.indexes...)
+
+	for _, c := range data.constraints {
+		if c.checkExpression.Valid {
+			if expr, ok := data.checkConstraints[c.name]; ok {
+				c.checkExpression = sql.NullString{String: expr, Valid: true}
+			}
+		}
+		t.Constraints = append(t.Constraints, convertToCoreConstraint(c))
+	}
+
+	return t
 }
 
 type tableOptions struct {

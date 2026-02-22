@@ -13,6 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"smf/internal/core"
+	"smf/internal/validate"
 )
 
 // schemaFile is the top-level TOML document.
@@ -79,7 +80,7 @@ func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 		db.Tables = append(db.Tables, t)
 	}
 
-	if err := db.Validate(); err != nil {
+	if err := validate.Database(db); err != nil {
 		return nil, fmt.Errorf("toml: %w", err)
 	}
 

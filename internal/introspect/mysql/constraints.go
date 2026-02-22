@@ -127,14 +127,22 @@ func queryAllForeignKeyInfo(ic *introspectCtx, tableNames []string, constraints 
 		return nil
 	}
 
+	rows, err := ic.db.QueryContext(ic.ctx, buildForeignKeyQuery(tableNames), buildQueryArgs(tableNames)...)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	return processForeignKeyRows(rows, constraints)
+}
+
+func buildForeignKeyQuery(tableNames []string) string {
 	placeholders := make([]string, len(tableNames))
-	args := make([]any, len(tableNames))
-	for i, name := range tableNames {
+	for i := range tableNames {
 		placeholders[i] = "?"
-		args[i] = name
 	}
 
-	query := `
+	return `
 		SELECT
 			fk.table_name,
 			fk.constraint_name,
@@ -153,13 +161,17 @@ func queryAllForeignKeyInfo(ic *introspectCtx, tableNames []string, constraints 
 			AND rc.table_name IN (` + strings.Join(placeholders, ",") + `)
 		ORDER BY rc.table_name, rc.constraint_name, fk.ordinal_position
 	`
+}
 
-	rows, err := ic.db.QueryContext(ic.ctx, query, args...)
-	if err != nil {
-		return err
+func buildQueryArgs(tableNames []string) []any {
+	args := make([]any, len(tableNames))
+	for i, name := range tableNames {
+		args[i] = name
 	}
-	defer rows.Close()
+	return args
+}
 
+func processForeignKeyRows(rows *sql.Rows, constraints map[string]map[string]*sqlRawConstraint) error {
 	currentFK := ""
 	var refColumns []string
 
@@ -171,23 +183,7 @@ func queryAllForeignKeyInfo(ic *introspectCtx, tableNames []string, constraints 
 			return err
 		}
 
-		if tableConstraints, ok := constraints[tableName]; ok {
-			if c, ok := tableConstraints[constraintName]; ok {
-				if currentFK != constraintName {
-					if currentFK != "" {
-						if prev, ok := constraints[tableName][currentFK]; ok {
-							prev.referencedColumns = refColumns
-						}
-					}
-					currentFK = constraintName
-					refColumns = nil
-					c.referencedTable = sql.NullString{String: refTable, Valid: true}
-					c.onDelete = deleteRule
-					c.onUpdate = updateRule
-				}
-				refColumns = append(refColumns, column)
-			}
-		}
+		currentFK, refColumns = processFKConstraint(constraints, tableName, constraintName, column, refTable, currentFK, refColumns, deleteRule, updateRule)
 	}
 
 	if currentFK != "" {
@@ -197,6 +193,27 @@ func queryAllForeignKeyInfo(ic *introspectCtx, tableNames []string, constraints 
 	}
 
 	return rows.Err()
+}
+
+func processFKConstraint(constraints map[string]map[string]*sqlRawConstraint, tableName, constraintName, column, refTable, currentFK string, refColumns []string, deleteRule, updateRule sql.NullString) (string, []string) {
+	if tableConstraints, ok := constraints[tableName]; ok {
+		if c, ok := tableConstraints[constraintName]; ok {
+			if currentFK != constraintName {
+				if currentFK != "" {
+					if prev, ok := constraints[tableName][currentFK]; ok {
+						prev.referencedColumns = refColumns
+					}
+				}
+				currentFK = constraintName
+				refColumns = nil
+				c.referencedTable = sql.NullString{String: refTable, Valid: true}
+				c.onDelete = deleteRule
+				c.onUpdate = updateRule
+			}
+			refColumns = append(refColumns, column)
+		}
+	}
+	return currentFK, refColumns
 }
 
 func queryAllCheckConstraints(ic *introspectCtx, tableNames []string) (map[string]string, error) {
