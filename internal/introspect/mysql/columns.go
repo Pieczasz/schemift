@@ -7,9 +7,17 @@ import (
 	"smf/internal/core"
 )
 
-func introspectColumns(ic *introspectCtx, t *core.Table) error {
-	rows, err := ic.db.QueryContext(ic.ctx, `
+func queryAllColumns(ic *introspectCtx, tableNames []string) (map[string][]*core.Column, error) {
+	placeholders := make([]string, len(tableNames))
+	args := make([]any, len(tableNames))
+	for i, name := range tableNames {
+		placeholders[i] = "?"
+		args[i] = name
+	}
+
+	query := `
 		SELECT
+			c.table_name,
 			c.column_name,
 			c.column_type,
 			c.column_comment,
@@ -21,26 +29,35 @@ func introspectColumns(ic *introspectCtx, t *core.Table) error {
 			c.column_key,
 			c.generation_expression
 		FROM information_schema.columns c
-		WHERE c.table_schema = DATABASE() AND c.table_name = ?
-		ORDER BY c.ordinal_position
-	`, t.Name)
+		WHERE c.table_schema = DATABASE() AND c.table_name IN (` + strings.Join(placeholders, ",") + `)
+		ORDER BY c.table_name, c.ordinal_position
+	`
+
+	rows, err := ic.db.QueryContext(ic.ctx, query, args...)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer rows.Close()
 
+	result := make(map[string][]*core.Column)
+	currentTable := ""
+
 	for rows.Next() {
-		col := new(core.Column)
-		// TODO: how to do this easier
+		var tableName string
 		var name, colType, comment, nullable, defaultVal, extra, charset, collation, colKey, genExpr sql.NullString
-		if err := rows.Scan(&name, &colType, &comment, &nullable, &defaultVal, &extra, &charset, &collation, &colKey, &genExpr); err != nil {
-			return err
+		if err := rows.Scan(&tableName, &name, &colType, &comment, &nullable, &defaultVal, &extra, &charset, &collation, &colKey, &genExpr); err != nil {
+			return nil, err
+		}
+
+		if currentTable != tableName {
+			currentTable = tableName
+			result[tableName] = []*core.Column{}
 		}
 
 		isPK := colKey.String == "PRI"
 		isAutoInc := strings.Contains(extra.String, "auto_increment")
 
-		col = &core.Column{
+		col := &core.Column{
 			Name:          name.String,
 			RawType:       colType.String,
 			Type:          core.NormalizeDataType(colType.String),
@@ -62,8 +79,8 @@ func introspectColumns(ic *introspectCtx, t *core.Table) error {
 			col.GenerationStorage = core.GenerationStored
 		}
 
-		t.Columns = append(t.Columns, col)
+		result[tableName] = append(result[tableName], col)
 	}
 
-	return rows.Err()
+	return result, rows.Err()
 }
