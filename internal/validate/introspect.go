@@ -70,16 +70,3 @@ func ColumnName(name string) error {
 	}
 	return nil
 }
-
-func CountParens(s string) int {
-	count := 0
-	for _, c := range s {
-		switch c {
-		case '(':
-			count++
-		case ')':
-			count--
-		}
-	}
-	return count
-}

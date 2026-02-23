@@ -139,30 +139,6 @@ func TestColumnNameValidation(t *testing.T) {
 	}
 }
 
-func TestCountParens(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		want  int
-	}{
-		{"empty", "", 0},
-		{"no parens", "abc", 0},
-		{"balanced", "(abc)", 0},
-		{"unbalanced open", "(abc", 1},
-		{"unbalanced close", "abc)", -1},
-		{"nested", "((abc))", 0},
-		{"more open", "((abc", 2},
-		{"more close", "abc))", -2},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := CountParens(tt.input)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
 func TestConstraintNamesEdgeCases(t *testing.T) {
 	t.Run("empty constraint name is valid", func(t *testing.T) {
 		table := &core.Table{

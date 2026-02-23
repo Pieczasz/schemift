@@ -219,16 +219,16 @@ func processFKConstraint(constraints map[string]map[string]*sqlRawConstraint, ta
 func queryAllCheckConstraints(ic *introspectCtx, tableNames []string) (map[string]string, error) {
 	result := make(map[string]string)
 
-	for _, tableName := range tableNames {
-		if err := validate.TableName(tableName); err != nil {
-			continue
-		}
+	if err := validate.TableNames(tableNames); err != nil {
+		return nil, err
+	}
 
+	for _, tableName := range tableNames {
 		var createStmt string
 		quotedName := validate.QuoteIdentifier(tableName)
 		err := ic.db.QueryRowContext(ic.ctx, "SHOW CREATE TABLE "+quotedName).Scan(&tableName, &createStmt)
 		if err != nil {
-			continue
+			return nil, err
 		}
 
 		checkConstraints := parseCheckConstraints(createStmt)
@@ -241,12 +241,8 @@ func queryAllCheckConstraints(ic *introspectCtx, tableNames []string) (map[strin
 func parseCheckConstraints(createStmt string) map[string]string {
 	result := make(map[string]string)
 
-	// Look for CONSTRAINT `name` CHECK (expression) pattern
-	// First, find all CONSTRAINT positions
 	constraintStarts := findAllOccurrences(createStmt, "CONSTRAINT `")
-
 	for _, constraintStart := range constraintStarts {
-		// Extract constraint name
 		nameStart := constraintStart + len("CONSTRAINT `")
 		nameEnd := strings.Index(createStmt[nameStart:], "`")
 		if nameEnd == -1 {
@@ -254,13 +250,11 @@ func parseCheckConstraints(createStmt string) map[string]string {
 		}
 		name := createStmt[nameStart : nameStart+nameEnd]
 
-		// Find CHECK after this constraint
 		checkStart := constraintStart + strings.Index(createStmt[constraintStart:], "CHECK (")
 		if checkStart < constraintStart || checkStart > constraintStart+200 {
 			continue
 		}
 
-		// Find matching closing parenthesis
 		exprStart := checkStart + len("CHECK (")
 		exprEnd := findMatchingParenIndex(createStmt, exprStart)
 		if exprEnd == -1 {
