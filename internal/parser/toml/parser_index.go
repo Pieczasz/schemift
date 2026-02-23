@@ -26,7 +26,7 @@ type tomlColumnIndex struct {
 	Order  string `toml:"order"`
 }
 
-func parseTableIndex(ti *tomlIndex) *core.Index {
+func index(ti *tomlIndex) *core.Index {
 	idx := &core.Index{
 		Name:    ti.Name,
 		Unique:  ti.Unique,
@@ -54,7 +54,7 @@ func mergeColumnIndexes(ti *tomlIndex) []core.ColumnIndex {
 	if len(ti.ColumnDefs) > 0 {
 		cols := make([]core.ColumnIndex, 0, len(ti.ColumnDefs))
 		for i := range ti.ColumnDefs {
-			cols = append(cols, parseColumnIndex(&ti.ColumnDefs[i]))
+			cols = append(cols, columnIndex(&ti.ColumnDefs[i]))
 		}
 		return cols
 	}
@@ -73,7 +73,7 @@ func mergeColumnIndexes(ti *tomlIndex) []core.ColumnIndex {
 	return nil
 }
 
-func parseColumnIndex(tc *tomlColumnIndex) core.ColumnIndex {
+func columnIndex(tc *tomlColumnIndex) core.ColumnIndex {
 	ic := core.ColumnIndex{
 		Name:   tc.Name,
 		Length: tc.Length,

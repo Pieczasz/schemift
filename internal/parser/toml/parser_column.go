@@ -118,7 +118,7 @@ type tomlSQLiteColumnOptions struct {
 	StrictAutoincrement bool `toml:"strict_autoincrement"`
 }
 
-func (p *Parser) parseColumn(tc *tomlColumn) (*core.Column, error) {
+func (p *Parser) column(tc *tomlColumn) (*core.Column, error) {
 	col := &core.Column{
 		Name:               tc.Name,
 		Nullable:           tc.Nullable,
