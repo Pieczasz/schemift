@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"smf/internal/validate"
 )
 
 func TestParseCheckConstraints(t *testing.T) {
@@ -69,28 +67,6 @@ func TestParseCheckConstraints(t *testing.T) {
 	}
 }
 
-func TestCountParens(t *testing.T) {
-	tests := []struct {
-		name  string
-		input string
-		want  int
-	}{
-		{"empty", "", 0},
-		{"balanced", "(a + b)", 0},
-		{"unbalanced open", "(a + b", 1},
-		{"unbalanced close", "a + b)", -1},
-		{"nested", "((a + b) * c)", 0},
-		{"complex", "((`age` is null) or (`age` between 0 and 150))", 0},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := validate.CountParens(tt.input)
-			assert.Equal(t, tt.want, got)
-		})
-	}
-}
-
 func TestParseConstraintType(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -103,7 +79,7 @@ func TestParseConstraintType(t *testing.T) {
 		{"unique", "UNIQUE", "UNIQUE"},
 		{"check", "CHECK", "CHECK"},
 		{"check lowercase", "check", "CHECK"},
-		{"unknown type", "UNKNOWN", "CHECK"},
+		{"unknown type", "UNKNOWN", "UNKNOWN"},
 	}
 
 	for _, tt := range tests {
@@ -149,7 +125,7 @@ func TestNormalizeIndexType(t *testing.T) {
 		{"hash", "HASH", "HASH"},
 		{"fulltext", "FULLTEXT", "FULLTEXT"},
 		{"spatial", "SPATIAL", "SPATIAL"},
-		{"unknown", "UNKNOWN", "BTREE"},
+		{"unknown", "UNKNOWN", "UNKNOWN"},
 	}
 
 	for _, tt := range tests {

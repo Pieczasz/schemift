@@ -182,8 +182,8 @@ type MySQLTableOptions struct {
 	PageCompressed bool
 	// PageCompressionLevel sets the zlib compression level for page compression (1-9).
 	PageCompressionLevel uint64
-	// IetfQuotes enables IETF-compliant quoting for CSV storage engine output.
-	IetfQuotes bool
+	// IETFQuotes enables IETF-compliant quoting for CSV storage engine output.
+	IETFQuotes bool
 	// Nodegroup assigns the table to an NDB Cluster node group.
 	Nodegroup uint64
 }
@@ -244,7 +244,7 @@ type PostgreSQLTableOptions struct {
 	Inherits []string `json:"inherits,omitempty"`
 }
 
-type PostgresColumnOptions struct {
+type PostgreSQLColumnOptions struct {
 	// Storage is the per-attribute storage mode: "PLAIN", "MAIN",
 	// "EXTERNAL", "EXTENDED", or "DEFAULT".
 	Storage string `json:"storage,omitempty"`
@@ -447,13 +447,13 @@ type Column struct {
 	Invisible bool `json:"invisible,omitempty"`
 
 	// Dialect-specific column option groups.
-	MySQL      *MySQLColumnOptions    `json:"mysql,omitempty"`
-	TiDB       *TiDBColumnOptions     `json:"tidb,omitempty"`
-	PostgreSQL *PostgresColumnOptions `json:"postgresql,omitempty"`
-	Oracle     *OracleColumnOptions   `json:"oracle,omitempty"`
-	MSSQL      *MSSQLColumnOptions    `json:"mssql,omitempty"`
-	DB2        *DB2ColumnOptions      `json:"db2,omitempty"`
-	SQLite     *SQLiteColumnOptions   `json:"sqlite,omitempty"`
+	MySQL      *MySQLColumnOptions      `json:"mysql,omitempty"`
+	TiDB       *TiDBColumnOptions       `json:"tidb,omitempty"`
+	PostgreSQL *PostgreSQLColumnOptions `json:"postgresql,omitempty"`
+	Oracle     *OracleColumnOptions     `json:"oracle,omitempty"`
+	MSSQL      *MSSQLColumnOptions      `json:"mssql,omitempty"`
+	DB2        *DB2ColumnOptions        `json:"db2,omitempty"`
+	SQLite     *SQLiteColumnOptions     `json:"sqlite,omitempty"`
 }
 
 // MySQLColumnOptions contains MySQL-specific column-level options.
@@ -748,6 +748,9 @@ func (db *Database) FindTable(name string) *Table {
 
 // FindColumn looks for a column by name inside a table.
 func (t *Table) FindColumn(name string) *Column {
+	if t == nil {
+		return nil
+	}
 	for _, c := range t.Columns {
 		if c.Name == name {
 			return c
@@ -758,6 +761,9 @@ func (t *Table) FindColumn(name string) *Column {
 
 // FindConstraint looks for a constraint by name inside a table.
 func (t *Table) FindConstraint(name string) *Constraint {
+	if t == nil {
+		return nil
+	}
 	for _, c := range t.Constraints {
 		if c.Name == name {
 			return c
@@ -768,6 +774,9 @@ func (t *Table) FindConstraint(name string) *Constraint {
 
 // FindIndex looks for an index by name inside a table.
 func (t *Table) FindIndex(name string) *Index {
+	if t == nil {
+		return nil
+	}
 	for _, i := range t.Indexes {
 		if i.Name == name {
 			return i
@@ -778,6 +787,9 @@ func (t *Table) FindIndex(name string) *Index {
 
 // PrimaryKey returns the primary key constraint of the table.
 func (t *Table) PrimaryKey() *Constraint {
+	if t == nil {
+		return nil
+	}
 	for _, c := range t.Constraints {
 		if c.Type == ConstraintPrimaryKey {
 			return c

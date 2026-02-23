@@ -18,21 +18,29 @@ func detectDialect(ctx context.Context, db *sql.DB) (core.Dialect, string, error
 
 	comment = strings.ToLower(comment)
 
+	version, err := getVersion(ctx, db)
+	if err != nil {
+		return "", "", err
+	}
+
 	switch {
 	case strings.Contains(comment, "mariadb"):
-		return core.DialectMariaDB, getVersion(ctx, db), nil
+		return core.DialectMariaDB, version, nil
 	case strings.Contains(comment, "tidb"):
-		return core.DialectTiDB, getVersion(ctx, db), nil
+		return core.DialectTiDB, version, nil
 	default:
-		return core.DialectMySQL, getVersion(ctx, db), nil
+		return core.DialectMySQL, version, nil
 	}
 }
 
-func getVersion(ctx context.Context, db *sql.DB) string {
+func getVersion(ctx context.Context, db *sql.DB) (string, error) {
 	var version string
-	_ = db.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version)
-	if idx := strings.Index(version, "-"); idx > 0 {
-		version = version[:idx]
+	err := db.QueryRowContext(ctx, "SELECT VERSION()").Scan(&version)
+	if err != nil {
+		return "", err
 	}
-	return version
+	if version, _, found := strings.Cut(version, "-"); found {
+		return version, nil
+	}
+	return version, nil
 }

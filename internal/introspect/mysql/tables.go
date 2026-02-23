@@ -143,16 +143,7 @@ func queryTableNames(ic *introspectCtx) ([]string, error) {
 }
 
 func queryAllTableOptions(ic *introspectCtx, tableNames []string) (map[string]tableOptions, error) {
-	if len(tableNames) == 0 {
-		return make(map[string]tableOptions), nil
-	}
-
-	placeholders := make([]string, len(tableNames))
-	args := make([]any, len(tableNames))
-	for i, name := range tableNames {
-		placeholders[i] = "?"
-		args[i] = name
-	}
+	placeholders, args := buildInClause(tableNames)
 
 	query := `
 		SELECT table_name, engine, table_collation, auto_increment, table_comment
@@ -190,4 +181,15 @@ func queryAllTableOptions(ic *introspectCtx, tableNames []string) (map[string]ta
 	}
 
 	return result, rows.Err()
+}
+
+// TODO: Consider prebuilding this and passing as parameter instead of having this function.
+func buildInClause[T any](items []T) ([]string, []any) {
+	placeholders := make([]string, len(items))
+	args := make([]any, len(items))
+	for i, item := range items {
+		placeholders[i] = "?"
+		args[i] = item
+	}
+	return placeholders, args
 }

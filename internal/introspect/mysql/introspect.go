@@ -38,14 +38,15 @@ func (i *introspecter) Introspect(ctx context.Context, db *sql.DB) (*core.Databa
 	}
 
 	dialect, version, err := detectDialect(ctx, db)
+	if err != nil {
+		return nil, err
+	}
+
 	ic := &introspectCtx{
 		dialect: dialect,
 		version: version,
 		db:      db,
 		ctx:     ctx,
-	}
-	if err != nil {
-		return nil, err
 	}
 	d.Dialect = &dialect
 

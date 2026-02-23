@@ -12,12 +12,12 @@ func init() {
 	introspect.Register(core.DialectSQLite, New)
 }
 
-type sqliteIntrospecter struct{}
+type introspecter struct{}
 
 func New() introspect.Introspecter {
-	return &sqliteIntrospecter{}
+	return &introspecter{}
 }
 
-func (i *sqliteIntrospecter) Introspect(_ context.Context, _ *sql.DB) (*core.Database, error) {
+func (i *introspecter) Introspect(_ context.Context, _ *sql.DB) (*core.Database, error) {
 	return nil, nil
 }

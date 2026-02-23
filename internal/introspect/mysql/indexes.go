@@ -8,12 +8,7 @@ import (
 )
 
 func queryAllIndexes(ic *introspectCtx, tableNames []string) (map[string][]*core.Index, error) {
-	placeholders := make([]string, len(tableNames))
-	args := make([]any, len(tableNames))
-	for i, name := range tableNames {
-		placeholders[i] = "?"
-		args[i] = name
-	}
+	placeholders, args := buildInClause(tableNames)
 
 	query := `
 		SELECT
@@ -80,6 +75,6 @@ func normalizeIndexType(t string) core.IndexType {
 	case "SPATIAL":
 		return core.IndexTypeSpatial
 	default:
-		return core.IndexTypeBTree
+		return core.IndexType(t)
 	}
 }

@@ -12,12 +12,12 @@ func init() {
 	introspect.Register(core.DialectPostgreSQL, New)
 }
 
-type postgresqlIntrospecter struct{}
+type introspecter struct{}
 
 func New() introspect.Introspecter {
-	return &postgresqlIntrospecter{}
+	return &introspecter{}
 }
 
-func (i *postgresqlIntrospecter) Introspect(_ context.Context, _ *sql.DB) (*core.Database, error) {
+func (i *introspecter) Introspect(_ context.Context, _ *sql.DB) (*core.Database, error) {
 	return nil, nil
 }

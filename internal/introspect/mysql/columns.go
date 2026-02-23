@@ -8,12 +8,7 @@ import (
 )
 
 func queryAllColumns(ic *introspectCtx, tableNames []string) (map[string][]*core.Column, error) {
-	placeholders := make([]string, len(tableNames))
-	args := make([]any, len(tableNames))
-	for i, name := range tableNames {
-		placeholders[i] = "?"
-		args[i] = name
-	}
+	placeholders, args := buildInClause(tableNames)
 
 	query := `
 		SELECT
@@ -32,7 +27,6 @@ func queryAllColumns(ic *introspectCtx, tableNames []string) (map[string][]*core
 		WHERE c.table_schema = DATABASE() AND c.table_name IN (` + strings.Join(placeholders, ",") + `)
 		ORDER BY c.table_name, c.ordinal_position
 	`
-
 	rows, err := ic.db.QueryContext(ic.ctx, query, args...)
 	if err != nil {
 		return nil, err

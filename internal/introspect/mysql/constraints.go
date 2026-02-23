@@ -22,12 +22,7 @@ type sqlRawConstraint struct {
 }
 
 func queryAllConstraints(ic *introspectCtx, tableNames []string) (map[string]map[string]*sqlRawConstraint, error) {
-	placeholders := make([]string, len(tableNames))
-	args := make([]any, len(tableNames))
-	for i, name := range tableNames {
-		placeholders[i] = "?"
-		args[i] = name
-	}
+	placeholders, args := buildInClause(tableNames)
 
 	query := `
 		SELECT
@@ -77,16 +72,7 @@ func queryAllConstraints(ic *introspectCtx, tableNames []string) (map[string]map
 }
 
 func queryAllConstraintColumns(ic *introspectCtx, tableNames []string, constraints map[string]map[string]*sqlRawConstraint) error {
-	if len(tableNames) == 0 {
-		return nil
-	}
-
-	placeholders := make([]string, len(tableNames))
-	args := make([]any, len(tableNames))
-	for i, name := range tableNames {
-		placeholders[i] = "?"
-		args[i] = name
-	}
+	placeholders, args := buildInClause(tableNames)
 
 	query := `
 		SELECT
@@ -123,26 +109,8 @@ func queryAllConstraintColumns(ic *introspectCtx, tableNames []string, constrain
 }
 
 func queryAllForeignKeyInfo(ic *introspectCtx, tableNames []string, constraints map[string]map[string]*sqlRawConstraint) error {
-	if len(tableNames) == 0 {
-		return nil
-	}
-
-	rows, err := ic.db.QueryContext(ic.ctx, buildForeignKeyQuery(tableNames), buildQueryArgs(tableNames)...)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-
-	return processForeignKeyRows(rows, constraints)
-}
-
-func buildForeignKeyQuery(tableNames []string) string {
-	placeholders := make([]string, len(tableNames))
-	for i := range tableNames {
-		placeholders[i] = "?"
-	}
-
-	return `
+	placeholders, args := buildInClause(tableNames)
+	query := `
 		SELECT
 			fk.table_name,
 			fk.constraint_name,
@@ -161,17 +129,12 @@ func buildForeignKeyQuery(tableNames []string) string {
 			AND rc.table_name IN (` + strings.Join(placeholders, ",") + `)
 		ORDER BY rc.table_name, rc.constraint_name, fk.ordinal_position
 	`
-}
-
-func buildQueryArgs(tableNames []string) []any {
-	args := make([]any, len(tableNames))
-	for i, name := range tableNames {
-		args[i] = name
+	rows, err := ic.db.QueryContext(ic.ctx, query, args...)
+	if err != nil {
+		return err
 	}
-	return args
-}
+	defer rows.Close()
 
-func processForeignKeyRows(rows *sql.Rows, constraints map[string]map[string]*sqlRawConstraint) error {
 	currentFK := ""
 	var refColumns []string
 
@@ -184,12 +147,6 @@ func processForeignKeyRows(rows *sql.Rows, constraints map[string]map[string]*sq
 		}
 
 		currentFK, refColumns = processFKConstraint(constraints, tableName, constraintName, column, refTable, currentFK, refColumns, deleteRule, updateRule)
-	}
-
-	if currentFK != "" {
-		if prev, ok := constraints[""][currentFK]; ok {
-			prev.referencedColumns = refColumns
-		}
 	}
 
 	return rows.Err()
@@ -226,6 +183,7 @@ func queryAllCheckConstraints(ic *introspectCtx, tableNames []string) (map[strin
 	for _, tableName := range tableNames {
 		var createStmt string
 		quotedName := validate.QuoteIdentifier(tableName)
+		// TODO: check if we can do it in any other way
 		err := ic.db.QueryRowContext(ic.ctx, "SHOW CREATE TABLE "+quotedName).Scan(&tableName, &createStmt)
 		if err != nil {
 			return nil, err
@@ -331,7 +289,7 @@ func parseConstraintType(t string) core.ConstraintType {
 	case "CHECK":
 		return core.ConstraintCheck
 	default:
-		return core.ConstraintCheck
+		return core.ConstraintType(t)
 	}
 }
 
