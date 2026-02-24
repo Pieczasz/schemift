@@ -2,11 +2,9 @@ package mysql
 
 import (
 	"database/sql"
-	"maps"
 	"strings"
 
 	"smf/internal/core"
-	"smf/internal/validate"
 )
 
 type sqlRawConstraint struct {
@@ -26,13 +24,18 @@ func queryAllConstraints(ic *introspectCtx, tableNames []string) (map[string]map
 
 	query := `
 		SELECT
-			table_name,
-			constraint_name,
-			constraint_type,
-			ENFORCED
-		FROM information_schema.table_constraints
-		WHERE table_schema = DATABASE() AND table_name IN (` + strings.Join(placeholders, ",") + `)
-		ORDER BY table_name, constraint_name
+			tc.table_name,
+			tc.constraint_name,
+			tc.constraint_type,
+			tc.enforced,
+			cc.check_clause
+		FROM information_schema.table_constraints AS tc
+		LEFT JOIN information_schema.check_constraints AS cc
+			ON  cc.constraint_schema = tc.constraint_schema
+			AND cc.constraint_name   = tc.constraint_name
+		WHERE tc.table_schema = DATABASE()
+		  AND tc.table_name IN (` + strings.Join(placeholders, ",") + `)
+		ORDER BY tc.table_name, tc.constraint_name
 	`
 
 	rows, err := ic.db.QueryContext(ic.ctx, query, args...)
@@ -44,8 +47,8 @@ func queryAllConstraints(ic *introspectCtx, tableNames []string) (map[string]map
 	result := make(map[string]map[string]*sqlRawConstraint)
 	for rows.Next() {
 		var tableName, name, ctype string
-		var enforced sql.NullString
-		if err := rows.Scan(&tableName, &name, &ctype, &enforced); err != nil {
+		var enforced, checkExpr sql.NullString
+		if err := rows.Scan(&tableName, &name, &ctype, &enforced, &checkExpr); err != nil {
 			return nil, err
 		}
 
@@ -54,9 +57,10 @@ func queryAllConstraints(ic *introspectCtx, tableNames []string) (map[string]map
 		}
 
 		result[tableName][name] = &sqlRawConstraint{
-			name:           name,
-			constraintType: ctype,
-			enforced:       strings.ToUpper(enforced.String) == "YES",
+			name:            name,
+			constraintType:  ctype,
+			enforced:        strings.ToUpper(enforced.String) == "YES",
+			checkExpression: checkExpr,
 		}
 	}
 
@@ -171,89 +175,6 @@ func processFKConstraint(constraints map[string]map[string]*sqlRawConstraint, ta
 		}
 	}
 	return currentFK, refColumns
-}
-
-func queryAllCheckConstraints(ic *introspectCtx, tableNames []string) (map[string]string, error) {
-	result := make(map[string]string)
-
-	if err := validate.TableNames(tableNames); err != nil {
-		return nil, err
-	}
-
-	for _, tableName := range tableNames {
-		var createStmt string
-		quotedName := validate.QuoteIdentifier(tableName)
-		// TODO: check if we can do it in any other way
-		err := ic.db.QueryRowContext(ic.ctx, "SHOW CREATE TABLE "+quotedName).Scan(&tableName, &createStmt)
-		if err != nil {
-			return nil, err
-		}
-
-		checkConstraints := parseCheckConstraints(createStmt)
-		maps.Copy(result, checkConstraints)
-	}
-
-	return result, nil
-}
-
-func parseCheckConstraints(createStmt string) map[string]string {
-	result := make(map[string]string)
-
-	constraintStarts := findAllOccurrences(createStmt, "CONSTRAINT `")
-	for _, constraintStart := range constraintStarts {
-		nameStart := constraintStart + len("CONSTRAINT `")
-		nameEnd := strings.Index(createStmt[nameStart:], "`")
-		if nameEnd == -1 {
-			continue
-		}
-		name := createStmt[nameStart : nameStart+nameEnd]
-
-		checkStart := constraintStart + strings.Index(createStmt[constraintStart:], "CHECK (")
-		if checkStart < constraintStart || checkStart > constraintStart+200 {
-			continue
-		}
-
-		exprStart := checkStart + len("CHECK (")
-		exprEnd := findMatchingParenIndex(createStmt, exprStart)
-		if exprEnd == -1 {
-			continue
-		}
-
-		expr := createStmt[exprStart:exprEnd]
-		result[name] = expr
-	}
-
-	return result
-}
-
-func findAllOccurrences(s, substr string) []int {
-	var result []int
-	start := 0
-	for {
-		idx := strings.Index(s[start:], substr)
-		if idx == -1 {
-			break
-		}
-		result = append(result, start+idx)
-		start = start + idx + len(substr)
-	}
-	return result
-}
-
-func findMatchingParenIndex(s string, start int) int {
-	count := 1
-	for i := start; i < len(s); i++ {
-		switch s[i] {
-		case '(':
-			count++
-		case ')':
-			count--
-			if count == 0 {
-				return i
-			}
-		}
-	}
-	return -1
 }
 
 func convertToCoreConstraint(c *sqlRawConstraint) *core.Constraint {

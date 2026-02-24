@@ -31,11 +31,10 @@ func introspectTables(ic *introspectCtx, db *core.Database) error {
 }
 
 type tableData struct {
-	tableOptions     tableOptions
-	columns          []*core.Column
-	indexes          []*core.Index
-	constraints      map[string]*sqlRawConstraint
-	checkConstraints map[string]string
+	tableOptions tableOptions
+	columns      []*core.Column
+	indexes      []*core.Index
+	constraints  map[string]*sqlRawConstraint
 }
 
 func gatherTableData(ic *introspectCtx, tableNames []string) (map[string]tableData, error) {
@@ -59,19 +58,13 @@ func gatherTableData(ic *introspectCtx, tableNames []string) (map[string]tableDa
 		return nil, err
 	}
 
-	checkConstraints, err := queryAllCheckConstraints(ic, tableNames)
-	if err != nil {
-		return nil, err
-	}
-
 	result := make(map[string]tableData)
 	for _, tableName := range tableNames {
 		result[tableName] = tableData{
-			tableOptions:     tableOptions[tableName],
-			columns:          columns[tableName],
-			indexes:          indexes[tableName],
-			constraints:      constraints[tableName],
-			checkConstraints: checkConstraints,
+			tableOptions: tableOptions[tableName],
+			columns:      columns[tableName],
+			indexes:      indexes[tableName],
+			constraints:  constraints[tableName],
 		}
 	}
 	return result, nil
@@ -99,11 +92,6 @@ func buildTable(tableName string, data tableData) *core.Table {
 	t.Indexes = append(t.Indexes, data.indexes...)
 
 	for _, c := range data.constraints {
-		if c.checkExpression.Valid {
-			if expr, ok := data.checkConstraints[c.name]; ok {
-				c.checkExpression = sql.NullString{String: expr, Valid: true}
-			}
-		}
 		t.Constraints = append(t.Constraints, convertToCoreConstraint(c))
 	}
 
