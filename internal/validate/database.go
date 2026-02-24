@@ -17,7 +17,7 @@ func Database(db *core.Database) error {
 		return err
 	}
 
-	nameRe, err := CompileAllowedNamePattern(db.Validation)
+	nameRe, err := AllowedNamePattern(db.Validation)
 	if err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func RequiredFields(db *core.Database) error {
 	return nil
 }
 
-func CompileAllowedNamePattern(rules *core.ValidationRules) (*regexp.Regexp, error) {
+func AllowedNamePattern(rules *core.ValidationRules) (*regexp.Regexp, error) {
 	if rules == nil || rules.AllowedNamePattern == "" {
 		return nil, nil
 	}

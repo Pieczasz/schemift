@@ -164,6 +164,7 @@ type tomlMariaDBTableOptions struct {
 	WithSystemVersioning bool   `toml:"with_system_versioning"`
 }
 
+// table method parses a toml table into core.Table struct.
 func (p *Parser) table(tt *tomlTable, idx int) (*core.Table, error) {
 	table := &core.Table{
 		Name:    tt.Name,
@@ -198,6 +199,7 @@ func (p *Parser) table(tt *tomlTable, idx int) (*core.Table, error) {
 	return table, nil
 }
 
+// tableOption parses tomlTableOptions to core.TableOptions struct.
 func tableOptions(to *tomlTableOptions) core.TableOptions {
 	opts := core.TableOptions{
 		Tablespace: to.Tablespace,
@@ -361,7 +363,7 @@ func mariaDBTableOptions(mdb *tomlMariaDBTableOptions) *core.MariaDBTableOptions
 	}
 }
 
-// parseTableColumns populates table.Columns from the TOML column definitions
+// tableColumns populates table.Columns from the TOML column definitions
 // and injects timestamp columns when enabled.
 func (p *Parser) tableColumns(table *core.Table, tt *tomlTable, tableIdx int) error {
 	table.Columns = make([]*core.Column, 0, len(tt.Columns))
@@ -382,7 +384,6 @@ func (p *Parser) tableColumns(table *core.Table, tt *tomlTable, tableIdx int) er
 
 // injectTimestampColumns resolves the created/updated column names and appends
 // the columns when not already present.
-// Note: Validation of distinct column names is done in core.Validate().
 func injectTimestampColumns(table *core.Table) {
 	createdCol := defaultCreatedColumn
 	updatedCol := defaultUpdatedColumn

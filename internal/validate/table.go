@@ -39,6 +39,7 @@ func TableStructures(tables []*core.Table, rules *core.ValidationRules, nameRe *
 }
 
 func Table(t *core.Table, rules *core.ValidationRules, nameRe *regexp.Regexp) error {
+	// TODO: options part
 	if err := TableNameAndOptions(t, rules, nameRe); err != nil {
 		return err
 	}

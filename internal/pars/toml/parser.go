@@ -88,7 +88,6 @@ func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 }
 
 // rules parses [validation] into core.ValidationRules.
-// No validation is performed here — that happens in db.Validate().
 func rules(v *tomlValidation) *core.ValidationRules {
 	if v == nil {
 		return &core.ValidationRules{}

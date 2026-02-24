@@ -16,6 +16,7 @@ func Column(c *core.Column, rules *core.ValidationRules, nameRe *regexp.Regexp) 
 		return fmt.Errorf("column %q: type is empty", c.Name)
 	}
 
+	// TODO: create this validation
 	if err := ColumnOptions(c); err != nil {
 		return fmt.Errorf("column %q: %w", c.Name, err)
 	}

@@ -14,7 +14,7 @@ type tomlConstraint struct {
 	OnDelete          string   `toml:"on_delete"`
 	OnUpdate          string   `toml:"on_update"`
 	CheckExpression   string   `toml:"check_expression"`
-	Enforced          *bool    `toml:"enforced"` // pointer: absent -> true
+	Enforced          *bool    `toml:"enforced"` // pointer: absent -> true/not supported
 }
 
 func constraint(tc *tomlConstraint) *core.Constraint {
