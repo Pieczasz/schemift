@@ -19,9 +19,7 @@ type sqlRawConstraint struct {
 	enforced          bool
 }
 
-func queryAllConstraints(ic *introspectCtx, tableNames []string) (map[string]map[string]*sqlRawConstraint, error) {
-	placeholders, args := buildInClause(tableNames)
-
+func queryAllConstraints(ic *introspectCtx, placeholders []string, args []any) (map[string]map[string]*sqlRawConstraint, error) {
 	query := `
 		SELECT
 			tc.table_name,
@@ -64,20 +62,18 @@ func queryAllConstraints(ic *introspectCtx, tableNames []string) (map[string]map
 		}
 	}
 
-	if err := queryAllConstraintColumns(ic, tableNames, result); err != nil {
+	if err := queryAllConstraintColumns(ic, placeholders, args, result); err != nil {
 		return nil, err
 	}
 
-	if err := queryAllForeignKeyInfo(ic, tableNames, result); err != nil {
+	if err := queryAllForeignKeyInfo(ic, placeholders, args, result); err != nil {
 		return nil, err
 	}
 
 	return result, rows.Err()
 }
 
-func queryAllConstraintColumns(ic *introspectCtx, tableNames []string, constraints map[string]map[string]*sqlRawConstraint) error {
-	placeholders, args := buildInClause(tableNames)
-
+func queryAllConstraintColumns(ic *introspectCtx, placeholders []string, args []any, constraints map[string]map[string]*sqlRawConstraint) error {
 	query := `
 		SELECT
 			table_name,
@@ -112,8 +108,7 @@ func queryAllConstraintColumns(ic *introspectCtx, tableNames []string, constrain
 	return rows.Err()
 }
 
-func queryAllForeignKeyInfo(ic *introspectCtx, tableNames []string, constraints map[string]map[string]*sqlRawConstraint) error {
-	placeholders, args := buildInClause(tableNames)
+func queryAllForeignKeyInfo(ic *introspectCtx, placeholders []string, args []any, constraints map[string]map[string]*sqlRawConstraint) error {
 	query := `
 		SELECT
 			fk.table_name,

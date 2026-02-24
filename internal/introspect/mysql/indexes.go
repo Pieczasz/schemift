@@ -7,9 +7,7 @@ import (
 	"smf/internal/core"
 )
 
-func queryAllIndexes(ic *introspectCtx, tableNames []string) (map[string][]*core.Index, error) {
-	placeholders, args := buildInClause(tableNames)
-
+func queryAllIndexes(ic *introspectCtx, placeholders []string, args []any) (map[string][]*core.Index, error) {
 	query := `
 		SELECT
 			i.table_name,

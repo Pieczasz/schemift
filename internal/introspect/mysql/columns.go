@@ -7,9 +7,7 @@ import (
 	"smf/internal/core"
 )
 
-func queryAllColumns(ic *introspectCtx, tableNames []string) (map[string][]*core.Column, error) {
-	placeholders, args := buildInClause(tableNames)
-
+func queryAllColumns(ic *introspectCtx, placeholders []string, args []any) (map[string][]*core.Column, error) {
 	query := `
 		SELECT
 			c.table_name,

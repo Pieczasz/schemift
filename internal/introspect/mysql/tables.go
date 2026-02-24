@@ -38,22 +38,29 @@ type tableData struct {
 }
 
 func gatherTableData(ic *introspectCtx, tableNames []string) (map[string]tableData, error) {
-	tableOptions, err := queryAllTableOptions(ic, tableNames)
+	placeholders := make([]string, len(tableNames))
+	args := make([]any, len(tableNames))
+	for i, item := range tableNames {
+		placeholders[i] = "?"
+		args[i] = item
+	}
+
+	tableOptions, err := queryAllTableOptions(ic, placeholders, args)
 	if err != nil {
 		return nil, err
 	}
 
-	columns, err := queryAllColumns(ic, tableNames)
+	columns, err := queryAllColumns(ic, placeholders, args)
 	if err != nil {
 		return nil, err
 	}
 
-	indexes, err := queryAllIndexes(ic, tableNames)
+	indexes, err := queryAllIndexes(ic, placeholders, args)
 	if err != nil {
 		return nil, err
 	}
 
-	constraints, err := queryAllConstraints(ic, tableNames)
+	constraints, err := queryAllConstraints(ic, placeholders, args)
 	if err != nil {
 		return nil, err
 	}
@@ -130,9 +137,7 @@ func queryTableNames(ic *introspectCtx) ([]string, error) {
 	return names, rows.Err()
 }
 
-func queryAllTableOptions(ic *introspectCtx, tableNames []string) (map[string]tableOptions, error) {
-	placeholders, args := buildInClause(tableNames)
-
+func queryAllTableOptions(ic *introspectCtx, placeholders []string, args []any) (map[string]tableOptions, error) {
 	query := `
 		SELECT table_name, engine, table_collation, auto_increment, table_comment
 		FROM information_schema.tables
@@ -169,15 +174,4 @@ func queryAllTableOptions(ic *introspectCtx, tableNames []string) (map[string]ta
 	}
 
 	return result, rows.Err()
-}
-
-// TODO: Consider prebuilding this and passing as parameter instead of having this function.
-func buildInClause[T any](items []T) ([]string, []any) {
-	placeholders := make([]string, len(items))
-	args := make([]any, len(items))
-	for i, item := range items {
-		placeholders[i] = "?"
-		args[i] = item
-	}
-	return placeholders, args
 }
