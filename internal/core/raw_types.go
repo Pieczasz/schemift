@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"maps"
 	"regexp"
 	"sort"
 	"strings"
@@ -37,7 +38,7 @@ var dialectRawTypes = map[Dialect]map[string]struct{}{
 	DialectTiDB:       tidbTypes,
 }
 
-var mysqlTypes = toSet(
+var mysqlBaseTypes = toSet(
 	// Numeric
 	"TINYINT", "SMALLINT", "MEDIUMINT", "INT", "INTEGER", "BIGINT",
 	"FLOAT", "DOUBLE", "DOUBLE PRECISION", "DECIMAL", "DEC", "NUMERIC",
@@ -59,26 +60,11 @@ var mysqlTypes = toSet(
 	"MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION",
 )
 
-var mariadbTypes = toSet(
-	// All of MySQL's types
-	"TINYINT", "SMALLINT", "MEDIUMINT", "INT", "INTEGER", "BIGINT",
-	"FLOAT", "DOUBLE", "DOUBLE PRECISION", "DECIMAL", "DEC", "NUMERIC",
-	"FIXED", "BIT", "BOOL", "BOOLEAN",
+var mysqlTypes = mysqlBaseTypes
 
-	"DATE", "DATETIME", "TIMESTAMP", "TIME", "YEAR",
+var mariadbTypes = mergeSets(mysqlBaseTypes, toSet("INET4", "INET6", "UUID"))
 
-	"CHAR", "VARCHAR", "BINARY", "VARBINARY",
-	"TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB",
-	"TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT",
-
-	"ENUM", "SET", "JSON",
-
-	"GEOMETRY", "POINT", "LINESTRING", "POLYGON",
-	"MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION",
-
-	// MariaDB extras
-	"INET4", "INET6", "UUID",
-)
+var tidbTypes = mysqlBaseTypes
 
 var postgresqlTypes = toSet(
 	// Numeric
@@ -294,24 +280,6 @@ var mssqlTypes = toSet(
 	"CURSOR", "TABLE", "SYSNAME",
 )
 
-var tidbTypes = toSet(
-	// TiDB inherits from MySQL
-	"TINYINT", "SMALLINT", "MEDIUMINT", "INT", "INTEGER", "BIGINT",
-	"FLOAT", "DOUBLE", "DOUBLE PRECISION", "DECIMAL", "DEC", "NUMERIC",
-	"FIXED", "BIT", "BOOL", "BOOLEAN",
-
-	"DATE", "DATETIME", "TIMESTAMP", "TIME", "YEAR",
-
-	"CHAR", "VARCHAR", "BINARY", "VARBINARY",
-	"TINYBLOB", "BLOB", "MEDIUMBLOB", "LONGBLOB",
-	"TINYTEXT", "TEXT", "MEDIUMTEXT", "LONGTEXT",
-
-	"ENUM", "SET", "JSON",
-
-	"GEOMETRY", "POINT", "LINESTRING", "POLYGON",
-	"MULTIPOINT", "MULTILINESTRING", "MULTIPOLYGON", "GEOMETRYCOLLECTION",
-)
-
 // ValidateRawType checks whether rawType is a valid SQL type for the
 // given dialect. It returns nil when the type is valid.
 // A descriptive error is returned when the type is unrecognized.
@@ -322,7 +290,7 @@ func ValidateRawType(rawType string, dialect Dialect) error {
 
 	types, ok := dialectRawTypes[dialect]
 	if !ok {
-		return nil
+		return fmt.Errorf("unknown dialect: %q", dialect)
 	}
 
 	base := normalizeRawTypeBase(rawType)
@@ -348,6 +316,15 @@ func toSet(names ...string) map[string]struct{} {
 		m[strings.ToUpper(n)] = struct{}{}
 	}
 	return m
+}
+
+// mergeSets combines multiple type sets into a single set.
+func mergeSets(sets ...map[string]struct{}) map[string]struct{} {
+	result := make(map[string]struct{})
+	for _, s := range sets {
+		maps.Copy(result, s)
+	}
+	return result
 }
 
 // normalizeRawTypeBase extracts the base type name from a raw SQL type

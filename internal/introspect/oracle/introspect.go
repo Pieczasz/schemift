@@ -12,12 +12,12 @@ func init() {
 	introspect.Register(core.DialectOracle, New)
 }
 
-type oracleIntrospecter struct{}
+type introspecter struct{}
 
 func New() introspect.Introspecter {
-	return &oracleIntrospecter{}
+	return &introspecter{}
 }
 
-func (i *oracleIntrospecter) Introspect(_ context.Context, _ *sql.DB) (*core.Database, error) {
+func (i *introspecter) Introspect(_ context.Context, _ *sql.DB) (*core.Database, error) {
 	return nil, nil
 }

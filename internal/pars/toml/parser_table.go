@@ -79,7 +79,7 @@ type tomlMySQLTableOptions struct {
 	SecondaryEngineAttribute string   `toml:"secondary_engine_attribute"`
 	PageCompressed           bool     `toml:"page_compressed"`
 	PageCompressionLevel     uint64   `toml:"page_compression_level"`
-	IetfQuotes               bool     `toml:"ietf_quotes"`
+	IETFQuotes               bool     `toml:"ietf_quotes"`
 	Nodegroup                uint64   `toml:"nodegroup"`
 }
 
@@ -164,11 +164,12 @@ type tomlMariaDBTableOptions struct {
 	WithSystemVersioning bool   `toml:"with_system_versioning"`
 }
 
-func (p *Parser) parseTable(tt *tomlTable, idx int) (*core.Table, error) {
+// table method parses a toml table into core.Table struct.
+func (p *Parser) table(tt *tomlTable, idx int) (*core.Table, error) {
 	table := &core.Table{
 		Name:    tt.Name,
 		Comment: tt.Comment,
-		Options: parseTableOptions(&tt.Options),
+		Options: tableOptions(&tt.Options),
 	}
 
 	if ts := tt.Timestamps; ts != nil {
@@ -179,62 +180,63 @@ func (p *Parser) parseTable(tt *tomlTable, idx int) (*core.Table, error) {
 		}
 	}
 
-	if err := p.parseTableColumns(table, tt, idx); err != nil {
+	if err := p.tableColumns(table, tt, idx); err != nil {
 		return nil, err
 	}
 
 	table.Constraints = make([]*core.Constraint, 0, len(tt.Constraints))
 	for i := range tt.Constraints {
-		con := parseTableConstraint(&tt.Constraints[i])
+		con := constraint(&tt.Constraints[i])
 		table.Constraints = append(table.Constraints, con)
 	}
 
 	table.Indexes = make([]*core.Index, 0, len(tt.Indexes))
 	for i := range tt.Indexes {
-		idx := parseTableIndex(&tt.Indexes[i])
+		idx := index(&tt.Indexes[i])
 		table.Indexes = append(table.Indexes, idx)
 	}
 
 	return table, nil
 }
 
-func parseTableOptions(to *tomlTableOptions) core.TableOptions {
+// tableOption parses tomlTableOptions to core.TableOptions struct.
+func tableOptions(to *tomlTableOptions) core.TableOptions {
 	opts := core.TableOptions{
 		Tablespace: to.Tablespace,
 	}
 
 	if to.MySQL != nil {
-		opts.MySQL = parseMySQLTableOptions(to.MySQL)
+		opts.MySQL = mysqlTableOptions(to.MySQL)
 	}
 	if to.TiDB != nil {
-		opts.TiDB = parseTiDBTableOptions(to.TiDB)
+		opts.TiDB = tidbTableOptions(to.TiDB)
 	}
 	if to.PostgreSQL != nil {
-		opts.PostgreSQL = parsePostgreSQLTableOptions(to.PostgreSQL)
+		opts.PostgreSQL = postgreSQLTableOptions(to.PostgreSQL)
 	}
 	if to.Oracle != nil {
-		opts.Oracle = parseOracleTableOptions(to.Oracle)
+		opts.Oracle = oracleTableOptions(to.Oracle)
 	}
 	if to.SQLServer != nil {
-		opts.SQLServer = parseSQLServerTableOptions(to.SQLServer)
+		opts.SQLServer = sqlServerTableOptions(to.SQLServer)
 	}
 	if to.DB2 != nil {
-		opts.DB2 = parseDB2TableOptions(to.DB2)
+		opts.DB2 = db2TableOptions(to.DB2)
 	}
 	if to.Snowflake != nil {
-		opts.Snowflake = parseSnowflakeTableOptions(to.Snowflake)
+		opts.Snowflake = snowflakeTableOptions(to.Snowflake)
 	}
 	if to.SQLite != nil {
-		opts.SQLite = parseSQLiteTableOptions(to.SQLite)
+		opts.SQLite = sqliteTableOptions(to.SQLite)
 	}
 	if to.MariaDB != nil {
-		opts.MariaDB = parseMariaDBTableOptions(to.MariaDB)
+		opts.MariaDB = mariaDBTableOptions(to.MariaDB)
 	}
 
 	return opts
 }
 
-func parseMySQLTableOptions(m *tomlMySQLTableOptions) *core.MySQLTableOptions {
+func mysqlTableOptions(m *tomlMySQLTableOptions) *core.MySQLTableOptions {
 	return &core.MySQLTableOptions{
 		Engine:                   m.Engine,
 		Charset:                  m.Charset,
@@ -267,12 +269,12 @@ func parseMySQLTableOptions(m *tomlMySQLTableOptions) *core.MySQLTableOptions {
 		SecondaryEngineAttribute: m.SecondaryEngineAttribute,
 		PageCompressed:           m.PageCompressed,
 		PageCompressionLevel:     m.PageCompressionLevel,
-		IetfQuotes:               m.IetfQuotes,
+		IETFQuotes:               m.IETFQuotes,
 		Nodegroup:                m.Nodegroup,
 	}
 }
 
-func parseTiDBTableOptions(t *tomlTiDBTableOptions) *core.TiDBTableOptions {
+func tidbTableOptions(t *tomlTiDBTableOptions) *core.TiDBTableOptions {
 	return &core.TiDBTableOptions{
 		AutoIDCache:     t.AutoIDCache,
 		AutoRandomBase:  t.AutoRandomBase,
@@ -292,7 +294,7 @@ func parseTiDBTableOptions(t *tomlTiDBTableOptions) *core.TiDBTableOptions {
 	}
 }
 
-func parsePostgreSQLTableOptions(pg *tomlPostgreSQLTableOptions) *core.PostgreSQLTableOptions {
+func postgreSQLTableOptions(pg *tomlPostgreSQLTableOptions) *core.PostgreSQLTableOptions {
 	return &core.PostgreSQLTableOptions{
 		Schema:      pg.Schema,
 		Unlogged:    pg.Unlogged,
@@ -302,7 +304,7 @@ func parsePostgreSQLTableOptions(pg *tomlPostgreSQLTableOptions) *core.PostgreSQ
 	}
 }
 
-func parseOracleTableOptions(o *tomlOracleTableOptions) *core.OracleTableOptions {
+func oracleTableOptions(o *tomlOracleTableOptions) *core.OracleTableOptions {
 	return &core.OracleTableOptions{
 		Organization:    o.Organization,
 		Logging:         o.Logging,
@@ -313,7 +315,7 @@ func parseOracleTableOptions(o *tomlOracleTableOptions) *core.OracleTableOptions
 	}
 }
 
-func parseSQLServerTableOptions(ss *tomlSQLServerTableOptions) *core.SQLServerTableOptions {
+func sqlServerTableOptions(ss *tomlSQLServerTableOptions) *core.SQLServerTableOptions {
 	return &core.SQLServerTableOptions{
 		FileGroup:        ss.FileGroup,
 		DataCompression:  ss.DataCompression,
@@ -324,7 +326,7 @@ func parseSQLServerTableOptions(ss *tomlSQLServerTableOptions) *core.SQLServerTa
 	}
 }
 
-func parseDB2TableOptions(d *tomlDB2TableOptions) *core.DB2TableOptions {
+func db2TableOptions(d *tomlDB2TableOptions) *core.DB2TableOptions {
 	return &core.DB2TableOptions{
 		OrganizeBy:  d.OrganizeBy,
 		Compress:    d.Compress,
@@ -334,7 +336,7 @@ func parseDB2TableOptions(d *tomlDB2TableOptions) *core.DB2TableOptions {
 	}
 }
 
-func parseSnowflakeTableOptions(sf *tomlSnowflakeTableOptions) *core.SnowflakeTableOptions {
+func snowflakeTableOptions(sf *tomlSnowflakeTableOptions) *core.SnowflakeTableOptions {
 	return &core.SnowflakeTableOptions{
 		ClusterBy:         sf.ClusterBy,
 		DataRetentionDays: sf.DataRetentionDays,
@@ -344,14 +346,14 @@ func parseSnowflakeTableOptions(sf *tomlSnowflakeTableOptions) *core.SnowflakeTa
 	}
 }
 
-func parseSQLiteTableOptions(sl *tomlSQLiteTableOptions) *core.SQLiteTableOptions {
+func sqliteTableOptions(sl *tomlSQLiteTableOptions) *core.SQLiteTableOptions {
 	return &core.SQLiteTableOptions{
 		WithoutRowid: sl.WithoutRowid,
 		Strict:       sl.Strict,
 	}
 }
 
-func parseMariaDBTableOptions(mdb *tomlMariaDBTableOptions) *core.MariaDBTableOptions {
+func mariaDBTableOptions(mdb *tomlMariaDBTableOptions) *core.MariaDBTableOptions {
 	return &core.MariaDBTableOptions{
 		PageChecksum:         mdb.PageChecksum,
 		Transactional:        mdb.Transactional,
@@ -361,12 +363,12 @@ func parseMariaDBTableOptions(mdb *tomlMariaDBTableOptions) *core.MariaDBTableOp
 	}
 }
 
-// parseTableColumns populates table.Columns from the TOML column definitions
+// tableColumns populates table.Columns from the TOML column definitions
 // and injects timestamp columns when enabled.
-func (p *Parser) parseTableColumns(table *core.Table, tt *tomlTable, tableIdx int) error {
+func (p *Parser) tableColumns(table *core.Table, tt *tomlTable, tableIdx int) error {
 	table.Columns = make([]*core.Column, 0, len(tt.Columns))
 	for i := range tt.Columns {
-		col, err := p.parseColumn(&tt.Columns[i])
+		col, err := p.column(&tt.Columns[i])
 		if err != nil {
 			return fmt.Errorf("toml: table %d column %d (%q): %w", tableIdx, i, tt.Columns[i].Name, err)
 		}
@@ -382,7 +384,6 @@ func (p *Parser) parseTableColumns(table *core.Table, tt *tomlTable, tableIdx in
 
 // injectTimestampColumns resolves the created/updated column names and appends
 // the columns when not already present.
-// Note: Validation of distinct column names is done in core.Validate().
 func injectTimestampColumns(table *core.Table) {
 	createdCol := defaultCreatedColumn
 	updatedCol := defaultUpdatedColumn

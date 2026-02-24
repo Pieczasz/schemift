@@ -161,6 +161,16 @@ func TestValidateRawTypeValidMSSQL(t *testing.T) {
 	})
 }
 
+func TestValidateRawTypeValidTiDB(t *testing.T) {
+	assertValidRawTypes(t, DialectTiDB, []string{
+		"VARCHAR(255)", "INT", "BIGINT UNSIGNED", "TINYINT(1)",
+		"ENUM('a','b')", "JSON", "DATETIME", "TIMESTAMP",
+		"DECIMAL(10,2)", "MEDIUMTEXT", "LONGBLOB", "DOUBLE PRECISION",
+		"GEOMETRY", "SET", "BOOLEAN", "YEAR",
+		"varchar(255)", // case insensitivity
+	})
+}
+
 func TestValidateRawTypeInvalid(t *testing.T) {
 	tests := []struct {
 		rawType string

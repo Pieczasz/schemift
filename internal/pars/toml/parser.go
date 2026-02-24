@@ -13,6 +13,7 @@ import (
 	"github.com/BurntSushi/toml"
 
 	"smf/internal/core"
+	"smf/internal/validate"
 )
 
 // schemaFile is the top-level TOML document.
@@ -69,26 +70,25 @@ func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 		Dialect: new(core.Dialect(strings.ToLower(sf.Database.Dialect))),
 		Tables:  make([]*core.Table, 0, len(sf.Tables)),
 	}
-	db.Validation = parseRules(sf.Validation)
+	db.Validation = rules(sf.Validation)
 
 	for i := range sf.Tables {
-		t, err := p.parseTable(&sf.Tables[i], i)
+		t, err := p.table(&sf.Tables[i], i)
 		if err != nil {
 			return nil, fmt.Errorf("toml: table %d (%q): %w", i, sf.Tables[i].Name, err)
 		}
 		db.Tables = append(db.Tables, t)
 	}
 
-	if err := db.Validate(); err != nil {
-		return nil, fmt.Errorf("toml: %w", err)
+	if err := validate.Database(db); err != nil {
+		return nil, fmt.Errorf("toml: validate database: %w", err)
 	}
 
 	return db, nil
 }
 
-// parseRules parses [validation] into core.ValidationRules.
-// No validation is performed here — that happens in db.Validate().
-func parseRules(v *tomlValidation) *core.ValidationRules {
+// rules parses [validation] into core.ValidationRules.
+func rules(v *tomlValidation) *core.ValidationRules {
 	if v == nil {
 		return &core.ValidationRules{}
 	}

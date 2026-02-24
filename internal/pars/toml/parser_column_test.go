@@ -422,10 +422,6 @@ name = "items"
 	assert.Error(t, err)
 }
 
-// ---------------------------------------------------------------------------
-// Edge: multiple inline shortcuts on one column
-// ---------------------------------------------------------------------------
-
 func TestParseColumnWithMultipleShortcuts(t *testing.T) {
 	const schema = `
 [database]

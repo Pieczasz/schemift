@@ -1,25 +1,25 @@
-package core
+package validate
 
 import (
 	"fmt"
+
+	"smf/internal/core"
 )
 
-// validateIndexes checks for duplicate index names and verifies that every
-// index column references an existing table column.
-func (t *Table) validateIndexes() error {
-	if err := t.validateIndexNames(); err != nil {
+func Indexes(t *core.Table) error {
+	if err := IndexNames(t); err != nil {
 		return err
 	}
-	return t.validateIndexColumns()
+	return IndexColumns(t)
 }
 
-func (t *Table) validateIndexNames() error {
+func IndexNames(t *core.Table) error {
 	seen := make(map[string]bool, len(t.Indexes))
 	for _, idx := range t.Indexes {
 		if idx.Name == "" {
 			continue
 		}
-		if err := validateName(idx.Name, nil, nil, false); err != nil {
+		if err := Name(idx.Name, nil, nil, false); err != nil {
 			return fmt.Errorf("index %q: %w", idx.Name, err)
 		}
 		if seen[idx.Name] {
@@ -30,7 +30,7 @@ func (t *Table) validateIndexNames() error {
 	return nil
 }
 
-func (t *Table) validateIndexColumns() error {
+func IndexColumns(t *core.Table) error {
 	for _, idx := range t.Indexes {
 		if len(idx.Columns) == 0 {
 			name := idx.Name
