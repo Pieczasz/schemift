@@ -226,6 +226,26 @@ type TiDBTableOptions struct {
 	Sequence bool
 }
 
+// MariaDBTableOptions contains MariaDB-specific table options that differ
+// from MySQL.
+//
+// MariaDB shares most CREATE TABLE options with MySQL (stored in
+// MySQLTableOptions).  This struct holds only the MariaDB-specific
+// divergences: Aria-engine page checksums, transactional mode,
+// encryption key management, sequence objects, and system versioning.
+type MariaDBTableOptions struct {
+	// PageChecksum enables page-level checksums for Aria storage engine tables.
+	PageChecksum uint64 `json:"page_checksum,omitempty"`
+	// Transactional enables transactional support for Aria storage engine tables.
+	Transactional uint64 `json:"transactional,omitempty"`
+	// EncryptionKeyID specifies the encryption key ID for table encryption.
+	EncryptionKeyID *int `json:"encryption_key_id,omitempty"`
+	// Sequence marks the table as a SEQUENCE object (MariaDB 10.3+).
+	Sequence bool `json:"sequence,omitempty"`
+	// WithSystemVersioning enables system-versioned (temporal) table.
+	WithSystemVersioning bool `json:"with_system_versioning,omitempty"`
+}
+
 // PostgreSQLTableOptions contains PostgreSQL-specific table options.
 //
 // PostgreSQL uses schemas for namespace isolation, UNLOGGED tables for
@@ -337,26 +357,6 @@ type SQLiteTableOptions struct {
 	WithoutRowid bool `json:"without_rowid,omitempty"`
 	// Strict enables STRICT mode that enforces column type affinity (SQLite 3.37+).
 	Strict bool `json:"strict,omitempty"`
-}
-
-// MariaDBTableOptions contains MariaDB-specific table options that differ
-// from MySQL.
-//
-// MariaDB shares most CREATE TABLE options with MySQL (stored in
-// MySQLTableOptions).  This struct holds only the MariaDB-specific
-// divergences: Aria-engine page checksums, transactional mode,
-// encryption key management, sequence objects, and system versioning.
-type MariaDBTableOptions struct {
-	// PageChecksum enables page-level checksums for Aria storage engine tables.
-	PageChecksum uint64 `json:"page_checksum,omitempty"`
-	// Transactional enables transactional support for Aria storage engine tables.
-	Transactional uint64 `json:"transactional,omitempty"`
-	// EncryptionKeyID specifies the encryption key ID for table encryption.
-	EncryptionKeyID *int `json:"encryption_key_id,omitempty"`
-	// Sequence marks the table as a SEQUENCE object (MariaDB 10.3+).
-	Sequence bool `json:"sequence,omitempty"`
-	// WithSystemVersioning enables system-versioned (temporal) table.
-	WithSystemVersioning bool `json:"with_system_versioning,omitempty"`
 }
 
 // IdentityGeneration controls the GENERATED clause for identity columns.

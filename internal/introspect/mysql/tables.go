@@ -1,9 +1,6 @@
 package mysql
 
 import (
-	"database/sql"
-	"strings"
-
 	"smf/internal/core"
 )
 
@@ -45,7 +42,7 @@ func gatherTableData(ic *introspectCtx, tableNames []string) (map[string]tableDa
 		args[i] = item
 	}
 
-	tableOptions, err := queryAllTableOptions(ic, placeholders, args)
+	tableOptions, err := queryTableOptions(ic, placeholders, args)
 	if err != nil {
 		return nil, err
 	}
@@ -105,14 +102,6 @@ func buildTable(tableName string, data tableData) *core.Table {
 	return t
 }
 
-type tableOptions struct {
-	engine        string
-	charset       string
-	collate       string
-	autoIncrement uint64
-	comment       string
-}
-
 func queryTableNames(ic *introspectCtx) ([]string, error) {
 	rows, err := ic.db.QueryContext(ic.ctx, `
 		SELECT table_name
@@ -135,43 +124,4 @@ func queryTableNames(ic *introspectCtx) ([]string, error) {
 	}
 
 	return names, rows.Err()
-}
-
-func queryAllTableOptions(ic *introspectCtx, placeholders []string, args []any) (map[string]tableOptions, error) {
-	query := `
-		SELECT table_name, engine, table_collation, auto_increment, table_comment
-		FROM information_schema.tables
-		WHERE table_schema = DATABASE() AND table_name IN (` + strings.Join(placeholders, ",") + `)
-	`
-
-	rows, err := ic.db.QueryContext(ic.ctx, query, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	result := make(map[string]tableOptions)
-	for rows.Next() {
-		var name, engine, collate, comment string
-		var autoIncrement sql.NullInt64
-		if err := rows.Scan(&name, &engine, &collate, &autoIncrement, &comment); err != nil {
-			return nil, err
-		}
-
-		charset := ""
-		if idx := strings.Index(collate, "_"); idx > 0 {
-			charset = collate[:idx]
-			collate = collate[idx+1:]
-		}
-
-		result[name] = tableOptions{
-			engine:        engine,
-			charset:       charset,
-			collate:       collate,
-			autoIncrement: uint64(autoIncrement.Int64),
-			comment:       comment,
-		}
-	}
-
-	return result, rows.Err()
 }
