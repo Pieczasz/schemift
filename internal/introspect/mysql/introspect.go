@@ -1,5 +1,5 @@
 // Package mysql contains introspect implementation for MySQL, MariaDB and TiDB dialects,
-// since they support the same binary, it detects which dialect it is and uses sql pool connection
+// since they support the same binary, it detects which dialect it is and uses SQL pool connection
 // to get all desired database for core.Database struct.
 package mysql
 
