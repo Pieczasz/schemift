@@ -50,7 +50,7 @@ func (i *introspecter) Introspect(ctx context.Context, db *sql.DB) (*core.Databa
 	}
 	d.Dialect = &dialect
 
-	err = introspectTables(ic, d)
+	// err = introspectTables(ic, d)
 	if err != nil {
 		return nil, err
 	}
