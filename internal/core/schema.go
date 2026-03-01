@@ -1,6 +1,11 @@
 // Package core contains the single source of truth from the database schema.
 // It provides a structured representation of data for tables, columns, constraints, and so on
 // for all databases that we support.
+//
+// Minimum supported versions:
+//   - MySQL: 8.0.23
+//   - MariaDB: 10.3.4
+//   - TiDB: 5.3.0
 package core
 
 import (
@@ -116,75 +121,108 @@ type TableOptions struct {
 // MariaDBTableOptions for MariaDB-specific divergences.
 type MySQLTableOptions struct {
 	// Engine is the storage engine (e.g. "InnoDB", "MyISAM", "Aria").
+	// MySQL: All versions | MariaDB: All versions | TiDB: InnoDB only
 	Engine string
 	// Charset is the default character set for the table (e.g. "utf8mb4").
+	// MySQL: All versions | MariaDB: All versions | TiDB: All versions
 	Charset string
 	// Collate is the default collation for the table (e.g. "utf8mb4_unicode_ci").
+	// MySQL: All versions | MariaDB: All versions | TiDB: All versions
 	Collate string
 	// AutoIncrement sets the starting AUTO_INCREMENT value for the table.
+	// MySQL: All versions | MariaDB: All versions | TiDB: All versions
 	AutoIncrement uint64
 
 	// RowFormat controls the physical row storage format (e.g. "DYNAMIC", "COMPRESSED", "COMPACT").
+	// MySQL: All versions | MariaDB: All versions | TiDB: All versions
 	RowFormat string
 	// AvgRowLength is a hint for the average row length in bytes, used by the optimizer.
+	// MySQL: All versions | MariaDB: All versions | TiDB: All versions
 	AvgRowLength uint64
 	// KeyBlockSize sets the page size in KB for compressed InnoDB tables.
+	// MySQL: All versions | MariaDB: All versions | TiDB: Not supported
 	KeyBlockSize uint64
 	// MaxRows is a hint for the maximum number of rows the table is expected to hold.
+	// MySQL: All versions | MariaDB: All versions | TiDB: All versions
 	MaxRows uint64
 	// MinRows is a hint for the minimum number of rows the table is expected to hold.
+	// MySQL: All versions | MariaDB: All versions | TiDB: All versions
 	MinRows uint64
 	// Checksum enables live table checksum computation (1 = enabled, 0 = disabled).
+	// MySQL: All versions | MariaDB: All versions | TiDB: All versions
 	Checksum uint64
 	// DelayKeyWrite delays key-buffer flushes for MyISAM tables (1 = enabled).
+	// MySQL: All versions | MariaDB: All versions | TiDB: Not supported
 	DelayKeyWrite uint64
 	// Compression sets the page-level compression algorithm ("ZLIB", "LZ4", "NONE").
+	// MySQL: 5.7+ | MariaDB: 10.2+ | TiDB: All versions
 	Compression string
 	// Encryption enables transparent data encryption for the tablespace ("Y" or "N").
+	// MySQL: 5.7+ | MariaDB: 10.1+ | TiDB: 4.0+
 	Encryption string
 	// PackKeys controls index packing for MyISAM tables ("0", "1", or "DEFAULT").
+	// MySQL: All versions | MariaDB: All versions | TiDB: All versions
 	PackKeys string
 	// DataDirectory specifies the OS directory for the table data file (MyISAM / InnoDB file-per-table).
+	// MySQL: All versions | MariaDB: All versions | TiDB: All versions
 	DataDirectory string
 	// IndexDirectory specifies the OS directory for the MyISAM index file.
+	// MySQL: All versions | MariaDB: All versions | TiDB: Not supported
 	IndexDirectory string
 	// InsertMethod controls how rows are inserted into a MERGE table ("NO", "FIRST", "LAST").
+	// MySQL: All versions | MariaDB: All versions | TiDB: Not supported
 	InsertMethod string
 	// StorageMedia specifies the storage medium for NDB Cluster ("DISK" or "MEMORY").
+	// MySQL: NDB only | MariaDB: NDB only | TiDB: Not supported
 	StorageMedia string
 
 	// StatsPersistent controls whether InnoDB table statistics are persisted to disk ("0", "1", or "DEFAULT").
+	// MySQL: 5.6+ | MariaDB: 10.0+ | TiDB: All versions
 	StatsPersistent string
 	// StatsAutoRecalc controls whether InnoDB statistics are recalculated automatically ("0", "1", or "DEFAULT").
+	// MySQL: 5.6+ | MariaDB: 10.0+ | TiDB: All versions
 	StatsAutoRecalc string
 	// StatsSamplePages sets the number of index pages sampled for InnoDB statistics estimates.
+	// MySQL: 5.6+ | MariaDB: 10.0+ | TiDB: All versions
 	StatsSamplePages string
 
 	// Connection is a connection string for a FEDERATED table linking to a remote server.
+	// MySQL: All versions | MariaDB: All versions | TiDB: Not supported
 	Connection string
 	// Password is the password used by a FEDERATED table's connection string.
+	// MySQL: All versions | MariaDB: All versions | TiDB: Not supported
 	Password string
 
 	// AutoextendSize sets the InnoDB tablespace auto-extend chunk size.
+	// MySQL: 8.0.23+ | MariaDB: All versions | TiDB: All versions
 	AutoextendSize string
 
 	// Union lists the underlying MyISAM tables that form a MERGE table.
+	// MySQL: All versions | MariaDB: All versions | TiDB: Not supported
 	Union []string
 	// SecondaryEngine names the secondary engine for HeatWave / RAPID offload (e.g. "RAPID").
+	// MySQL: 8.0+ (HeatWave) | MariaDB: Not supported | TiDB: Not supported
 	SecondaryEngine string
 	// TableChecksum enables per-row checksum stored in the table (NDB Cluster).
+	// MySQL: NDB only | MariaDB: NDB only | TiDB: Not supported
 	TableChecksum uint64
 	// EngineAttribute is an opaque JSON string passed to the primary storage engine.
+	// MySQL: 8.0.21+ | MariaDB: Not supported | TiDB: Not supported
 	EngineAttribute string
 	// SecondaryEngineAttribute is an opaque JSON string passed to the secondary engine.
+	// MySQL: 8.0.21+ | MariaDB: Not supported | TiDB: Not supported
 	SecondaryEngineAttribute string
-	// PageCompressed enables InnoDB page-level compression (MySQL 5.7+).
+	// PageCompressed enables InnoDB page-level compression.
+	// MySQL: 5.7+ | MariaDB: 10.0+ (different implementation) | TiDB: Not supported
 	PageCompressed bool
 	// PageCompressionLevel sets the zlib compression level for page compression (1-9).
+	// MySQL: 5.7+ | MariaDB: 10.0+ | TiDB: Not supported
 	PageCompressionLevel uint64
 	// IETFQuotes enables IETF-compliant quoting for CSV storage engine output.
+	// MySQL: All versions | MariaDB: All versions | TiDB: Not supported
 	IETFQuotes bool
 	// Nodegroup assigns the table to an NDB Cluster node group.
+	// MySQL: NDB only | MariaDB: Not supported | TiDB: Not supported
 	Nodegroup uint64
 }
 
@@ -463,12 +501,16 @@ type Column struct {
 // TODO: move ColumnFormat and Storage to "enums".
 type MySQLColumnOptions struct {
 	// ColumnFormat sets the column storage format hint: "FIXED", "DYNAMIC", or "DEFAULT" (NDB Cluster).
+	// MySQL: NDB only | MariaDB: NDB only | TiDB: Not supported
 	ColumnFormat string `json:"columnFormat,omitempty"`
 	// Storage specifies the storage medium for the column: "DISK" or "MEMORY" (NDB Cluster).
+	// MySQL: NDB only | MariaDB: NDB only | TiDB: Not supported
 	Storage string `json:"storage,omitempty"`
 	// PrimaryEngineAttribute is an opaque JSON string passed to the primary storage engine (e.g., InnoDB).
+	// MySQL: 8.0.21+ | MariaDB: Not supported | TiDB: Not supported
 	PrimaryEngineAttribute string `json:"primaryEngineAttribute,omitempty"`
 	// SecondaryEngineAttribute is an opaque JSON string passed to the secondary engine for this column.
+	// MySQL: 8.0.21+ | MariaDB: Not supported | TiDB: Not supported
 	SecondaryEngineAttribute string `json:"secondaryEngineAttribute,omitempty"`
 }
 
