@@ -6,6 +6,8 @@
 # docker compose -f tidb.yml stop
 # To tear down the cluster completely:
 # docker compose -f tidb.yml down
+# To connect (MySQL protocol):
+# mysql -h 127.0.0.1 -P 4000 -u root
 services:
   pd:
     image: pingcap/pd:v8.5.5
