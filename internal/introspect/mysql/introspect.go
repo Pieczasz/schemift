@@ -1,6 +1,6 @@
-// Package mysql contains introspect implementation for MySQL, MariaDB and TiDB dialects,
+// Package mysql contains introspect implementation for MySQL, MariaDB, and TiDB dialects,
 // since they support the same binary, it detects which dialect it is and uses SQL pool connection
-// to get all desired database for core.Database struct.
+// to get all desired databases for core.Database struct.
 package mysql
 
 import (
@@ -41,6 +41,7 @@ func (i *introspecter) Introspect(ctx context.Context, db *sql.DB) (*core.Databa
 	if err != nil {
 		return nil, err
 	}
+	d.Dialect = &dialect
 
 	ic := &introspectCtx{
 		dialect: dialect,
@@ -48,9 +49,8 @@ func (i *introspecter) Introspect(ctx context.Context, db *sql.DB) (*core.Databa
 		db:      db,
 		ctx:     ctx,
 	}
-	d.Dialect = &dialect
 
-	// err = introspectTables(ic, d)
+	err = introspectTables(ic, d)
 	if err != nil {
 		return nil, err
 	}
