@@ -150,7 +150,163 @@ func quoteIdentifier(name string) string {
 	return "`" + escaped + "`"
 }
 
-func parseCreateTableDDL(dialect core.Dialect, tableName, _ string) (*core.Table, error) {
+// bodyItemKind classifies a single item inside the CREATE TABLE body.
+type bodyItemKind int
+
+const (
+	bodyItemColumn     bodyItemKind = iota // Column definition (starts with identifier token).
+	bodyItemConstraint                     // Table-level PK, UNIQUE, FK, CHECK, or named CONSTRAINT.
+	bodyItemIndex                          // Inline index: KEY, INDEX, FULLTEXT, SPATIAL.
+)
+
+// ddlSections holds the three top-level sections of a CREATE TABLE statement.
+type ddlSections struct {
+	header string // Everything before the opening '(' (e.g. "CREATE TABLE `t`").
+	body   string // Content inside the outer parentheses.
+	tail   string // Table options after the closing ')'.
+}
+
+// splitDDLSections splits a CREATE TABLE statement into header, body, and tail.
+func splitDDLSections(ddl string) (ddlSections, error) {
+	openIdx := -1
+	for i, ch := range ddl {
+		if ch == '(' {
+			openIdx = i
+			break
+		}
+	}
+	if openIdx == -1 {
+		return ddlSections{}, fmt.Errorf("missing opening parenthesis in CREATE TABLE DDL")
+	}
+
+	depth := 0
+	closeIdx := -1
+	inSingleQuote := false
+	inDoubleQuote := false
+	inBacktick := false
+
+	for i := openIdx; i < len(ddl); i++ {
+		ch := ddl[i]
+
+		if (inSingleQuote || inDoubleQuote) && ch == '\\' {
+			i++
+			continue
+		}
+
+		switch {
+		case ch == '\'' && !inDoubleQuote && !inBacktick:
+			inSingleQuote = !inSingleQuote
+		case ch == '"' && !inSingleQuote && !inBacktick:
+			inDoubleQuote = !inDoubleQuote
+		case ch == '`' && !inSingleQuote && !inDoubleQuote:
+			inBacktick = !inBacktick
+		case !inSingleQuote && !inDoubleQuote && !inBacktick:
+			if ch == '(' {
+				depth++
+			} else if ch == ')' {
+				depth--
+				if depth == 0 {
+					closeIdx = i
+					break
+				}
+			}
+		}
+
+		if closeIdx != -1 {
+			break
+		}
+	}
+
+	if closeIdx == -1 {
+		return ddlSections{}, fmt.Errorf("unbalanced parentheses in CREATE TABLE DDL")
+	}
+
+	return ddlSections{
+		header: strings.TrimSpace(ddl[:openIdx]),
+		body:   ddl[openIdx+1 : closeIdx],
+		tail:   strings.TrimSpace(ddl[closeIdx+1:]),
+	}, nil
+}
+
+// splitBodyItems splits the body of a CREATE TABLE statement by top-level
+func splitBodyItems(body string) []string {
+	var items []string
+	depth := 0
+	inSingleQuote := false
+	inDoubleQuote := false
+	inBacktick := false
+	start := 0
+
+	for i := 0; i < len(body); i++ {
+		ch := body[i]
+
+		if (inSingleQuote || inDoubleQuote) && ch == '\\' {
+			i++
+			continue
+		}
+
+		switch {
+		case ch == '\'' && !inDoubleQuote && !inBacktick:
+			inSingleQuote = !inSingleQuote
+		case ch == '"' && !inSingleQuote && !inBacktick:
+			inDoubleQuote = !inDoubleQuote
+		case ch == '`' && !inSingleQuote && !inDoubleQuote:
+			inBacktick = !inBacktick
+		case !inSingleQuote && !inDoubleQuote && !inBacktick:
+			switch ch {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			case ',':
+				if depth == 0 {
+					items = append(items, strings.TrimSpace(body[start:i]))
+					start = i + 1
+				}
+			}
+		}
+	}
+
+	if last := strings.TrimSpace(body[start:]); last != "" {
+		items = append(items, last)
+	}
+
+	return items
+}
+
+// classifyBodyItem determines whether a body item is a column definition,
+func classifyBodyItem(item string) bodyItemKind {
+	upper := strings.ToUpper(strings.TrimSpace(item))
+
+	if strings.HasPrefix(upper, "CONSTRAINT") {
+		return bodyItemConstraint
+	}
+
+	for _, prefix := range []string{
+		"PRIMARY KEY",
+		"UNIQUE KEY", "UNIQUE INDEX", "UNIQUE ",
+		"FOREIGN KEY",
+		"CHECK",
+	} {
+		if strings.HasPrefix(upper, prefix) {
+			return bodyItemConstraint
+		}
+	}
+
+	for _, prefix := range []string{
+		"KEY", "INDEX",
+		"FULLTEXT KEY", "FULLTEXT INDEX", "FULLTEXT",
+		"SPATIAL KEY", "SPATIAL INDEX", "SPATIAL",
+	} {
+		if strings.HasPrefix(upper, prefix) {
+			return bodyItemIndex
+		}
+	}
+
+	return bodyItemColumn
+}
+
+func parseCreateTableDDL(dialect core.Dialect, tableName, ddl string) (*core.Table, error) {
 	table := &core.Table{
 		Name:        tableName,
 		Columns:     make([]*core.Column, 0),
@@ -168,6 +324,41 @@ func parseCreateTableDDL(dialect core.Dialect, tableName, _ string) (*core.Table
 		table.Options.MySQL = &core.MySQLTableOptions{}
 		table.Options.TiDB = &core.TiDBTableOptions{}
 	}
+
+	sections, err := splitDDLSections(ddl)
+	if err != nil {
+		return nil, err
+	}
+
+	items := splitBodyItems(sections.body)
+
+	for _, item := range items {
+		switch classifyBodyItem(item) {
+		case bodyItemColumn:
+			col, err := parseColumn(dialect, item)
+			if err != nil {
+				return nil, fmt.Errorf("parse column: %w", err)
+			}
+			table.Columns = append(table.Columns, col)
+
+		case bodyItemConstraint:
+			constraint, err := parseConstraint(dialect, item)
+			if err != nil {
+				return nil, fmt.Errorf("parse constraint: %w", err)
+			}
+			table.Constraints = append(table.Constraints, constraint)
+
+		case bodyItemIndex:
+			idx, err := parseIndex(dialect, item)
+			if err != nil {
+				return nil, fmt.Errorf("parse index: %w", err)
+			}
+			table.Indexes = append(table.Indexes, idx)
+		}
+	}
+
+	// TODO: parse sections.tail for table options (ENGINE, CHARSET, etc.)
+	_ = sections.tail
 
 	return table, nil
 }
