@@ -8,7 +8,25 @@ import (
 	"sync"
 
 	"smf/internal/core"
+
+	"golang.org/x/sync/errgroup"
 )
+
+// bodyItemKind classifies a single item inside the CREATE TABLE body.
+type bodyItemKind int
+
+const (
+	bodyItemColumn     bodyItemKind = iota // Column definition (starts with identifier token).
+	bodyItemConstraint                     // Table-level PK, UNIQUE, FK, CHECK, or named CONSTRAINT.
+	bodyItemIndex                          // Inline index: KEY, INDEX, FULLTEXT, SPATIAL.
+)
+
+// ddlSections holds the three top-level sections of a CREATE TABLE statement.
+type ddlSections struct {
+	head string // Everything before the opening '(' (e.g. "CREATE TABLE `t`").
+	body string // Content inside the outer parentheses.
+	tail string // Table options after the closing ')'.
+}
 
 func introspectTables(ic *introspectCtx, db *core.Database) error {
 	tableNames, err := queryTableNames(ic)
@@ -51,63 +69,47 @@ func queryTableNames(ic *introspectCtx) ([]string, error) {
 }
 
 func queryTablesData(parentCtx context.Context, ic *introspectCtx, names []string) ([]*core.Table, error) {
-	ctx, cancel := context.WithCancel(parentCtx)
-	defer cancel()
+	// errgroup.WithContext automatically cancels the ctx on the first error
+	g, ctx := errgroup.WithContext(parentCtx)
+
+	tables := make([]*core.Table, 0, len(names))
+	var mu sync.Mutex
+
+	jobs := make(chan string)
 
 	workers := computeWorkerCount(len(names))
-	jobs := make(chan string)
-	tables := make([]*core.Table, 0, len(names))
-
-	var mu sync.Mutex
-	var errOnce sync.Once
-	var firstErr error
-	var wg sync.WaitGroup
-	setFirstErr := func(err error) {
-		errOnce.Do(func() {
-			firstErr = err
-			cancel()
-		})
-	}
-
-	// Workers read table names from jobs until the channel is closed.
-	// On the first error we store it once and cancel the shared context to stop all workers quickly.
 	for range workers {
-		wg.Go(func() {
+		g.Go(func() error {
 			for tableName := range jobs {
-				if ctx.Err() != nil {
-					return
-				}
-
 				table, err := introspectTable(ctx, ic, tableName)
 				if err != nil {
-					setFirstErr(fmt.Errorf("introspect table %s: %w", tableName, err))
-					return
+					return fmt.Errorf("introspect table %s: %w", tableName, err)
 				}
 
 				mu.Lock()
 				tables = append(tables, table)
 				mu.Unlock()
 			}
+			return nil
 		})
 	}
 
-	// Producer: enqueue all table names unless work has already been canceled.
-	go func() {
+	g.Go(func() error {
 		defer close(jobs)
 		for _, tableName := range names {
 			select {
 			case <-ctx.Done():
-				return
+				return ctx.Err()
 			case jobs <- tableName:
 			}
 		}
-	}()
+		return nil
+	})
 
-	// Wait for all workers to finish after a producer closes jobs.
-	wg.Wait()
-
-	if firstErr != nil {
-		return nil, firstErr
+	// Wait blocks until all g.Go() functions finish.
+	// It returns the first error encountered, if any.
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
 	return tables, nil
@@ -136,7 +138,7 @@ func introspectTable(ctx context.Context, ic *introspectCtx, tableName string) (
 }
 
 func queryShowCreateTable(ctx context.Context, ic *introspectCtx, tableName string) (string, error) {
-	query := fmt.Sprintf("SHOW CREATE TABLE %s", quoteIdentifier(tableName))
+	query := fmt.Sprintf("SHOW CREATE TABLE %s", core.QuoteIdentifier(tableName))
 	var ignored string
 	var ddl string
 	if err := ic.db.QueryRowContext(ctx, query).Scan(&ignored, &ddl); err != nil {
@@ -145,28 +147,64 @@ func queryShowCreateTable(ctx context.Context, ic *introspectCtx, tableName stri
 	return ddl, nil
 }
 
-func quoteIdentifier(name string) string {
-	escaped := strings.ReplaceAll(name, "`", "``")
-	return "`" + escaped + "`"
+func parseCreateTableDDL(dialect core.Dialect, tableName, ddl string) (*core.Table, error) {
+	table := &core.Table{
+		Name:        tableName,
+		Columns:     make([]*core.Column, 0),
+		Constraints: make([]*core.Constraint, 0),
+		Indexes:     make([]*core.Index, 0),
+	}
+
+	switch dialect {
+	case core.DialectMySQL:
+		table.Options.MySQL = &core.MySQLTableOptions{}
+	case core.DialectMariaDB:
+		table.Options.MySQL = &core.MySQLTableOptions{}
+		table.Options.MariaDB = &core.MariaDBTableOptions{}
+	case core.DialectTiDB:
+		table.Options.MySQL = &core.MySQLTableOptions{}
+		table.Options.TiDB = &core.TiDBTableOptions{}
+	}
+
+	sections, err := splitDDLSections(ddl)
+	if err != nil {
+		return nil, err
+	}
+
+	items := splitBodyItems(sections.body)
+
+	for _, item := range items {
+		switch classifyBodyItem(item) {
+		case bodyItemColumn:
+			col, err := parseColumn(dialect, item)
+			if err != nil {
+				return nil, fmt.Errorf("parse column: %w", err)
+			}
+			table.Columns = append(table.Columns, col)
+
+		case bodyItemConstraint:
+			constraint, err := parseConstraint(dialect, item)
+			if err != nil {
+				return nil, fmt.Errorf("parse constraint: %w", err)
+			}
+			table.Constraints = append(table.Constraints, constraint)
+
+		case bodyItemIndex:
+			idx, err := parseIndex(dialect, item)
+			if err != nil {
+				return nil, fmt.Errorf("parse index: %w", err)
+			}
+			table.Indexes = append(table.Indexes, idx)
+		}
+	}
+
+	// TODO: parse sections.tail for table options (ENGINE, CHARSET, etc.)
+	_ = sections.tail
+
+	return table, nil
 }
 
-// bodyItemKind classifies a single item inside the CREATE TABLE body.
-type bodyItemKind int
-
-const (
-	bodyItemColumn     bodyItemKind = iota // Column definition (starts with identifier token).
-	bodyItemConstraint                     // Table-level PK, UNIQUE, FK, CHECK, or named CONSTRAINT.
-	bodyItemIndex                          // Inline index: KEY, INDEX, FULLTEXT, SPATIAL.
-)
-
-// ddlSections holds the three top-level sections of a CREATE TABLE statement.
-type ddlSections struct {
-	header string // Everything before the opening '(' (e.g. "CREATE TABLE `t`").
-	body   string // Content inside the outer parentheses.
-	tail   string // Table options after the closing ')'.
-}
-
-// splitDDLSections splits a CREATE TABLE statement into header, body, and tail.
+// splitDDLSections splits a CREATE TABLE statement into head, body, and tail.
 func splitDDLSections(ddl string) (ddlSections, error) {
 	openIdx := -1
 	for i, ch := range ddl {
@@ -222,9 +260,9 @@ func splitDDLSections(ddl string) (ddlSections, error) {
 	}
 
 	return ddlSections{
-		header: strings.TrimSpace(ddl[:openIdx]),
-		body:   ddl[openIdx+1 : closeIdx],
-		tail:   strings.TrimSpace(ddl[closeIdx+1:]),
+		head: strings.TrimSpace(ddl[:openIdx]),
+		body: ddl[openIdx+1 : closeIdx],
+		tail: strings.TrimSpace(ddl[closeIdx+1:]),
 	}, nil
 }
 
@@ -304,61 +342,4 @@ func classifyBodyItem(item string) bodyItemKind {
 	}
 
 	return bodyItemColumn
-}
-
-func parseCreateTableDDL(dialect core.Dialect, tableName, ddl string) (*core.Table, error) {
-	table := &core.Table{
-		Name:        tableName,
-		Columns:     make([]*core.Column, 0),
-		Constraints: make([]*core.Constraint, 0),
-		Indexes:     make([]*core.Index, 0),
-	}
-
-	switch dialect {
-	case core.DialectMySQL:
-		table.Options.MySQL = &core.MySQLTableOptions{}
-	case core.DialectMariaDB:
-		table.Options.MySQL = &core.MySQLTableOptions{}
-		table.Options.MariaDB = &core.MariaDBTableOptions{}
-	case core.DialectTiDB:
-		table.Options.MySQL = &core.MySQLTableOptions{}
-		table.Options.TiDB = &core.TiDBTableOptions{}
-	}
-
-	sections, err := splitDDLSections(ddl)
-	if err != nil {
-		return nil, err
-	}
-
-	items := splitBodyItems(sections.body)
-
-	for _, item := range items {
-		switch classifyBodyItem(item) {
-		case bodyItemColumn:
-			col, err := parseColumn(dialect, item)
-			if err != nil {
-				return nil, fmt.Errorf("parse column: %w", err)
-			}
-			table.Columns = append(table.Columns, col)
-
-		case bodyItemConstraint:
-			constraint, err := parseConstraint(dialect, item)
-			if err != nil {
-				return nil, fmt.Errorf("parse constraint: %w", err)
-			}
-			table.Constraints = append(table.Constraints, constraint)
-
-		case bodyItemIndex:
-			idx, err := parseIndex(dialect, item)
-			if err != nil {
-				return nil, fmt.Errorf("parse index: %w", err)
-			}
-			table.Indexes = append(table.Indexes, idx)
-		}
-	}
-
-	// TODO: parse sections.tail for table options (ENGINE, CHARSET, etc.)
-	_ = sections.tail
-
-	return table, nil
 }

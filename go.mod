@@ -9,6 +9,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go/modules/mariadb v0.40.0
 	github.com/testcontainers/testcontainers-go/modules/mysql v0.40.0
+	golang.org/x/sync v0.19.0
 )
 
 require (
