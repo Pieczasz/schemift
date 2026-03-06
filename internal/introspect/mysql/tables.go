@@ -217,28 +217,26 @@ func splitDDLSections(ddl string) (ddlSections, error) {
 		return ddlSections{}, fmt.Errorf("missing opening parenthesis in CREATE TABLE DDL")
 	}
 
-	depth := 0
+	var depth int
+	var singleQuoted, doubleQuoted, backticked bool
 	closeIdx := -1
-	inSingleQuote := false
-	inDoubleQuote := false
-	inBacktick := false
 
 	for i := openIdx; i < len(ddl); i++ {
 		ch := ddl[i]
 
-		if (inSingleQuote || inDoubleQuote) && ch == '\\' {
-			i++
+		if (singleQuoted || doubleQuoted) && ch == '\\' {
+			i++ // the second incrementation happens through the for loop
 			continue
 		}
 
 		switch {
-		case ch == '\'' && !inDoubleQuote && !inBacktick:
-			inSingleQuote = !inSingleQuote
-		case ch == '"' && !inSingleQuote && !inBacktick:
-			inDoubleQuote = !inDoubleQuote
-		case ch == '`' && !inSingleQuote && !inDoubleQuote:
-			inBacktick = !inBacktick
-		case !inSingleQuote && !inDoubleQuote && !inBacktick:
+		case ch == '\'' && !doubleQuoted && !backticked:
+			singleQuoted = !singleQuoted
+		case ch == '"' && !singleQuoted && !backticked:
+			doubleQuoted = !doubleQuoted
+		case ch == '`' && !singleQuoted && !doubleQuoted:
+			backticked = !backticked
+		case !singleQuoted && !doubleQuoted && !backticked:
 			if ch == '(' {
 				depth++
 			} else if ch == ')' {
@@ -269,28 +267,25 @@ func splitDDLSections(ddl string) (ddlSections, error) {
 // splitBodyItems splits the body of a CREATE TABLE statement by top-level
 func splitBodyItems(body string) []string {
 	var items []string
-	depth := 0
-	inSingleQuote := false
-	inDoubleQuote := false
-	inBacktick := false
-	start := 0
+	var depth, start int
+	var singleQuoted, doubleQuoted, backticked bool
 
 	for i := 0; i < len(body); i++ {
 		ch := body[i]
 
-		if (inSingleQuote || inDoubleQuote) && ch == '\\' {
-			i++
+		if (singleQuoted || doubleQuoted) && ch == '\\' {
+			i++ // the second incrementation happens through the for loop
 			continue
 		}
 
 		switch {
-		case ch == '\'' && !inDoubleQuote && !inBacktick:
-			inSingleQuote = !inSingleQuote
-		case ch == '"' && !inSingleQuote && !inBacktick:
-			inDoubleQuote = !inDoubleQuote
-		case ch == '`' && !inSingleQuote && !inDoubleQuote:
-			inBacktick = !inBacktick
-		case !inSingleQuote && !inDoubleQuote && !inBacktick:
+		case ch == '\'' && !doubleQuoted && !backticked:
+			singleQuoted = !singleQuoted
+		case ch == '"' && !singleQuoted && !backticked:
+			doubleQuoted = !doubleQuoted
+		case ch == '`' && !singleQuoted && !doubleQuoted:
+			backticked = !backticked
+		case !singleQuoted && !doubleQuoted && !backticked:
 			switch ch {
 			case '(':
 				depth++

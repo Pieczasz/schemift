@@ -12,21 +12,38 @@ import (
 	"smf/internal/core"
 )
 
+// Database runs the full preparation-then-validation pipeline.
+// It first synthesizes implicit constraints (Prepare) and then validates
+// the resulting schema (Validate).
+//
+// TODO: consider using errors.Join to report all validation
+// errors at once instead of failing on the first one.
 func Database(db *core.Database) error {
+	if err := Prepare(db); err != nil {
+		return err
+	}
+	return Validate(db)
+}
+
+// Prepare runs pre-validation transformations that mutate the schema.
+// Currently this synthesizes implicit constraints from column-level
+// shorthand (primary_key, unique, check, references).
+func Prepare(db *core.Database) error {
 	if err := RequiredFields(db); err != nil {
 		return err
 	}
+	return SynthesizeConstraints(db.Tables)
+}
 
+// Validate checks a fully-prepared database schema for structural
+// correctness without mutating it.
+func Validate(db *core.Database) error {
 	nameRe, err := AllowedNamePattern(db.Validation)
 	if err != nil {
 		return err
 	}
 
 	if err := TableUniqueness(db.Tables); err != nil {
-		return err
-	}
-
-	if err := SynthesizeConstraints(db.Tables); err != nil {
 		return err
 	}
 
@@ -42,11 +59,7 @@ func Database(db *core.Database) error {
 		return err
 	}
 
-	if err := Enums(db); err != nil {
-		return err
-	}
-
-	return nil
+	return Enums(db)
 }
 
 func RequiredFields(db *core.Database) error {

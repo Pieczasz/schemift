@@ -81,6 +81,12 @@ type Table struct {
 	Timestamps  *TimestampsConfig `json:"timestamps,omitempty"`
 }
 
+// Default column names for automatic timestamp injection.
+const (
+	DefaultCreatedColumn = "created_at"
+	DefaultUpdatedColumn = "updated_at"
+)
+
 // TimestampsConfig controls automatic created_at / updated_at column injection.
 type TimestampsConfig struct {
 	Enabled       bool   `json:"enabled"`
@@ -405,6 +411,16 @@ const (
 	IdentityByDefault IdentityGeneration = "BY DEFAULT"
 )
 
+// IsValid reports whether ig is a recognized identity generation mode.
+func (ig IdentityGeneration) IsValid() bool {
+	switch ig {
+	case IdentityAlways, IdentityByDefault:
+		return true
+	default:
+		return false
+	}
+}
+
 // Column represents a single column inside schema.
 type Column struct {
 	// Name is the column identifier as declared in the schema.
@@ -667,6 +683,18 @@ const (
 	DataTypeUnknown  DataType = "unknown"
 )
 
+// IsValid reports whether d is a recognized portable data type.
+func (d DataType) IsValid() bool {
+	switch d {
+	case DataTypeString, DataTypeInt, DataTypeFloat, DataTypeBoolean,
+		DataTypeDatetime, DataTypeJSON, DataTypeUUID, DataTypeBinary,
+		DataTypeEnum, DataTypeUnknown:
+		return true
+	default:
+		return false
+	}
+}
+
 // GenerationStorage is an ENUM with all possible column generation storage options.
 type GenerationStorage string
 
@@ -674,6 +702,16 @@ const (
 	GenerationVirtual GenerationStorage = "VIRTUAL"
 	GenerationStored  GenerationStorage = "STORED"
 )
+
+// IsValid reports whether gs is a recognized generation storage mode.
+func (gs GenerationStorage) IsValid() bool {
+	switch gs {
+	case GenerationVirtual, GenerationStored:
+		return true
+	default:
+		return false
+	}
+}
 
 // Constraint represents a table-level constraint (PK, FK, UNIQUE, or CHECK).
 type Constraint struct {
@@ -709,6 +747,16 @@ const (
 	ConstraintCheck      ConstraintType = "CHECK"
 )
 
+// IsValid reports whether ct is a recognized constraint type.
+func (ct ConstraintType) IsValid() bool {
+	switch ct {
+	case ConstraintPrimaryKey, ConstraintForeignKey, ConstraintUnique, ConstraintCheck:
+		return true
+	default:
+		return false
+	}
+}
+
 // ReferentialAction is an ENUM with all possible column references after action.
 type ReferentialAction string
 
@@ -720,6 +768,16 @@ const (
 	RefActionSetDefault ReferentialAction = "SET DEFAULT"
 	RefActionNoAction   ReferentialAction = "NO ACTION"
 )
+
+// IsValid reports whether ra is a recognized referential action (including empty/none).
+func (ra ReferentialAction) IsValid() bool {
+	switch ra {
+	case RefActionNone, RefActionCascade, RefActionRestrict, RefActionSetNull, RefActionSetDefault, RefActionNoAction:
+		return true
+	default:
+		return false
+	}
+}
 
 // Index represents a table index (B-Tree, Hash, Full-Text, Spatial, etc.).
 type Index struct {
@@ -759,6 +817,16 @@ const (
 	IndexTypeGiST     IndexType = "GiST"
 )
 
+// IsValid reports whether it is a recognized index type.
+func (it IndexType) IsValid() bool {
+	switch it {
+	case IndexTypeBTree, IndexTypeHash, IndexTypeFullText, IndexTypeSpatial, IndexTypeGIN, IndexTypeGiST:
+		return true
+	default:
+		return false
+	}
+}
+
 // IndexVisibility is an ENUM with all possible index visibilities.
 type IndexVisibility string
 
@@ -766,6 +834,16 @@ const (
 	IndexVisible   IndexVisibility = "VISIBLE"
 	IndexInvisible IndexVisibility = "INVISIBLE"
 )
+
+// IsValid reports whether iv is a recognized index visibility.
+func (iv IndexVisibility) IsValid() bool {
+	switch iv {
+	case IndexVisible, IndexInvisible:
+		return true
+	default:
+		return false
+	}
+}
 
 // SortOrder is an ENUM with all possible column sort orders.
 type SortOrder string
@@ -775,7 +853,20 @@ const (
 	SortDesc SortOrder = "DESC"
 )
 
+// IsValid reports whether so is a recognized sort order.
+func (so SortOrder) IsValid() bool {
+	switch so {
+	case SortAsc, SortDesc:
+		return true
+	default:
+		return false
+	}
+}
+
 // FindTable looks for a table by name inside a database.
+//
+// TODO: consider pre-building a map[string]*Table
+// once and passing it through to avoid O(n) scans per lookup.
 func (db *Database) FindTable(name string) *Table {
 	if db == nil {
 		return nil
