@@ -11,7 +11,7 @@ import (
 // Handles: KEY, INDEX, FULLTEXT KEY/INDEX, SPATIAL KEY/INDEX.
 //
 // Example input: "KEY `idx_name` (`name`)"
-// Example input: "FULLTEXT INDEX `ft_content` (`content`)"
+// Example input: "FULLTEXT INDEX `ft_content` (`content`)".
 func parseIndex(_ core.Dialect, item string) (*core.Index, error) {
 	// TODO: implement full index parsing.
 	_ = item

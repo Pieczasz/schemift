@@ -264,7 +264,7 @@ func splitDDLSections(ddl string) (ddlSections, error) {
 	}, nil
 }
 
-// splitBodyItems splits the body of a CREATE TABLE statement by top-level
+// splitBodyItems splits the body of a CREATE TABLE statement by top-level.
 func splitBodyItems(body string) []string {
 	var items []string
 	var depth, start int
@@ -307,7 +307,7 @@ func splitBodyItems(body string) []string {
 	return items
 }
 
-// classifyBodyItem determines whether a body item is a column definition,
+// classifyBodyItem determines whether a body item is a column definition.
 func classifyBodyItem(item string) bodyItemKind {
 	upper := strings.ToUpper(strings.TrimSpace(item))
 
