@@ -46,65 +46,47 @@ func ColumnType(c *core.Column, table *core.Table) error {
 	if c.Type == "" {
 		return nil
 	}
-	switch c.Type {
-	case core.DataTypeString, core.DataTypeInt, core.DataTypeFloat, core.DataTypeBoolean,
-		core.DataTypeDatetime, core.DataTypeJSON, core.DataTypeUUID, core.DataTypeBinary,
-		core.DataTypeEnum, core.DataTypeUnknown:
-		return nil
-	default:
+	if !c.Type.IsValid() {
 		return fmt.Errorf("table %q, column %q: invalid type %q", table.Name, c.Name, c.Type)
 	}
+	return nil
 }
 
 func RefActions(c *core.Column, table *core.Table) error {
-	if c.RefOnDelete != "" && !ReferentialAction(c.RefOnDelete) {
+	if c.RefOnDelete != "" && !c.RefOnDelete.IsValid() {
 		return fmt.Errorf("table %q, column %q: invalid ref_on_delete %q", table.Name, c.Name, c.RefOnDelete)
 	}
-	if c.RefOnUpdate != "" && !ReferentialAction(c.RefOnUpdate) {
+	if c.RefOnUpdate != "" && !c.RefOnUpdate.IsValid() {
 		return fmt.Errorf("table %q, column %q: invalid ref_on_update %q", table.Name, c.Name, c.RefOnUpdate)
 	}
 	return nil
 }
 
 func Generation(c *core.Column, table *core.Table) error {
-	if c.IsGenerated && c.GenerationStorage != "" {
-		switch c.GenerationStorage {
-		case core.GenerationVirtual, core.GenerationStored:
-		default:
-			return fmt.Errorf("table %q, column %q: invalid generation_storage %q", table.Name, c.Name, c.GenerationStorage)
-		}
+	if c.IsGenerated && c.GenerationStorage != "" && !c.GenerationStorage.IsValid() {
+		return fmt.Errorf("table %q, column %q: invalid generation_storage %q", table.Name, c.Name, c.GenerationStorage)
 	}
 	return nil
 }
 
 func Identity(c *core.Column, table *core.Table) error {
-	if c.IdentityGeneration != "" {
-		switch c.IdentityGeneration {
-		case core.IdentityAlways, core.IdentityByDefault:
-		default:
-			return fmt.Errorf("table %q, column %q: invalid identity_generation %q", table.Name, c.Name, c.IdentityGeneration)
-		}
+	if c.IdentityGeneration != "" && !c.IdentityGeneration.IsValid() {
+		return fmt.Errorf("table %q, column %q: invalid identity_generation %q", table.Name, c.Name, c.IdentityGeneration)
 	}
 	return nil
 }
 
 func ConstraintEnums(con *core.Constraint, table *core.Table) error {
-	switch con.Type {
-	case core.ConstraintPrimaryKey, core.ConstraintForeignKey, core.ConstraintUnique, core.ConstraintCheck:
-	default:
+	if !con.Type.IsValid() {
 		return fmt.Errorf("table %q, constraint %q: invalid constraint type %q", table.Name, con.Name, con.Type)
 	}
 
 	if con.Type == core.ConstraintForeignKey {
-		if con.OnDelete != "" {
-			if !ReferentialAction(con.OnDelete) {
-				return fmt.Errorf("table %q, constraint %q: invalid on_delete %q", table.Name, con.Name, con.OnDelete)
-			}
+		if con.OnDelete != "" && !con.OnDelete.IsValid() {
+			return fmt.Errorf("table %q, constraint %q: invalid on_delete %q", table.Name, con.Name, con.OnDelete)
 		}
-		if con.OnUpdate != "" {
-			if !ReferentialAction(con.OnUpdate) {
-				return fmt.Errorf("table %q, constraint %q: invalid on_update %q", table.Name, con.Name, con.OnUpdate)
-			}
+		if con.OnUpdate != "" && !con.OnUpdate.IsValid() {
+			return fmt.Errorf("table %q, constraint %q: invalid on_update %q", table.Name, con.Name, con.OnUpdate)
 		}
 	}
 
@@ -125,44 +107,27 @@ func IndexType(i *core.Index, table *core.Table) error {
 	if i.Type == "" {
 		return nil
 	}
-	switch i.Type {
-	case core.IndexTypeBTree, core.IndexTypeHash, core.IndexTypeFullText, core.IndexTypeSpatial, core.IndexTypeGIN, core.IndexTypeGiST:
-		return nil
-	default:
+	if !i.Type.IsValid() {
 		return fmt.Errorf("table %q, index %q: invalid index type %q", table.Name, i.Name, i.Type)
 	}
+	return nil
 }
 
 func IndexVisibility(i *core.Index, table *core.Table) error {
 	if i.Visibility == "" {
 		return nil
 	}
-	switch i.Visibility {
-	case core.IndexVisible, core.IndexInvisible:
-		return nil
-	default:
+	if !i.Visibility.IsValid() {
 		return fmt.Errorf("table %q, index %q: invalid visibility %q", table.Name, i.Name, i.Visibility)
-	}
-}
-
-func IndexColumnsOrder(i *core.Index, table *core.Table) error {
-	for _, ic := range i.Columns {
-		if ic.Order != "" {
-			switch ic.Order {
-			case core.SortAsc, core.SortDesc:
-			default:
-				return fmt.Errorf("table %q, index %q, column %q: invalid sort order %q", table.Name, i.Name, ic.Name, ic.Order)
-			}
-		}
 	}
 	return nil
 }
 
-func ReferentialAction(ra core.ReferentialAction) bool {
-	switch ra {
-	case core.RefActionNone, core.RefActionCascade, core.RefActionRestrict, core.RefActionSetNull, core.RefActionSetDefault, core.RefActionNoAction:
-		return true
-	default:
-		return false
+func IndexColumnsOrder(i *core.Index, table *core.Table) error {
+	for _, ic := range i.Columns {
+		if ic.Order != "" && !ic.Order.IsValid() {
+			return fmt.Errorf("table %q, index %q, column %q: invalid sort order %q", table.Name, i.Name, ic.Name, ic.Order)
+		}
 	}
+	return nil
 }

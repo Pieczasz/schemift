@@ -12,7 +12,7 @@ import (
 func TestConstraintDuplicateNames(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -33,7 +33,7 @@ func TestConstraintDuplicateNames(t *testing.T) {
 func TestConstraintWithNoColumns(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -53,7 +53,7 @@ func TestConstraintWithNoColumns(t *testing.T) {
 func TestConstraintReferencesNonexistentColumn(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -73,7 +73,7 @@ func TestConstraintReferencesNonexistentColumn(t *testing.T) {
 func TestConstraintForeignKeyMissingReferencedTable(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -93,7 +93,7 @@ func TestConstraintForeignKeyMissingReferencedTable(t *testing.T) {
 func TestConstraintForeignKeyMissingReferencedColumns(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -118,7 +118,7 @@ func TestConstraintForeignKeyMissingReferencedColumns(t *testing.T) {
 func TestConstraintCheckMayHaveNoColumns(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -137,7 +137,7 @@ func TestConstraintCheckMayHaveNoColumns(t *testing.T) {
 func TestForeignKeyValidReference(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -166,7 +166,7 @@ func TestForeignKeyValidReference(t *testing.T) {
 func TestForeignKeyNonExistentTable(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "posts",
@@ -192,7 +192,7 @@ func TestForeignKeyNonExistentTable(t *testing.T) {
 func TestForeignKeyNonExistentColumn(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",

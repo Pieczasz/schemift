@@ -58,16 +58,19 @@ func (p *Parser) ParseFile(path string) (*core.Database, error) {
 	return p.Parse(f)
 }
 
+// maxSchemaSize is the maximum allowed schema file size (10 MiB).
+const maxSchemaSize = 10 << 20
+
 // Parse reads TOML content from the reader and returns the corresponding core.Database.
 func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 	var sf schemaFile
-	if _, err := toml.NewDecoder(r).Decode(&sf); err != nil {
+	if _, err := toml.NewDecoder(io.LimitReader(r, maxSchemaSize)).Decode(&sf); err != nil {
 		return nil, fmt.Errorf("toml: decode error: %w", err)
 	}
 
 	db := &core.Database{
 		Name:    sf.Database.Name,
-		Dialect: new(core.Dialect(strings.ToLower(sf.Database.Dialect))),
+		Dialect: core.Dialect(strings.ToLower(sf.Database.Dialect)),
 		Tables:  make([]*core.Table, 0, len(sf.Tables)),
 	}
 	db.Validation = rules(sf.Validation)

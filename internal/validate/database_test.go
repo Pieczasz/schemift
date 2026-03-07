@@ -23,7 +23,8 @@ func TestDatabaseRequiredFields(t *testing.T) {
 		{
 			name: "missing dialect",
 			db: &core.Database{
-				Name: "app",
+				Name:    "app",
+				Dialect: core.Dialect(""),
 			},
 			wantErr: "dialect is required",
 		},
@@ -31,7 +32,7 @@ func TestDatabaseRequiredFields(t *testing.T) {
 			name: "invalid dialect",
 			db: &core.Database{
 				Name:    "app",
-				Dialect: new(core.Dialect),
+				Dialect: core.Dialect("mongo"),
 			},
 			wantErr: "unsupported dialect",
 		},
@@ -39,7 +40,7 @@ func TestDatabaseRequiredFields(t *testing.T) {
 			name: "missing database name",
 			db: &core.Database{
 				Name:    "",
-				Dialect: new(core.DialectMySQL),
+				Dialect: core.DialectMySQL,
 			},
 			wantErr: "database name is required",
 		},
@@ -47,7 +48,7 @@ func TestDatabaseRequiredFields(t *testing.T) {
 			name: "empty tables",
 			db: &core.Database{
 				Name:    "app",
-				Dialect: new(core.DialectMySQL),
+				Dialect: core.DialectMySQL,
 				Tables:  []*core.Table{},
 			},
 			wantErr: "schema is empty",
@@ -66,7 +67,7 @@ func TestDatabaseRequiredFields(t *testing.T) {
 func TestDatabaseValid(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -84,7 +85,7 @@ func TestDatabaseValid(t *testing.T) {
 func TestDatabaseDuplicateTableNames(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{Name: "users", Columns: []*core.Column{{Name: "id", Type: core.DataTypeInt}}},
 			{Name: "users", Columns: []*core.Column{{Name: "id", Type: core.DataTypeInt}}},
@@ -99,7 +100,7 @@ func TestDatabaseDuplicateTableNames(t *testing.T) {
 func TestDatabaseInvalidAllowedNamePattern(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Validation: &core.ValidationRules{
 			AllowedNamePattern: "(",
 		},
@@ -123,7 +124,7 @@ func TestTableName(t *testing.T) {
 			name: "invalid table name - not snake_case",
 			db: &core.Database{
 				Name:    "app",
-				Dialect: new(core.DialectMySQL),
+				Dialect: core.DialectMySQL,
 				Tables: []*core.Table{
 					{Name: "Users", Columns: []*core.Column{{Name: "id", Type: core.DataTypeInt}}},
 				},
@@ -134,7 +135,7 @@ func TestTableName(t *testing.T) {
 			name: "table name exceeds max length",
 			db: &core.Database{
 				Name:    "app",
-				Dialect: new(core.DialectMySQL),
+				Dialect: core.DialectMySQL,
 				Validation: &core.ValidationRules{
 					MaxTableNameLength: 3,
 				},
@@ -148,7 +149,7 @@ func TestTableName(t *testing.T) {
 			name: "table name does not match allowed pattern",
 			db: &core.Database{
 				Name:    "app",
-				Dialect: new(core.DialectMySQL),
+				Dialect: core.DialectMySQL,
 				Validation: &core.ValidationRules{
 					AllowedNamePattern: "^u[a-z]+$",
 				},

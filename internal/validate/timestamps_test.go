@@ -12,7 +12,7 @@ import (
 func TestTimestampsDisabled(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:       "users",
@@ -29,7 +29,7 @@ func TestTimestampsDisabled(t *testing.T) {
 func TestTimestampsDefaultDistinctNames(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:       "users",
@@ -46,7 +46,7 @@ func TestTimestampsDefaultDistinctNames(t *testing.T) {
 func TestTimestampsSameNames(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -68,7 +68,7 @@ func TestTimestampsSameNames(t *testing.T) {
 func TestTimestampsCustomColumnValid(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -89,7 +89,7 @@ func TestTimestampsCustomColumnValid(t *testing.T) {
 func TestTimestampsCustomColumnInvalidName(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",

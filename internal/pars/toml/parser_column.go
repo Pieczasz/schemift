@@ -149,17 +149,25 @@ func (p *Parser) column(tc *tomlColumn) (*core.Column, error) {
 }
 
 // resolveColumnType populates col.Type and col.RawType from the TOML column.
+// At least one of type or raw_type must be provided; raw_type takes priority
+// when both are set.
 func resolveColumnType(col *core.Column, tc *tomlColumn) error {
 	portableType := strings.TrimSpace(tc.Type)
+	rawType := strings.TrimSpace(tc.RawType)
 
-	if strings.EqualFold(portableType, "enum") && len(tc.EnumValues) > 0 {
-		portableType = core.BuildEnumTypeRaw(tc.EnumValues)
+	if portableType == "" && rawType == "" {
+		return fmt.Errorf("column %q: either type or raw_type is required", col.Name)
 	}
 
-	col.Type = core.NormalizeDataType(portableType)
+	if portableType != "" {
+		if strings.EqualFold(portableType, "enum") && len(tc.EnumValues) > 0 {
+			portableType = core.BuildEnumTypeRaw(tc.EnumValues)
+		}
+		col.Type = core.NormalizeDataType(portableType)
+	}
 
-	if tc.RawType != "" {
-		col.RawType = tc.RawType
+	if rawType != "" {
+		col.RawType = rawType
 	}
 
 	return nil

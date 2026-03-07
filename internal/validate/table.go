@@ -84,6 +84,7 @@ func Columns(t *core.Table, rules *core.ValidationRules, nameRe *regexp.Regexp) 
 	return nil
 }
 
+// TODO: implement this.
 func TableOptions(_ *core.TableOptions) error {
 	return nil
 }
@@ -115,8 +116,8 @@ func Timestamps(t *core.Table) error {
 	if t.Timestamps == nil || !t.Timestamps.Enabled {
 		return nil
 	}
-	createdCol := "created_at"
-	updatedCol := "updated_at"
+	createdCol := core.DefaultCreatedColumn
+	updatedCol := core.DefaultUpdatedColumn
 	if t.Timestamps.CreatedColumn != "" {
 		if err := Name(t.Timestamps.CreatedColumn, nil, nil, false); err != nil {
 			return fmt.Errorf("timestamp created_column: %w", err)

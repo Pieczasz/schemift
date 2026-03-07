@@ -12,7 +12,7 @@ import (
 func TestTableNoColumns(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{Name: "users"},
 		},
@@ -26,7 +26,7 @@ func TestTableNoColumns(t *testing.T) {
 func TestTableDuplicateColumnNames(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -46,7 +46,7 @@ func TestTableDuplicateColumnNames(t *testing.T) {
 func TestTableEmptyColumnName(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -65,7 +65,7 @@ func TestTableEmptyColumnName(t *testing.T) {
 func TestTableMaxColumnNameLength(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Validation: &core.ValidationRules{
 			MaxColumnNameLength: 3,
 		},
@@ -87,7 +87,7 @@ func TestTableMaxColumnNameLength(t *testing.T) {
 func TestTableAllowedNamePatternForColumn(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Validation: &core.ValidationRules{
 			AllowedNamePattern: `^u[a-z]+$`,
 		},
@@ -109,7 +109,7 @@ func TestTableAllowedNamePatternForColumn(t *testing.T) {
 func TestPrimaryKeyConflictMultipleConstraints(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -132,7 +132,7 @@ func TestPrimaryKeyConflictMultipleConstraints(t *testing.T) {
 func TestPrimaryKeyConflictColumnAndConstraint(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -154,7 +154,7 @@ func TestPrimaryKeyConflictColumnAndConstraint(t *testing.T) {
 func TestSynthesizeConstraints(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",

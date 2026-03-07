@@ -2,3 +2,9 @@
 
 # IDE
 /.idea/*
+
+# Python
+__pycache__/
+
+# Local database data
+/data/

@@ -12,7 +12,7 @@ import (
 func TestIndexDuplicateNames(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -33,7 +33,7 @@ func TestIndexDuplicateNames(t *testing.T) {
 func TestIndexHasNoColumns(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -53,7 +53,7 @@ func TestIndexHasNoColumns(t *testing.T) {
 func TestIndexUnnamedHasNoColumns(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -73,7 +73,7 @@ func TestIndexUnnamedHasNoColumns(t *testing.T) {
 func TestIndexReferencesNonexistentColumn(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",
@@ -93,7 +93,7 @@ func TestIndexReferencesNonexistentColumn(t *testing.T) {
 func TestIndexValid(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name:    "users",

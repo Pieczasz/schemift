@@ -11,6 +11,7 @@ import (
 )
 
 func TestParseRawTypeDialectScoped(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -39,6 +40,7 @@ name = "items"
 }
 
 func TestParseRawTypeAppliedForDialect(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -67,6 +69,7 @@ name = "items"
 }
 
 func TestParseNullableDefaultFalse(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -99,6 +102,7 @@ name = "items"
 }
 
 func TestParseOptionalFieldsNilWhenAbsent(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -127,6 +131,7 @@ name = "items"
 }
 
 func TestParseBooleanDefaultValue(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -162,6 +167,7 @@ name = "items"
 }
 
 func TestParseIntegerDefaultValue(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -187,6 +193,7 @@ name = "items"
 }
 
 func TestParseStringDefaultValue(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -212,6 +219,7 @@ name = "items"
 }
 
 func TestParseDefaultValueAndOnUpdateNoFK(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -245,6 +253,7 @@ name = "items"
 }
 
 func TestParseEnumWithValuesArray(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -274,6 +283,7 @@ name = "items"
 }
 
 func TestParseEnumWithQuotesInValues(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -298,6 +308,7 @@ name = "items"
 }
 
 func TestParseGeneratedColumn(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -330,6 +341,7 @@ name = "items"
 }
 
 func TestParseDataTypeNormalization(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		rawType  string
 		expected core.DataType
@@ -356,6 +368,7 @@ func TestParseDataTypeNormalization(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.rawType, func(t *testing.T) {
+			t.Parallel()
 			schema := `
 [database]
 name = "testdb"
@@ -380,6 +393,7 @@ name = "items"
 }
 
 func TestParseEmptyColumnName(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -402,6 +416,7 @@ name = "items"
 }
 
 func TestParseEmptyColumnType(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -419,10 +434,12 @@ name = "items"
 `
 	p := NewParser()
 	_, err := p.Parse(strings.NewReader(schema))
-	assert.Error(t, err)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "either type or raw_type is required")
 }
 
 func TestParseColumnWithMultipleShortcuts(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -484,6 +501,7 @@ name = "other"
 }
 
 func TestParseMalformedReferencesNoDot(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -510,6 +528,7 @@ name = "items"
 }
 
 func TestParseMalformedReferencesDotAtEnd(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -535,6 +554,7 @@ name = "items"
 }
 
 func TestParseMalformedReferencesDotAtStart(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -560,6 +580,7 @@ name = "items"
 }
 
 func TestParseValidReferencesStillWorks(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -608,6 +629,7 @@ name = "tenants"
 }
 
 func TestParseDuplicateColumnName(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"

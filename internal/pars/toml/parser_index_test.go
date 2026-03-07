@@ -11,6 +11,7 @@ import (
 )
 
 func TestParseIndexSimpleColumns(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -51,6 +52,7 @@ name = "items"
 }
 
 func TestParseIndexAdvancedColumnDefs(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -99,6 +101,7 @@ name = "items"
 }
 
 func TestParseIndexDefaultValues(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -132,6 +135,7 @@ name = "items"
 }
 
 func TestParseIndexEmptyColumns(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -155,6 +159,7 @@ name = "items"
 }
 
 func TestParseIndexEmptyColumnsUnnamed(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -178,6 +183,7 @@ name = "items"
 }
 
 func TestParseDuplicateIndexName(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -215,6 +221,7 @@ name = "items"
 }
 
 func TestParseIndexReferencesNonexistentColumn(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -240,6 +247,7 @@ name = "items"
 }
 
 func TestParseIndexAdvancedColumnDefsNonexistentColumn(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -267,6 +275,7 @@ name = "items"
 }
 
 func TestParseIndexColumnDefWithoutOrder(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -304,6 +313,7 @@ name = "items"
 }
 
 func TestParseUnnamedIndexValid(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -336,6 +346,7 @@ name = "items"
 }
 
 func TestParseMultipleIndexesOneUnnamed(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -374,6 +385,7 @@ name = "items"
 }
 
 func TestParseColumnIndexesExistValid(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -400,4 +412,37 @@ name = "items"
 	require.NoError(t, err)
 	assert.Len(t, db.Tables[0].Indexes, 1)
 	assert.Equal(t, "code", db.Tables[0].Indexes[0].Columns[0].Name)
+}
+
+func TestParseIndexBothColumnsAndColumnDefsErrors(t *testing.T) {
+	t.Parallel()
+	const schema = `
+[database]
+name = "testdb"
+dialect = "mysql"
+
+[[tables]]
+name = "items"
+
+  [[tables.columns]]
+  name = "id"
+  type = "int"
+  primary_key = true
+
+  [[tables.columns]]
+  name = "code"
+  type = "varchar(50)"
+
+  [[tables.indexes]]
+  name    = "idx_code"
+  columns = ["code"]
+
+    [[tables.indexes.column_defs]]
+    name = "code"
+    order = "DESC"
+`
+	p := NewParser()
+	_, err := p.Parse(strings.NewReader(schema))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "specify either columns or column_defs, not both")
 }

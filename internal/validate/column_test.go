@@ -12,7 +12,7 @@ import (
 func TestColumnInvalidReferencesFormat(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -47,7 +47,7 @@ func TestColumnEmptyType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			db := &core.Database{
 				Name:    "app",
-				Dialect: new(core.DialectMySQL),
+				Dialect: core.DialectMySQL,
 				Tables: []*core.Table{
 					{
 						Name:    "users",
@@ -66,7 +66,7 @@ func TestColumnEmptyType(t *testing.T) {
 func TestColumnValid(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -84,7 +84,7 @@ func TestColumnValid(t *testing.T) {
 func TestColumnValidReferences(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",

@@ -1,177 +1,345 @@
 package mysql
 
 import (
-	"database/sql"
+	"context"
+	"fmt"
+	"runtime"
 	"strings"
+	"sync"
 
 	"smf/internal/core"
+
+	"golang.org/x/sync/errgroup"
 )
+
+// bodyItemKind classifies a single item inside the CREATE TABLE body.
+type bodyItemKind int
+
+const (
+	bodyItemColumn     bodyItemKind = iota // Column definition (starts with identifier token).
+	bodyItemConstraint                     // Table-level PK, UNIQUE, FK, CHECK, or named CONSTRAINT.
+	bodyItemIndex                          // Inline index: KEY, INDEX, FULLTEXT, SPATIAL.
+)
+
+// ddlSections holds the three top-level sections of a CREATE TABLE statement.
+type ddlSections struct {
+	head string // Everything before the opening '(' (e.g. "CREATE TABLE `t`").
+	body string // Content inside the outer parentheses.
+	tail string // Table options after the closing ')'.
+}
 
 func introspectTables(ic *introspectCtx, db *core.Database) error {
 	tableNames, err := queryTableNames(ic)
 	if err != nil {
 		return err
 	}
-
 	if len(tableNames) == 0 {
 		return nil
 	}
 
-	tableData, err := gatherTableData(ic, tableNames)
+	tables, err := queryTablesData(ic.ctx, ic, tableNames)
 	if err != nil {
 		return err
 	}
 
-	for _, tableName := range tableNames {
-		t := buildTable(tableName, tableData[tableName])
-		db.Tables = append(db.Tables, t)
-	}
-
+	db.Tables = append(db.Tables, tables...)
 	return nil
 }
-
-type tableData struct {
-	tableOptions tableOptions
-	columns      []*core.Column
-	indexes      []*core.Index
-	constraints  map[string]*sqlRawConstraint
-}
-
-func gatherTableData(ic *introspectCtx, tableNames []string) (map[string]tableData, error) {
-	placeholders := make([]string, len(tableNames))
-	args := make([]any, len(tableNames))
-	for i, item := range tableNames {
-		placeholders[i] = "?"
-		args[i] = item
-	}
-
-	tableOptions, err := queryAllTableOptions(ic, placeholders, args)
-	if err != nil {
-		return nil, err
-	}
-
-	columns, err := queryAllColumns(ic, placeholders, args)
-	if err != nil {
-		return nil, err
-	}
-
-	indexes, err := queryAllIndexes(ic, placeholders, args)
-	if err != nil {
-		return nil, err
-	}
-
-	constraints, err := queryAllConstraints(ic, placeholders, args)
-	if err != nil {
-		return nil, err
-	}
-
-	result := make(map[string]tableData)
-	for _, tableName := range tableNames {
-		result[tableName] = tableData{
-			tableOptions: tableOptions[tableName],
-			columns:      columns[tableName],
-			indexes:      indexes[tableName],
-			constraints:  constraints[tableName],
-		}
-	}
-	return result, nil
-}
-
-func buildTable(tableName string, data tableData) *core.Table {
-	t := &core.Table{
-		Name:        tableName,
-		Comment:     data.tableOptions.comment,
-		Options:     core.TableOptions{},
-		Columns:     []*core.Column{},
-		Constraints: []*core.Constraint{},
-		Indexes:     []*core.Index{},
-	}
-
-	opts := data.tableOptions
-	t.Options.MySQL = &core.MySQLTableOptions{
-		Engine:        opts.engine,
-		Charset:       opts.charset,
-		Collate:       opts.collate,
-		AutoIncrement: opts.autoIncrement,
-	}
-
-	t.Columns = append(t.Columns, data.columns...)
-	t.Indexes = append(t.Indexes, data.indexes...)
-
-	for _, c := range data.constraints {
-		t.Constraints = append(t.Constraints, convertToCoreConstraint(c))
-	}
-
-	return t
-}
-
-type tableOptions struct {
-	engine        string
-	charset       string
-	collate       string
-	autoIncrement uint64
-	comment       string
-}
-
 func queryTableNames(ic *introspectCtx) ([]string, error) {
-	rows, err := ic.db.QueryContext(ic.ctx, `
-		SELECT table_name
-		FROM information_schema.tables
-		WHERE table_schema = DATABASE() AND table_type = 'BASE TABLE'
-		ORDER BY table_name
-	`)
+	query := `
+        SELECT TABLE_NAME
+        FROM information_schema.tables
+        WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_TYPE = 'BASE TABLE'
+    `
+	rows, err := ic.db.QueryContext(ic.ctx, query)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var names []string
+	var tableNames []string
 	for rows.Next() {
-		var name string
-		if err := rows.Scan(&name); err != nil {
+		var tableName string
+		if err := rows.Scan(&tableName); err != nil {
 			return nil, err
 		}
-		names = append(names, name)
+		tableNames = append(tableNames, tableName)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
-	return names, rows.Err()
+	return tableNames, nil
 }
 
-func queryAllTableOptions(ic *introspectCtx, placeholders []string, args []any) (map[string]tableOptions, error) {
-	query := `
-		SELECT table_name, engine, table_collation, auto_increment, table_comment
-		FROM information_schema.tables
-		WHERE table_schema = DATABASE() AND table_name IN (` + strings.Join(placeholders, ",") + `)
-	`
+func queryTablesData(parentCtx context.Context, ic *introspectCtx, names []string) ([]*core.Table, error) {
+	// errgroup.WithContext automatically cancels the ctx on the first error
+	g, ctx := errgroup.WithContext(parentCtx)
 
-	rows, err := ic.db.QueryContext(ic.ctx, query, args...)
+	tables := make([]*core.Table, 0, len(names))
+	var mu sync.Mutex
+
+	jobs := make(chan string)
+
+	workers := computeWorkerCount(len(names))
+	for range workers {
+		g.Go(func() error {
+			for tableName := range jobs {
+				table, err := introspectTable(ctx, ic, tableName)
+				if err != nil {
+					return fmt.Errorf("introspect table %s: %w", tableName, err)
+				}
+
+				mu.Lock()
+				tables = append(tables, table)
+				mu.Unlock()
+			}
+			return nil
+		})
+	}
+
+	g.Go(func() error {
+		defer close(jobs)
+		for _, tableName := range names {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case jobs <- tableName:
+			}
+		}
+		return nil
+	})
+
+	// Wait blocks until all g.Go() functions finish.
+	// It returns the first error encountered, if any.
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return tables, nil
+}
+
+func computeWorkerCount(n int) int {
+	if n <= 0 {
+		return 0
+	}
+	workers := min(n, max(2, runtime.NumCPU()))
+	return min(workers, 8)
+}
+
+func introspectTable(ctx context.Context, ic *introspectCtx, tableName string) (*core.Table, error) {
+	ddl, err := queryShowCreateTable(ctx, ic, tableName)
+	if err != nil {
+		return nil, fmt.Errorf("show create table: %w", err)
+	}
+
+	table, err := parseCreateTableDDL(ic.dialect, tableName, ddl)
+	if err != nil {
+		return nil, fmt.Errorf("parse: %w", err)
+	}
+
+	return table, nil
+}
+
+func queryShowCreateTable(ctx context.Context, ic *introspectCtx, tableName string) (string, error) {
+	query := fmt.Sprintf("SHOW CREATE TABLE %s", core.QuoteMySQLIdentifier(tableName))
+	var ignored string
+	var ddl string
+	if err := ic.db.QueryRowContext(ctx, query).Scan(&ignored, &ddl); err != nil {
+		return "", err
+	}
+	return ddl, nil
+}
+
+func parseCreateTableDDL(dialect core.Dialect, tableName, ddl string) (*core.Table, error) {
+	table := &core.Table{
+		Name:        tableName,
+		Columns:     make([]*core.Column, 0),
+		Constraints: make([]*core.Constraint, 0),
+		Indexes:     make([]*core.Index, 0),
+	}
+
+	switch dialect {
+	case core.DialectMySQL:
+		table.Options.MySQL = &core.MySQLTableOptions{}
+	case core.DialectMariaDB:
+		table.Options.MySQL = &core.MySQLTableOptions{}
+		table.Options.MariaDB = &core.MariaDBTableOptions{}
+	case core.DialectTiDB:
+		table.Options.MySQL = &core.MySQLTableOptions{}
+		table.Options.TiDB = &core.TiDBTableOptions{}
+	}
+
+	sections, err := splitDDLSections(ddl)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
 
-	result := make(map[string]tableOptions)
-	for rows.Next() {
-		var name, engine, collate, comment string
-		var autoIncrement sql.NullInt64
-		if err := rows.Scan(&name, &engine, &collate, &autoIncrement, &comment); err != nil {
-			return nil, err
-		}
+	items := splitBodyItems(sections.body)
 
-		charset := ""
-		if idx := strings.Index(collate, "_"); idx > 0 {
-			charset = collate[:idx]
-			collate = collate[idx+1:]
-		}
+	for _, item := range items {
+		switch classifyBodyItem(item) {
+		case bodyItemColumn:
+			col, err := parseColumn(dialect, item)
+			if err != nil {
+				return nil, fmt.Errorf("parse column: %w", err)
+			}
+			table.Columns = append(table.Columns, col)
 
-		result[name] = tableOptions{
-			engine:        engine,
-			charset:       charset,
-			collate:       collate,
-			autoIncrement: uint64(autoIncrement.Int64),
-			comment:       comment,
+		case bodyItemConstraint:
+			constraint, err := parseConstraint(dialect, item)
+			if err != nil {
+				return nil, fmt.Errorf("parse constraint: %w", err)
+			}
+			table.Constraints = append(table.Constraints, constraint)
+
+		case bodyItemIndex:
+			idx, err := parseIndex(dialect, item)
+			if err != nil {
+				return nil, fmt.Errorf("parse index: %w", err)
+			}
+			table.Indexes = append(table.Indexes, idx)
 		}
 	}
 
-	return result, rows.Err()
+	// TODO: parse sections.tail for table options (ENGINE, CHARSET, etc.)
+	_ = sections.tail
+
+	return table, nil
+}
+
+// splitDDLSections splits a CREATE TABLE statement into head, body, and tail.
+func splitDDLSections(ddl string) (ddlSections, error) {
+	openIdx := -1
+	for i, ch := range ddl {
+		if ch == '(' {
+			openIdx = i
+			break
+		}
+	}
+	if openIdx == -1 {
+		return ddlSections{}, fmt.Errorf("missing opening parenthesis in CREATE TABLE DDL")
+	}
+
+	var depth int
+	var singleQuoted, doubleQuoted, backticked bool
+	closeIdx := -1
+
+	for i := openIdx; i < len(ddl); i++ {
+		ch := ddl[i]
+
+		if (singleQuoted || doubleQuoted) && ch == '\\' {
+			i++ // the second incrementation happens through the for loop
+			continue
+		}
+
+		switch {
+		case ch == '\'' && !doubleQuoted && !backticked:
+			singleQuoted = !singleQuoted
+		case ch == '"' && !singleQuoted && !backticked:
+			doubleQuoted = !doubleQuoted
+		case ch == '`' && !singleQuoted && !doubleQuoted:
+			backticked = !backticked
+		case !singleQuoted && !doubleQuoted && !backticked:
+			if ch == '(' {
+				depth++
+			} else if ch == ')' {
+				depth--
+				if depth == 0 {
+					closeIdx = i
+					break
+				}
+			}
+		}
+
+		if closeIdx != -1 {
+			break
+		}
+	}
+
+	if closeIdx == -1 {
+		return ddlSections{}, fmt.Errorf("unbalanced parentheses in CREATE TABLE DDL")
+	}
+
+	return ddlSections{
+		head: strings.TrimSpace(ddl[:openIdx]),
+		body: ddl[openIdx+1 : closeIdx],
+		tail: strings.TrimSpace(ddl[closeIdx+1:]),
+	}, nil
+}
+
+// splitBodyItems splits the body of a CREATE TABLE statement by top-level.
+func splitBodyItems(body string) []string {
+	var items []string
+	var depth, start int
+	var singleQuoted, doubleQuoted, backticked bool
+
+	for i := 0; i < len(body); i++ {
+		ch := body[i]
+
+		if (singleQuoted || doubleQuoted) && ch == '\\' {
+			i++ // the second incrementation happens through the for loop
+			continue
+		}
+
+		switch {
+		case ch == '\'' && !doubleQuoted && !backticked:
+			singleQuoted = !singleQuoted
+		case ch == '"' && !singleQuoted && !backticked:
+			doubleQuoted = !doubleQuoted
+		case ch == '`' && !singleQuoted && !doubleQuoted:
+			backticked = !backticked
+		case !singleQuoted && !doubleQuoted && !backticked:
+			switch ch {
+			case '(':
+				depth++
+			case ')':
+				depth--
+			case ',':
+				if depth == 0 {
+					items = append(items, strings.TrimSpace(body[start:i]))
+					start = i + 1
+				}
+			}
+		}
+	}
+
+	if last := strings.TrimSpace(body[start:]); last != "" {
+		items = append(items, last)
+	}
+
+	return items
+}
+
+// classifyBodyItem determines whether a body item is a column definition.
+func classifyBodyItem(item string) bodyItemKind {
+	upper := strings.ToUpper(strings.TrimSpace(item))
+
+	if strings.HasPrefix(upper, "CONSTRAINT") {
+		return bodyItemConstraint
+	}
+
+	for _, prefix := range []string{
+		"PRIMARY KEY",
+		"UNIQUE KEY", "UNIQUE INDEX", "UNIQUE ",
+		"FOREIGN KEY",
+		"CHECK",
+	} {
+		if strings.HasPrefix(upper, prefix) {
+			return bodyItemConstraint
+		}
+	}
+
+	for _, prefix := range []string{
+		"KEY", "INDEX",
+		"FULLTEXT KEY", "FULLTEXT INDEX", "FULLTEXT",
+		"SPATIAL KEY", "SPATIAL INDEX", "SPATIAL",
+	} {
+		if strings.HasPrefix(upper, prefix) {
+			return bodyItemIndex
+		}
+	}
+
+	return bodyItemColumn
 }

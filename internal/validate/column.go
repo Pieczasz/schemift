@@ -12,7 +12,7 @@ func Column(c *core.Column, rules *core.ValidationRules, nameRe *regexp.Regexp) 
 		return fmt.Errorf("column %q: %w", c.Name, err)
 	}
 
-	if c.Type == "" && c.RawType == "" || c.Type == core.DataTypeUnknown {
+	if (c.Type == "" && c.RawType == "") || c.Type == core.DataTypeUnknown {
 		return fmt.Errorf("column %q: type is empty", c.Name)
 	}
 
@@ -30,6 +30,7 @@ func Column(c *core.Column, rules *core.ValidationRules, nameRe *regexp.Regexp) 
 	return nil
 }
 
+// TODO: implement this.
 func ColumnOptions(_ *core.Column) error {
 	return nil
 }

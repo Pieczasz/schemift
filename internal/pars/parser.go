@@ -23,6 +23,6 @@ func ParseFile(path string) (*core.Database, error) {
 	case ".toml":
 		return toml.NewParser().ParseFile(path)
 	default:
-		return nil, fmt.Errorf("unsupported file format: %v", path)
+		return nil, fmt.Errorf("unsupported file format: %v", ext)
 	}
 }
