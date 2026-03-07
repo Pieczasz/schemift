@@ -1,9 +1,10 @@
+#!/usr/bin/env bash
 # SQLite does not need Docker — it is a file-based database.
 # On macOS it is pre-installed at /usr/bin/sqlite3.
 # If missing, install via:  brew install sqlite
 #
 # Usage (the setup script creates the DB file for you):
-#   bash docker/sqlite.yml       # creates ./data/sqlite/smf.db with WAL mode
+#   bash docker/sqlite.sh       # creates ./data/sqlite/smf.db with WAL mode
 #   sqlite3 ./data/sqlite/smf.db # connect to the database
 #
 # To tear down:

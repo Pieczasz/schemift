@@ -45,9 +45,14 @@ func introspectTables(ic *introspectCtx, db *core.Database) error {
 	db.Tables = append(db.Tables, tables...)
 	return nil
 }
-
 func queryTableNames(ic *introspectCtx) ([]string, error) {
-	rows, err := ic.db.QueryContext(ic.ctx, "SHOW FULL TABLES WHERE Table_type = 'BASE TABLE'")
+	query := `
+        SELECT TABLE_NAME
+        FROM information_schema.tables
+        WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_TYPE = 'BASE TABLE'
+    `
+	rows, err := ic.db.QueryContext(ic.ctx, query)
 	if err != nil {
 		return nil, err
 	}

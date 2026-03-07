@@ -23,13 +23,6 @@ func TestDatabaseRequiredFields(t *testing.T) {
 		{
 			name: "missing dialect",
 			db: &core.Database{
-				Name: "app",
-			},
-			wantErr: "dialect is required",
-		},
-		{
-			name: "missing dialect",
-			db: &core.Database{
 				Name:    "app",
 				Dialect: core.Dialect(""),
 			},
