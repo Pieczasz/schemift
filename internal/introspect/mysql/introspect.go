@@ -41,7 +41,7 @@ func (i *introspecter) Introspect(ctx context.Context, db *sql.DB) (*core.Databa
 	if err != nil {
 		return nil, err
 	}
-	d.Dialect = &dialect
+	d.Dialect = dialect
 
 	ic := &introspectCtx{
 		dialect: dialect,

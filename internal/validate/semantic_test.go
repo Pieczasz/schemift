@@ -12,7 +12,7 @@ import (
 func TestAutoIncrementOnNonInteger(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -31,7 +31,7 @@ func TestAutoIncrementOnNonInteger(t *testing.T) {
 func TestAutoIncrementSQLiteOnNonPK(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectSQLite),
+		Dialect: core.DialectSQLite,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -50,7 +50,7 @@ func TestAutoIncrementSQLiteOnNonPK(t *testing.T) {
 func TestAutoIncrementValid(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -68,7 +68,7 @@ func TestAutoIncrementValid(t *testing.T) {
 func TestNullablePKColumnLevel(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -87,7 +87,7 @@ func TestNullablePKColumnLevel(t *testing.T) {
 func TestNullablePKTableLevel(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -112,7 +112,7 @@ func TestNullablePKTableLevel(t *testing.T) {
 func TestGeneratedColumnWithoutExpression(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -132,7 +132,7 @@ func TestGeneratedColumnWithoutExpression(t *testing.T) {
 func TestIdentityOnNonAutoIncrement(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -151,7 +151,7 @@ func TestIdentityOnNonAutoIncrement(t *testing.T) {
 func TestTiDBAutoRandomOnNonPK(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectTiDB),
+		Dialect: core.DialectTiDB,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -174,7 +174,7 @@ func TestTiDBAutoRandomOnNonPK(t *testing.T) {
 func TestTiDBAutoRandomOnNonInteger(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectTiDB),
+		Dialect: core.DialectTiDB,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -198,7 +198,7 @@ func TestTiDBAutoRandomOnNonInteger(t *testing.T) {
 func TestForeignKeyTypeMismatch(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -224,7 +224,7 @@ func TestForeignKeyTypeMismatch(t *testing.T) {
 func TestRawTypeInvalid(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",
@@ -247,7 +247,7 @@ func TestRawTypeInvalid(t *testing.T) {
 func TestRawTypeValid(t *testing.T) {
 	db := &core.Database{
 		Name:    "app",
-		Dialect: new(core.DialectMySQL),
+		Dialect: core.DialectMySQL,
 		Tables: []*core.Table{
 			{
 				Name: "users",

@@ -26,8 +26,7 @@ func TestParseFileSchemaToml(t *testing.T) {
 	require.NotNil(t, db)
 
 	assert.Equal(t, "ecommerce", db.Name)
-	require.NotNil(t, db.Dialect)
-	assert.Equal(t, core.DialectMySQL, *db.Dialect)
+	assert.Equal(t, core.DialectMySQL, db.Dialect)
 	assert.Len(t, db.Tables, 4)
 
 	want := []string{"tenants", "users", "roles", "user_roles"}
@@ -223,7 +222,8 @@ func testUsersInlineUniqueAndCheck(t *testing.T, tbl *core.Table) {
 		}
 	}
 	require.NotNil(t, chkEmail, "expected auto-synthesized CHECK constraint for email")
-	assert.True(t, chkEmail.Enforced)
+	require.NotNil(t, chkEmail.Enforced)
+	assert.True(t, *chkEmail.Enforced)
 }
 
 func testUsersBooleanDefault(t *testing.T, tbl *core.Table) {
@@ -790,8 +790,7 @@ func TestParseFileExampleSchemaToml(t *testing.T) {
 	require.NotNil(t, db)
 
 	assert.Equal(t, "ecommerce", db.Name)
-	require.NotNil(t, db.Dialect)
-	assert.Equal(t, core.DialectMySQL, *db.Dialect)
+	assert.Equal(t, core.DialectMySQL, db.Dialect)
 	assert.Len(t, db.Tables, 4)
 
 	// Verify all table names.

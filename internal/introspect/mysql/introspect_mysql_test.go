@@ -109,8 +109,7 @@ func TestMySQLTableOptions(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 	require.Equal(t, "testdb", result.Name)
-	require.NotNil(t, result.Dialect)
-	require.Equal(t, core.DialectMySQL, *result.Dialect)
+	require.Equal(t, core.DialectMySQL, result.Dialect)
 	require.Len(t, result.Tables, 5)
 
 	usersTable := result.FindTable("users")
@@ -749,8 +748,7 @@ func TestMySQLVersionDetection(t *testing.T) {
 			result, err := intr.Introspect(ctx, db)
 			require.NoError(t, err)
 			require.NotNil(t, result)
-			require.NotNil(t, result.Dialect)
-			require.Equal(t, core.DialectMySQL, *result.Dialect)
+			require.Equal(t, core.DialectMySQL, result.Dialect)
 		})
 	}
 }

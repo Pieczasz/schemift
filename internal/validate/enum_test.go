@@ -19,7 +19,7 @@ func TestValidateEnumsColumnType(t *testing.T) {
 			name: "invalid column type",
 			db: &core.Database{
 				Name:    "app",
-				Dialect: new(core.DialectMySQL),
+				Dialect: core.DialectMySQL,
 				Tables: []*core.Table{
 					{
 						Name: "users",
@@ -52,7 +52,7 @@ func TestValidateEnumsColumnRefActions(t *testing.T) {
 			name: "invalid ref_on_delete",
 			db: &core.Database{
 				Name:    "app",
-				Dialect: new(core.DialectMySQL),
+				Dialect: core.DialectMySQL,
 				Tables: []*core.Table{
 					{
 						Name: "users",

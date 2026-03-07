@@ -70,7 +70,7 @@ func (p *Parser) Parse(r io.Reader) (*core.Database, error) {
 
 	db := &core.Database{
 		Name:    sf.Database.Name,
-		Dialect: new(core.Dialect(strings.ToLower(sf.Database.Dialect))),
+		Dialect: core.Dialect(strings.ToLower(sf.Database.Dialect)),
 		Tables:  make([]*core.Table, 0, len(sf.Tables)),
 	}
 	db.Validation = rules(sf.Validation)

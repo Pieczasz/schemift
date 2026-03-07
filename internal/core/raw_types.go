@@ -341,11 +341,13 @@ func mergeSets(sets ...map[string]struct{}) map[string]struct{} {
 func normalizeRawTypeBase(rawType string) string {
 	base := parenRe.ReplaceAllString(rawType, "")
 
+	base = strings.ToUpper(strings.TrimSpace(base))
+
 	base = stripModifiers(base)
 
 	base = wsRe.ReplaceAllString(strings.TrimSpace(base), " ")
 
-	return strings.ToUpper(base)
+	return base
 }
 
 // stripModifiers removes trailing SQL modifiers that are not part of the
@@ -353,13 +355,11 @@ func normalizeRawTypeBase(rawType string) string {
 // multi-word types (e.g. "VARYING" in "CHARACTER VARYING"). The approach:
 // only strip a modifier when it is NOT part of a known multi-word type.
 func stripModifiers(s string) string {
-	upper := strings.ToUpper(s)
+	s = modifierUnsignedRe.ReplaceAllString(s, "")
+	s = modifierSignedRe.ReplaceAllString(s, "")
+	s = modifierZerofillRe.ReplaceAllString(s, "")
 
-	upper = modifierUnsignedRe.ReplaceAllString(upper, "")
-	upper = modifierSignedRe.ReplaceAllString(upper, "")
-	upper = modifierZerofillRe.ReplaceAllString(upper, "")
-
-	return strings.TrimSpace(upper)
+	return strings.TrimSpace(s)
 }
 
 // validTypesList returns a sorted, comma-separated string of all valid

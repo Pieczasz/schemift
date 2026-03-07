@@ -55,7 +55,7 @@ func Validate(db *core.Database) error {
 		return err
 	}
 
-	if err := LogicalRules(db.Tables, *db.Dialect); err != nil {
+	if err := LogicalRules(db.Tables, db.Dialect); err != nil {
 		return err
 	}
 
@@ -66,11 +66,11 @@ func RequiredFields(db *core.Database) error {
 	if db == nil {
 		return errors.New("database is nil")
 	}
-	if db.Dialect == nil {
+	if db.Dialect == "" {
 		return fmt.Errorf("dialect is required; supported dialects: %v", core.SupportedDialects())
 	}
-	if !core.ValidDialect(string(*db.Dialect)) {
-		return fmt.Errorf("unsupported dialect %q; supported dialects: %v", *db.Dialect, core.SupportedDialects())
+	if !core.ValidDialect(string(db.Dialect)) {
+		return fmt.Errorf("unsupported dialect %q; supported dialects: %v", db.Dialect, core.SupportedDialects())
 	}
 	if strings.TrimSpace(db.Name) == "" {
 		return errors.New("database name is required")

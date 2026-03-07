@@ -30,9 +30,10 @@ func constraint(tc *tomlConstraint) *core.Constraint {
 	}
 
 	if tc.Enforced != nil {
-		c.Enforced = *tc.Enforced
+		c.Enforced = tc.Enforced
 	} else {
-		c.Enforced = true
+		enforced := true
+		c.Enforced = &enforced
 	}
 
 	return c

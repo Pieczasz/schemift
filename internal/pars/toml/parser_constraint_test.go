@@ -145,7 +145,8 @@ name = "items"
 	require.NotNil(t, chk)
 	assert.Equal(t, "chk_items_age", chk.Name)
 	assert.Equal(t, "age >= 0 AND age <= 200", chk.CheckExpression)
-	assert.True(t, chk.Enforced)
+	require.NotNil(t, chk.Enforced)
+	assert.True(t, *chk.Enforced)
 }
 
 func TestParsePKAutoSynthesisedFromColumn(t *testing.T) {
@@ -267,8 +268,10 @@ name = "items"
 
 	// Index 0 = PK, 1 = first CHECK, 2 = second CHECK.
 	require.GreaterOrEqual(t, len(db.Tables[0].Constraints), 3)
-	assert.True(t, db.Tables[0].Constraints[1].Enforced)
-	assert.False(t, db.Tables[0].Constraints[2].Enforced)
+	require.NotNil(t, db.Tables[0].Constraints[1].Enforced)
+	assert.True(t, *db.Tables[0].Constraints[1].Enforced)
+	require.NotNil(t, db.Tables[0].Constraints[2].Enforced)
+	assert.False(t, *db.Tables[0].Constraints[2].Enforced)
 }
 
 func TestParseExplicitForeignKeyConstraint(t *testing.T) {
