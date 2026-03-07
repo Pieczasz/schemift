@@ -1,6 +1,8 @@
 package toml
 
 import (
+	"fmt"
+
 	"smf/internal/core"
 )
 
@@ -26,7 +28,11 @@ type tomlColumnIndex struct {
 	Order  string `toml:"order"`
 }
 
-func index(ti *tomlIndex) *core.Index {
+func index(ti *tomlIndex) (*core.Index, error) {
+	if len(ti.ColumnDefs) > 0 && len(ti.Columns) > 0 {
+		return nil, fmt.Errorf("index %q: specify either columns or column_defs, not both", ti.Name)
+	}
+
 	idx := &core.Index{
 		Name:    ti.Name,
 		Unique:  ti.Unique,
@@ -47,7 +53,7 @@ func index(ti *tomlIndex) *core.Index {
 
 	idx.Columns = mergeColumnIndexes(ti)
 
-	return idx
+	return idx, nil
 }
 
 func mergeColumnIndexes(ti *tomlIndex) []core.ColumnIndex {

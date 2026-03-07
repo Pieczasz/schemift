@@ -9,7 +9,6 @@ import (
 const (
 	defaultCreatedColumn  = "created_at"
 	defaultUpdatedColumn  = "updated_at"
-	defaultTimestampType  = "timestamp"
 	defaultTimestampValue = "CURRENT_TIMESTAMP"
 )
 
@@ -192,7 +191,10 @@ func (p *Parser) table(tt *tomlTable, idx int) (*core.Table, error) {
 
 	table.Indexes = make([]*core.Index, 0, len(tt.Indexes))
 	for i := range tt.Indexes {
-		idx := index(&tt.Indexes[i])
+		idx, err := index(&tt.Indexes[i])
+		if err != nil {
+			return nil, err
+		}
 		table.Indexes = append(table.Indexes, idx)
 	}
 
@@ -402,7 +404,6 @@ func injectTimestampColumns(table *core.Table) {
 	if !columnNames[createdCol] {
 		table.Columns = append(table.Columns, &core.Column{
 			Name:         createdCol,
-			RawType:      defaultTimestampType,
 			Type:         core.DataTypeDatetime,
 			DefaultValue: new(defaultTimestampValue),
 		})
@@ -411,7 +412,6 @@ func injectTimestampColumns(table *core.Table) {
 	if !columnNames[updatedCol] {
 		table.Columns = append(table.Columns, &core.Column{
 			Name:         updatedCol,
-			RawType:      defaultTimestampType,
 			Type:         core.DataTypeDatetime,
 			DefaultValue: new(defaultTimestampValue),
 			OnUpdate:     new(defaultTimestampValue),

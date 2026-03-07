@@ -11,6 +11,7 @@ import (
 )
 
 func TestParseInlineFK(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -73,6 +74,7 @@ name = "children"
 }
 
 func TestParseInlineUnique(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -111,6 +113,7 @@ name = "items"
 }
 
 func TestParseInlineCheck(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -146,6 +149,7 @@ name = "items"
 }
 
 func TestParsePKAutoSynthesisedFromColumn(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -170,6 +174,7 @@ name = "items"
 }
 
 func TestParsePKExplicitConstraint(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -205,6 +210,7 @@ name = "items"
 }
 
 func TestParsePKConflictErrors(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -229,6 +235,7 @@ name = "items"
 }
 
 func TestParseConstraintEnforcedDefault(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -265,6 +272,7 @@ name = "items"
 }
 
 func TestParseExplicitForeignKeyConstraint(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -318,6 +326,7 @@ name = "children"
 }
 
 func TestParseMultiplePKConstraints(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -349,6 +358,7 @@ name = "items"
 }
 
 func TestParseDuplicateConstraintName(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -388,6 +398,7 @@ name = "items"
 }
 
 func TestParseConstraintReferencesNonexistentColumn(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -414,6 +425,7 @@ name = "items"
 }
 
 func TestParseConstraintEmptyColumns(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -438,6 +450,7 @@ name = "items"
 }
 
 func TestParseFKConstraintMissingReferencedTable(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -468,6 +481,7 @@ name = "items"
 }
 
 func TestParseFKConstraintMissingReferencedColumns(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -498,6 +512,7 @@ name = "items"
 }
 
 func TestParseConstraintColumnsExistValid(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -530,6 +545,7 @@ name = "items"
 }
 
 func TestParseExplicitFKConstraintValid(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -576,6 +592,7 @@ name = "tenants"
 }
 
 func TestParseCheckConstraintWithoutColumnsValid(t *testing.T) {
+	t.Parallel()
 	// CHECK constraints use expressions, not column lists, so they should
 	// pass even with an empty columns list.
 	const schema = `
@@ -612,6 +629,7 @@ name = "items"
 }
 
 func TestParsePKConstraintReferencesNonexistentColumn(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -636,6 +654,7 @@ name = "items"
 }
 
 func TestParseCompositePKConstraintOneColumnMissing(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"

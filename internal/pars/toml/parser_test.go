@@ -19,6 +19,7 @@ func testdataPath(file string) string {
 }
 
 func TestParseFileSchemaToml(t *testing.T) {
+	t.Parallel()
 	p := NewParser()
 	db, err := p.ParseFile(testdataPath("schema.toml"))
 	require.NoError(t, err)
@@ -43,6 +44,7 @@ func TestParseFileSchemaToml(t *testing.T) {
 }
 
 func TestParseFileTenants(t *testing.T) {
+	t.Parallel()
 	p := NewParser()
 	db, err := p.ParseFile(testdataPath("schema.toml"))
 	require.NoError(t, err)
@@ -105,14 +107,14 @@ func testTenantColumns(t *testing.T, tbl *core.Table) {
 	// Timestamps injected columns.
 	createdAt := tbl.FindColumn("created_at")
 	require.NotNil(t, createdAt)
-	assert.Equal(t, "timestamp", createdAt.RawType)
+	assert.Empty(t, createdAt.RawType)
 	assert.Equal(t, core.DataTypeDatetime, createdAt.Type)
 	require.NotNil(t, createdAt.DefaultValue)
 	assert.Equal(t, "CURRENT_TIMESTAMP", *createdAt.DefaultValue)
 
 	updatedAt := tbl.FindColumn("updated_at")
 	require.NotNil(t, updatedAt)
-	assert.Equal(t, "timestamp", updatedAt.RawType)
+	assert.Empty(t, updatedAt.RawType)
 	require.NotNil(t, updatedAt.DefaultValue)
 	assert.Equal(t, "CURRENT_TIMESTAMP", *updatedAt.DefaultValue)
 	require.NotNil(t, updatedAt.OnUpdate)
@@ -143,6 +145,7 @@ func testTenantConstraints(t *testing.T, tbl *core.Table) {
 }
 
 func TestParseFileUsers(t *testing.T) {
+	t.Parallel()
 	p := NewParser()
 	db, err := p.ParseFile(testdataPath("schema.toml"))
 	require.NoError(t, err)
@@ -261,6 +264,7 @@ func testUsersSimpleIndex(t *testing.T, tbl *core.Table) {
 }
 
 func TestParseFileRoles(t *testing.T) {
+	t.Parallel()
 	p := NewParser()
 	db, err := p.ParseFile(testdataPath("schema.toml"))
 	require.NoError(t, err)
@@ -311,6 +315,7 @@ func TestParseFileRoles(t *testing.T) {
 }
 
 func TestParseFileUserRoles(t *testing.T) {
+	t.Parallel()
 	p := NewParser()
 	db, err := p.ParseFile(testdataPath("schema.toml"))
 	require.NoError(t, err)
@@ -366,6 +371,7 @@ func TestParseFileUserRoles(t *testing.T) {
 }
 
 func TestParseMinimalSchema(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -405,6 +411,7 @@ name = "items"
 	assert.Equal(t, core.DataTypeInt, tbl.Columns[0].Type)
 }
 func TestParseValidationRules(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -436,6 +443,7 @@ name = "items"
 }
 
 func TestParseValidationRulesRejectsLongTableName(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -459,6 +467,7 @@ name = "very_long_table"
 }
 
 func TestParseValidationRulesRejectsLongColumnName(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -482,6 +491,7 @@ name = "t"
 }
 
 func TestParseValidationRulesRejectsBadPattern(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -505,6 +515,7 @@ name = "items123"
 }
 
 func TestParseUnsupportedDialect(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -526,6 +537,7 @@ name = "items"
 }
 
 func TestParseInvalidAllowedNamePattern(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -549,6 +561,7 @@ name = "items"
 }
 
 func TestParseEmptyTableName(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -569,6 +582,7 @@ name = ""
 }
 
 func TestParseWhitespaceOnlyTableName(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -589,6 +603,7 @@ name = "   "
 }
 
 func TestParseColumnNamePatternMismatch(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -613,6 +628,7 @@ name = "items"
 }
 
 func TestParseInvalidRawTypeForDialect(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -637,6 +653,7 @@ name = "items"
 }
 
 func TestParseMySQLColumnOptions(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -668,6 +685,7 @@ name = "items"
 }
 
 func TestParseTiDBColumnOptions(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -695,6 +713,7 @@ name = "items"
 }
 
 func TestParseFloatDefaultValue(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -720,6 +739,7 @@ name = "items"
 }
 
 func TestParseDatetimeDefaultValue(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -747,6 +767,7 @@ name = "items"
 }
 
 func TestParseInvalidToml(t *testing.T) {
+	t.Parallel()
 	p := NewParser()
 	_, err := p.Parse(strings.NewReader(`this is not valid toml {{{`))
 	require.Error(t, err)
@@ -754,6 +775,7 @@ func TestParseInvalidToml(t *testing.T) {
 }
 
 func TestParseFileFileNotFound(t *testing.T) {
+	t.Parallel()
 	p := NewParser()
 	_, err := p.ParseFile("/nonexistent/path/schema.toml")
 	require.Error(t, err)
@@ -761,6 +783,7 @@ func TestParseFileFileNotFound(t *testing.T) {
 }
 
 func TestParseFileExampleSchemaToml(t *testing.T) {
+	t.Parallel()
 	p := NewParser()
 	db, err := p.ParseFile(testdataPath("example_schema.toml"))
 	require.NoError(t, err)

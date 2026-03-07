@@ -9,6 +9,7 @@ import (
 )
 
 func TestParseEmptyTable(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -23,6 +24,7 @@ name = "empty"
 }
 
 func TestParseDuplicateTableName(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -50,6 +52,7 @@ name = "items"
 }
 
 func TestParseTableOptions(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -92,6 +95,7 @@ name = "items"
 }
 
 func TestParseTableOptionsPostgreSQL(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -130,6 +134,7 @@ name = "items"
 }
 
 func TestParseTableOptionsOracle(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -171,6 +176,7 @@ name = "items"
 }
 
 func TestParseTableOptionsSQLServer(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -207,6 +213,7 @@ name = "items"
 }
 
 func TestParseTableOptionsDB2(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -241,6 +248,7 @@ name = "items"
 }
 
 func TestParseTableOptionsSnowflake(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -276,6 +284,7 @@ name = "items"
 }
 
 func TestParseTableOptionsSnowflakeZeroRetention(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -303,6 +312,7 @@ name = "items"
 }
 
 func TestParseTableOptionsSQLite(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -331,6 +341,7 @@ name = "items"
 }
 
 func TestParseTableOptionsTiDB(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -385,6 +396,7 @@ name = "items"
 }
 
 func TestParseTableOptionsMariaDB(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -420,6 +432,7 @@ name = "items"
 }
 
 func TestParseTableOptionsMariaDBNilEncryptionKeyID(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -447,6 +460,7 @@ name = "items"
 }
 
 func TestParseTableOptionsOracleLoggingFalse(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -476,6 +490,7 @@ name = "items"
 }
 
 func TestParseTableOptionsMultipleDialects(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -531,6 +546,7 @@ name = "items"
 }
 
 func TestParseTableOptionsNoDialectSpecific(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -565,6 +581,7 @@ name = "items"
 }
 
 func TestParseTimestampsInjection(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -594,13 +611,13 @@ name = "items"
 
 	createdAt := tbl.FindColumn("created_at")
 	require.NotNil(t, createdAt)
-	assert.Equal(t, "timestamp", createdAt.RawType)
+	assert.Empty(t, createdAt.RawType)
 	require.NotNil(t, createdAt.DefaultValue)
 	assert.Equal(t, "CURRENT_TIMESTAMP", *createdAt.DefaultValue)
 
 	updatedAt := tbl.FindColumn("updated_at")
 	require.NotNil(t, updatedAt)
-	assert.Equal(t, "timestamp", updatedAt.RawType)
+	assert.Empty(t, updatedAt.RawType)
 	require.NotNil(t, updatedAt.DefaultValue)
 	assert.Equal(t, "CURRENT_TIMESTAMP", *updatedAt.DefaultValue)
 	require.NotNil(t, updatedAt.OnUpdate)
@@ -608,6 +625,7 @@ name = "items"
 }
 
 func TestParseTimestampsCustomColumnNames(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -640,6 +658,7 @@ name = "items"
 }
 
 func TestParseTimestampsSkipIfColumnsExist(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -677,6 +696,7 @@ name = "items"
 }
 
 func TestParseTimestampsDisabled(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -702,6 +722,7 @@ name = "items"
 }
 
 func TestParseTimestampsSameColumnName(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -728,6 +749,7 @@ name = "items"
 }
 
 func TestParseTimestampsDefaultsSameColumnName(t *testing.T) {
+	t.Parallel()
 	// Both default to the same name if one overrides to match the other's default.
 	const schema = `
 [database]
@@ -753,6 +775,7 @@ name = "items"
 }
 
 func TestParseTimestampsDistinctColumnsValid(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -781,6 +804,7 @@ name = "items"
 }
 
 func TestParseTableWithoutPK(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
@@ -802,6 +826,7 @@ name = "logs"
 }
 
 func TestParseDistinctColumnsValid(t *testing.T) {
+	t.Parallel()
 	const schema = `
 [database]
 name = "testdb"
